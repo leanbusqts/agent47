@@ -1,0 +1,183 @@
+# rules-backend.yaml
+# Backend (Kotlin / JVM) rules derived from backend rules and backend memories.
+# These rules extend AGENTS.md and are loaded conditionally when the active stack is backend.
+
+rules:
+
+  # --------------------------------------------------
+  # Security – Credentials & Sensitive Data
+  # --------------------------------------------------
+
+  - topic: "security:credentials"
+    level: "critical"
+    rule: "Never hardcode secrets, credentials, tokens, or API keys. All sensitive values must be injected via the official secrets mechanism or environment configuration."
+    fix:
+      dont: |
+        val apiKey = "secret-key"
+        val password = "admin123"
+      do: |
+        val apiKey = secretsService.get("API_KEY")
+        val password = env.get("DB_PASSWORD")
+
+  - topic: "security:logging"
+    level: "critical"
+    rule: "Never log sensitive information such as credentials, tokens, PII, headers, or full payloads."
+    fix:
+      dont: |
+        logger.error("Login failed for user=$user with token=$token")
+      do: |
+        logger.error("Login failed", mapOf("userId" to user.id))
+
+  # --------------------------------------------------
+  # Security – Input Validation & Execution
+  # --------------------------------------------------
+
+  - topic: "security:input-validation"
+    level: "critical"
+    rule: "Always validate all user input using allow-list strategies and enforce business rules server-side."
+    fix:
+      dont: |
+        fun createUser(request: Request) = service.create(request.body)
+      do: |
+        fun createUser(request: Request) =
+          validate(request.body)
+            .flatMap { service.create(it) }
+
+  - topic: "security:code-execution"
+    level: "critical"
+    rule: "Never execute code from strings or untrusted input. Reflection and dynamic execution are forbidden."
+    fix:
+      dont: |
+        Class.forName(className).newInstance()
+      do: |
+        // Use explicit types and dependency injection
+
+  # --------------------------------------------------
+  # Architecture – Functional Error Handling
+  # --------------------------------------------------
+
+  - topic: "architecture:errors"
+    level: "critical"
+    rule: "All backend services must use functional error handling with Either. Exceptions must not escape service boundaries."
+    fix:
+      dont: |
+        fun findUser(id: String): User = repository.find(id) ?: throw NotFound()
+      do: |
+        fun findUser(id: String): Either<ApiError, User> =
+          repository.find(id)?.right() ?: ApiError.notFound().left()
+
+  - topic: "architecture:controller-flow"
+    level: "high"
+    rule: "Controllers must delegate business logic to services and resolve results explicitly at the boundary."
+    fix:
+      dont: |
+        @GetMapping
+        fun get() = service.getData()
+      do: |
+        @GetMapping
+        fun get() =
+          service.getData()
+            .resolve { ResponseEntity.ok(it) }
+
+  # --------------------------------------------------
+  # Architecture – Layered Responsibilities
+  # --------------------------------------------------
+
+  - topic: "architecture:layering"
+    level: "high"
+    rule: "Controllers handle HTTP concerns only. Services contain business logic. Persistence and external calls must not leak into controllers."
+    fix:
+      dont: |
+        fun controller() {
+          repository.save(entity)
+        }
+      do: |
+        fun controller() {
+          service.save(entity)
+        }
+
+  - topic: "architecture:dependency-injection"
+    level: "high"
+    rule: "Always inject dependencies via constructors. Never instantiate dependencies inside classes."
+    fix:
+      dont: |
+        class MyService {
+          private val client = HttpClient()
+        }
+      do: |
+        class MyService(private val client: HttpClient)
+
+  # --------------------------------------------------
+  # Data Access & Concurrency
+  # --------------------------------------------------
+
+  - topic: "data:sql"
+    level: "critical"
+    rule: "Never build SQL queries using string concatenation with user input. Always use parameterized queries or ORM abstractions."
+    fix:
+      dont: |
+        "SELECT * FROM users WHERE id = $id"
+      do: |
+        "SELECT * FROM users WHERE id = ?"
+
+  - topic: "concurrency:state"
+    level: "critical"
+    rule: "Never rely on shared mutable state in request-handling or concurrent execution paths."
+    fix:
+      dont: |
+        object Cache { var value: String? = null }
+      do: |
+        class Cache(private val store: ConcurrentMap<String, String>)
+
+  # --------------------------------------------------
+  # Error Handling & Observability
+  # --------------------------------------------------
+
+  - topic: "errors:handling"
+    level: "high"
+    rule: "All errors must be mapped to ApiError and handled consistently with proper HTTP status and tracking."
+    fix:
+      dont: |
+        catch (e: Exception) { throw e }
+      do: |
+        catch (e: Exception) { ApiError.internal(e.message).left() }
+
+  - topic: "observability:tracking"
+    level: "medium"
+    rule: "Populate tracking and context information before resolving responses and ensure cleanup after request completion."
+    fix:
+      dont: |
+        tracking.track(event)
+      do: |
+        TrackingContextHolder.populate(context)
+        tracking.track(event)
+        TrackingContextHolder.clear()
+
+  # --------------------------------------------------
+  # Testing – Backend
+  # --------------------------------------------------
+
+  - topic: "testing:structure"
+    level: "high"
+    rule: "Backend tests must follow the Arrange / Act / Assert pattern and verify both behavior and interactions."
+    fix:
+      dont: |
+        fun test() {
+          service.call()
+        }
+      do: |
+        fun `should return result when condition is met`() {
+          // Arrange
+          // Act
+          // Assert
+        }
+
+  - topic: "testing:dependencies"
+    level: "critical"
+    rule: "Do not add or modify backend testing dependencies unless explicitly requested."
+    fix:
+      dont: |
+        testImplementation("new.lib:test:1.0.0")
+      do: |
+        // Use existing testing libraries only
+

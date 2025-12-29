@@ -1,0 +1,19 @@
+skill: analyze
+intent: Analyze existing code, specs, or architecture
+allowed:
+  - Read-only analysis
+  - Cross-module reasoning
+  - Cross-project reasoning
+forbidden:
+  - Code generation
+  - Code modification
+  - Refactoring
+inputs:
+  - AGENTS.md
+  - specs (optional)
+  - source files
+outputs:
+  - Findings
+  - Risks
+  - Observations
+  - Recommendations (non-binding)

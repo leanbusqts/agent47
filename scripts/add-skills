@@ -1,0 +1,31 @@
+#!/bin/bash
+
+AGENT64_HOME="$HOME/.agent64"
+TEMPLATES_DIR="$AGENT64_HOME/templates"
+
+SKILLS_DIR="skills"
+
+echo "🧠 Initializing agent skills..."
+
+# Create skills directory if it doesn't exist
+if [ ! -d "$SKILLS_DIR" ]; then
+  mkdir "$SKILLS_DIR"
+  echo "📁 Created directory: $SKILLS_DIR/"
+else
+  echo "📁 Directory already exists: $SKILLS_DIR/"
+fi
+
+for skill in analyze.yml implement.yml review.yml refactor.yml optimize.yml; do
+  if [ -f "$SKILLS_DIR/$skill" ]; then
+    echo "⚠️  Skill already exists, skipping: $skill"
+  else
+    if [ -f "$TEMPLATES_DIR/$skill" ]; then
+      cp "$TEMPLATES_DIR/$skill" "$SKILLS_DIR/$skill"
+      echo "✅ Created skill: $SKILLS_DIR/$skill"
+    else
+      echo "❌ Template not found: $skill"
+    fi
+  fi
+done
+
+echo "🚀 Skills setup complete."

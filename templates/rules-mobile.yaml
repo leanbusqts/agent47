@@ -1,0 +1,220 @@
+# rules-mobile.yaml
+# Mobile (Android / iOS) rules derived from testing rules, mobile-specific conventions, and mobile memories.
+# These rules extend AGENTS.md and are loaded conditionally when the active stack is mobile.
+
+rules:
+
+  # --------------------------------------------------
+  # Testing – Structure & Style (Mobile-only)
+  # --------------------------------------------------
+
+  - topic: "testing:structure"
+    level: "critical"
+    rule: "All mobile tests must follow the Given / When / Then structure. This convention is mandatory for mobile and must not be applied to other stacks."
+    fix:
+      dont: |
+        @Test
+        fun testSomething() {
+          val result = doWork()
+          assertTrue(result)
+        }
+      do: |
+        @Test
+        fun `when something happens - then expected result occurs`() {
+          // Given
+          val subject = createSubject()
+
+          // When
+          val result = subject.doWork()
+
+          // Then
+          assertTrue(result)
+        }
+
+  - topic: "testing:naming"
+    level: "high"
+    rule: "Mobile test names must describe behavior using a when/then format, matching the existing project convention."
+    fix:
+      dont: |
+        fun testInit()
+        fun shouldWorkCorrectly()
+      do: |
+        fun `when viewModel is created - then initial state is emitted`()
+        fun `when permission is denied - then error state is shown`()
+
+  # --------------------------------------------------
+  # Android – Testing Frameworks & Constraints
+  # --------------------------------------------------
+
+  - topic: "android:testing-frameworks"
+    level: "critical"
+    rule: "Use only the testing frameworks already present in the project. Do not add or change testing dependencies."
+    fix:
+      dont: |
+        testImplementation("org.mockito:mockito-inline:5.x.x")
+        testImplementation("new.testing:library:1.0.0")
+      do: |
+        // Use existing frameworks only (e.g. JUnit, MockK, Mockito, Robolectric)
+        // Keep versions defined by the project
+
+  - topic: "android:dependencies"
+    level: "critical"
+    rule: "Never add or modify dependencies in build.gradle files for mobile projects."
+    fix:
+      dont: |
+        dependencies {
+          testImplementation("io.mockk:mockk:1.13.x")
+        }
+      do: |
+        // Do not modify Gradle dependency declarations
+        // Work strictly with existing dependencies
+
+  # --------------------------------------------------
+  # Android – Mocking Rules
+  # --------------------------------------------------
+
+  - topic: "android:mocking"
+    level: "high"
+    rule: "Prefer MockK over Mockito for Android tests and never mix both in the same test."
+    fix:
+      dont: |
+        val repo = Mockito.mock(Repository::class.java)
+        every { service.call() } returns result
+      do: |
+        val repo = mockk<Repository>()
+        every { service.call() } returns result
+
+  - topic: "android:mock-cleanup"
+    level: "high"
+    rule: "All MockK mocks must be cleaned up deterministically after each test."
+    fix:
+      dont: |
+        @After
+        fun tearDown() {
+          // no cleanup
+        }
+      do: |
+        @After
+        fun tearDown() {
+          clearAllMocks()
+          unmockkAll()
+        }
+
+  # --------------------------------------------------
+  # Android – ViewModel & Lifecycle Testing
+  # --------------------------------------------------
+
+  - topic: "android:viewmodel"
+    level: "high"
+    rule: "When an Activity uses by viewModels(), the ViewModel must be mocked using ViewModelLazy and controlled reflection."
+    fix:
+      dont: |
+        activity.viewModel = mockViewModel
+      do: |
+        ViewModelLazy(
+          ViewModel::class.java,
+          { activity.viewModelStore },
+          { viewModelFactory }
+        ).also {
+          ViewModel::class.java.getDeclaredField("viewModel$delegate").apply {
+            isAccessible = true
+            set(activity, it)
+          }
+        }
+
+  # --------------------------------------------------
+  # Android – Coroutines Testing
+  # --------------------------------------------------
+
+  - topic: "android:coroutines-testing"
+    level: "critical"
+    rule: "Use modern coroutine testing APIs (runTest, StandardTestDispatcher, TestScope) and ensure proper cleanup."
+    fix:
+      dont: |
+        runBlocking {
+          viewModel.load()
+        }
+      do: |
+        @Test
+        fun `when data is loaded - then state is updated`() = runTest {
+          viewModel.load()
+          advanceUntilIdle()
+          assertEquals(expected, viewModel.state.value)
+        }
+
+  # --------------------------------------------------
+  # iOS – Testing Structure & Style
+  # --------------------------------------------------
+
+  - topic: "ios:testing-structure"
+    level: "critical"
+    rule: "All iOS tests must inherit from XCTestCase and follow Given / When / Then comments without extra explanations."
+    fix:
+      dont: |
+        class MyTests {
+          func testSomething() {
+            // setup data
+            // execute logic
+            // assert result
+          }
+        }
+      do: |
+        final class MyTests: XCTestCase {
+          func test_whenSomethingHappens_thenExpectedResultOccurs() {
+            // Given
+
+            // When
+
+            // Then
+          }
+        }
+
+  # --------------------------------------------------
+  # iOS – Dependencies & Modifications
+  # --------------------------------------------------
+
+  - topic: "ios:dependencies"
+    level: "critical"
+    rule: "Do not add, remove, or update dependencies in Swift Package Manager, CocoaPods, or other configuration files."
+    fix:
+      dont: |
+        .package(url: "https://github.com/new/library.git", from: "1.0.0")
+      do: |
+        // Keep dependency definitions unchanged
+
+  # --------------------------------------------------
+  # Mobile – Code Style & Comments
+  # --------------------------------------------------
+
+  - topic: "mobile:comments"
+    level: "medium"
+    rule: "Do not add comments to production mobile code. Only Given / When / Then labels are allowed in tests."
+    fix:
+      dont: |
+        // This variable holds the user state
+        let state = viewModel.state
+      do: |
+        let state = viewModel.state
+
+  # --------------------------------------------------
+  # Mobile – General Constraints
+  # --------------------------------------------------
+
+  - topic: "mobile:encapsulation"
+    level: "high"
+    rule: "Respect existing access modifiers and encapsulation. Do not relax visibility for convenience."
+    fix:
+      dont: |
+        public var internalState: State
+      do: |
+        private var internalState: State
+
+  - topic: "mobile:consistency"
+    level: "medium"
+    rule: "Always match the existing style, patterns, and testing approach used in the surrounding mobile codebase."
+    fix:
+      dont: |
+        // Introduce a new testing pattern not used in the project
+      do: |
+        // Follow the same patterns already used in nearby files
+

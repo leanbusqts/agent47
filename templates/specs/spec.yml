@@ -1,0 +1,19 @@
+# specs/spec.yml
+
+feature: ""
+context: |
+  Describe el contexto del problema o necesidad.
+
+goal: |
+  Define claramente qué se quiere lograr con esta feature.
+
+# data:
+#   - name: ""
+#     type: ""
+
+# ui:
+#   - screen: ""
+#     description: ""
+
+tests:
+  - ""

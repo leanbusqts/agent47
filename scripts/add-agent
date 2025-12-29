@@ -1,0 +1,34 @@
+#!/bin/bash
+
+AGENT64_HOME="$HOME/.agent64"
+TEMPLATES_DIR="$AGENT64_HOME/templates"
+
+FILES=(
+  "AGENTS.md"
+  "rules-mobile.yaml"
+  "rules-frontend.yaml"
+  "rules-backend.yaml"
+)
+
+echo "📁 Initializing agent environment..."
+
+for file in "${FILES[@]}"; do
+  if [ -f "$TEMPLATES_DIR/$file" ]; then
+    if [ -f "./$file" ]; then
+      echo "⚠️  $file already exists, skipping"
+    else
+      cp "$TEMPLATES_DIR/$file" .
+      echo "✅ Copied: $file"
+    fi
+  else
+    echo "❌ Template not found: $file"
+  fi
+done
+
+# Create README.md if not present
+if [ ! -f "README.md" ]; then
+  touch README.md
+  echo "📝 README.md created"
+fi
+
+echo "✅ Agent environment ready"

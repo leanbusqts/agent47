@@ -1,0 +1,28 @@
+#!/bin/bash
+
+AGENT64_HOME="$HOME/.agent64"
+TEMPLATES_DIR="$AGENT64_HOME/templates"
+
+SPEC_DIR="specs"
+SPEC_FILE="$SPEC_DIR/spec.yml"
+
+echo "📄 Initializing spec..."
+
+# Create specs directory if it doesn't exist
+if [ ! -d "$SPEC_DIR" ]; then
+  mkdir "$SPEC_DIR"
+  echo "📁 Created directory: specs/"
+fi
+
+# Do not overwrite existing spec
+if [ -f "$SPEC_FILE" ]; then
+  echo "⚠️  $SPEC_FILE already exists, skipping"
+  exit 0
+fi
+
+if [ -f "$TEMPLATES_DIR/spec.yml" ]; then
+  cp "$TEMPLATES_DIR/spec.yml" "$SPEC_FILE"
+  echo "✅ Created spec: $SPEC_FILE"
+else
+  echo "❌ Template not found: spec.yml"
+fi

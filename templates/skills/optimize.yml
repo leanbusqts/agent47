@@ -1,0 +1,16 @@
+skill: optimize
+intent: Improve performance based on evidence
+allowed:
+  - Optimizations with justification
+  - Targeted changes
+forbidden:
+  - Speculative optimization
+  - Unmeasured changes
+inputs:
+  - AGENTS.md
+  - profiling data (if available)
+  - source files
+outputs:
+  - Optimized code
+  - Performance explanation
+  - Trade-offs

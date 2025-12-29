@@ -1,0 +1,217 @@
+# rules-frontend.yaml
+# Frontend (React / Node / Nordic) rules derived primarily from rules-frontend and frontend-specific guidelines.
+# These rules extend AGENTS.md and are loaded conditionally when the active stack is frontend.
+
+rules:
+
+  # --------------------------------------------------
+  # General Development Principles
+  # --------------------------------------------------
+
+  - topic: "general:simplicity"
+    level: "high"
+    rule: "Prefer simple, maintainable solutions and avoid unnecessary complexity."
+    fix:
+      dont: |
+        // Over-engineered abstraction for a simple use case
+        class GenericProcessorFactoryBuilder {}
+      do: |
+        // Straightforward implementation focused on the actual requirement
+        function processData(data) { /* ... */ }
+
+  - topic: "general:completion"
+    level: "critical"
+    rule: "Never leave unfinished work such as TODOs, placeholders, or partially implemented logic."
+    fix:
+      dont: |
+        // TODO: implement validation
+        function validate() {}
+      do: |
+        function validate(input) {
+          if (!input) throw new Error("Invalid input")
+        }
+
+  # --------------------------------------------------
+  # Language & Code Style
+  # --------------------------------------------------
+
+  - topic: "style:language"
+    level: "medium"
+    rule: "All frontend code must be written in English, including identifiers and comments."
+    fix:
+      dont: |
+        function obtenerUsuario() {}
+      do: |
+        function getUser() {}
+
+  - topic: "style:naming"
+    level: "medium"
+    rule: "Use meaningful, pronounceable names and avoid unnecessary repetition in identifiers."
+    fix:
+      dont: |
+        const car = { carColor: "red" }
+      do: |
+        const car = { color: "red" }
+
+  # --------------------------------------------------
+  # Architecture & Responsibilities
+  # --------------------------------------------------
+
+  - topic: "architecture:server-logic"
+    level: "high"
+    rule: "Business rules must live in the BFF or backend. Avoid client-side business logic when possible."
+    fix:
+      dont: |
+        if (user.isPremium) {
+          price = price * 0.9
+        }
+      do: |
+        // Receive final price calculated by backend
+        const { price } = response
+
+  - topic: "architecture:services"
+    level: "high"
+    rule: "Frontend services must encapsulate external integrations or business abstractions and be implemented as classes."
+    fix:
+      dont: |
+        fetch('/api/data').then(handle)
+      do: |
+        class DataService {
+          fetchData() { return fetch('/api/data') }
+        }
+
+  - topic: "architecture:middlewares"
+    level: "medium"
+    rule: "Use middlewares to orchestrate service calls, validation, and request/response handling."
+    fix:
+      dont: |
+        app.get('/page', async (req, res) => render(await fetchData()))
+      do: |
+        app.get('/page', dataMiddleware, renderMiddleware)
+
+  # --------------------------------------------------
+  # React & Components
+  # --------------------------------------------------
+
+  - topic: "react:components"
+    level: "high"
+    rule: "Components must be small, reusable, and have a single responsibility."
+    fix:
+      dont: |
+        function Page() {
+          // rendering, data fetching, validation, tracking
+        }
+      do: |
+        function PageView(props) {}
+        function PageContainer() {}
+
+  - topic: "react:hooks"
+    level: "medium"
+    rule: "Custom hooks must be prefixed with use and return objects instead of arrays."
+    fix:
+      dont: |
+        const [state, setState] = useCustom()
+      do: |
+        const { state, setState } = useCustom()
+
+  # --------------------------------------------------
+  # TypeScript
+  # --------------------------------------------------
+
+  - topic: "typescript:typing"
+    level: "high"
+    rule: "Avoid using any or unknown. Prefer explicit interfaces and generics."
+    fix:
+      dont: |
+        function process(data: any) {}
+      do: |
+        function process<T>(data: T) {}
+
+  - topic: "typescript:structures"
+    level: "medium"
+    rule: "Use interfaces for data structures and type aliases only for component props."
+    fix:
+      dont: |
+        type User = { id: string }
+      do: |
+        interface User { id: string }
+
+  # --------------------------------------------------
+  # CSS & Styling
+  # --------------------------------------------------
+
+  - topic: "css:conventions"
+    level: "medium"
+    rule: "Use the block__element--modifier (BEM) naming convention for CSS classes."
+    fix:
+      dont: |
+        .headerTitle {}
+      do: |
+        .header__title {}
+
+  - topic: "css:priority"
+    level: "medium"
+    rule: "Avoid using !important. Increase selector specificity instead."
+    fix:
+      dont: |
+        color: red !important;
+      do: |
+        .component .title { color: red; }
+
+  # --------------------------------------------------
+  # Testing – Frontend
+  # --------------------------------------------------
+
+  - topic: "testing:frameworks"
+    level: "high"
+    rule: "Use Jest for unit tests and Cypress for end-to-end tests."
+    fix:
+      dont: |
+        // Use unsupported testing framework
+      do: |
+        // Jest for unit tests, Cypress for E2E
+
+  - topic: "testing:structure"
+    level: "high"
+    rule: "Frontend unit tests must start with 'Should' and follow the existing project structure."
+    fix:
+      dont: |
+        it('renders correctly', () => {})
+      do: |
+        it('Should render correctly', () => {})
+
+  - topic: "testing:queries"
+    level: "medium"
+    rule: "Prefer React Testing Library queries over querySelector or data-testid when possible."
+    fix:
+      dont: |
+        document.querySelector('.button')
+      do: |
+        screen.getByRole('button')
+
+  # --------------------------------------------------
+  # Observability & Tracking
+  # --------------------------------------------------
+
+  - topic: "observability:tracking"
+    level: "medium"
+    rule: "Use the standard tracking and logging tools provided by the framework for observability."
+    fix:
+      dont: |
+        console.log('user clicked')
+      do: |
+        melidata.track('user_click')
+
+  # --------------------------------------------------
+  # Dependencies & Tooling
+  # --------------------------------------------------
+
+  - topic: "dependencies:management"
+    level: "critical"
+    rule: "Do not add or modify frontend dependencies or their versions unless explicitly requested."
+    fix:
+      dont: |
+        npm install new-library
+      do: |
+        // Use existing dependencies only
+
