@@ -1,6 +1,15 @@
-# agent64
+```
+ █████╗  ██████╗ ███████╗███╗   ██╗████████╗██╗  ██╗███████╗
+██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝██║  ██║╚════██║
+███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   ███████║    ██╔╝
+██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   ╚════██║   ██╔╝ 
+██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║        ██║   ██║  
+╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝        ╚═╝   ╚═╝  
+```
 
-`agent64` is a lightweight CLI to bootstrap and manage **AI Agent–driven development workflows**, with support for:
+# agent47
+
+`agent47` is a lightweight CLI to bootstrap and manage **AI Agent–driven development workflows**, with support for:
 
 - AGENTS.md–based agent guidance
 - Spec Driven Development (SDD)
@@ -14,8 +23,8 @@ It is designed to be **simple, explicit, and composable**, without hidden automa
 
 ## Philosophy
 
-- **agent64 does not manage your project**
-- **agent64 provides templates and conventions**
+- **agent47 does not manage your project**
+- **agent47 provides templates and conventions**
 - You decide *when* and *how* to apply specs, skills, and prompts
 
 The goal is to make agent-driven workflows:
@@ -35,72 +44,103 @@ The goal is to make agent-driven workflows:
 
 ## Installation
 
-### 1. Clone or download `agent64`
+### Quick install (recommended)
 
-Place the repository anywhere you want, for example:
-
-```bash
-~/Documents/agent64
-````
-
-### 2. Make the CLI executable
+From the repository root:
 
 ```bash
-chmod +x bin/agent64
+chmod +x install.sh
+./install.sh
 ```
 
-### 3. Install agent64 tools
+This command will:
 
-From inside the repository:
+- Make the CLI executable
+- Install helper commands into ~/bin
+- Install templates into ~/.agent47
+- Link agent47 into your PATH (via ~/bin)
+- Verify the installation
 
-```bash
-./bin/agent64 install
-```
-
-This installs the following commands into `~/bin`:
-
-* `add-agent`
-* `add-spec`
-* `add-skills`
-* `add-agent-prompt`
-* `add-agent-prompt-ss`
-
-### 4. Make agent64 available globally (recommended)
-
-Create a symlink so agent64 can be executed from anywhere:
+After installation, verify:
 
 ```bash
-ln -s $(pwd)/bin/agent64 ~/bin/agent64
+agent47 doctor
 ```
 
-Ensure ~/bin is in your $PATH.
+During installation, both `agent47` and `a47` commands are installed.
+`a47` is a shorthand wrapper for `agent47`.
 
-You can verify with:
+Note: install.sh is the recommended entry point.
+Manual steps are provided only for troubleshooting or advanced usage.
+
+---
+
+## Quickstart
+
 ```bash
-agent64 doctor
+# Install CLI + templates into ~/.agent47 and link to ~/bin
+./install.sh
+
+# In your project
+cd /path/to/project
+
+# Bootstrap agent scaffolding (copies AGENTS.md and rules-*.yaml)
+agent47 init-agent
+
+# Optional: add spec, skills, and prompts
+agent47 add-spec
+agent47 add-skills
+agent47 add-agent-prompt        # general prompt
+agent47 add-agent-prompt-ss     # spec + skills prompt
 ```
+
+What you get:
+- `AGENTS.md` and `rules-*.yaml` in the project root
+- `specs/spec.yml` (fill it in)
+- `skills/*.md` (behavior contracts)
+- `prompts/agent-prompt*.txt` (edit before running your agent)
 
 ---
 
 ## Usage
+All examples below use `agent47`, but `a47` works identically.
 
 ### Show help
 
 ```bash
-agent64 help
+agent47 help
 ```
 
 ### Check installation
 
 ```bash
-agent64 doctor
+agent47 doctor
 ```
 
 This verifies:
 
-* `agent64` availability
+* `agent47` availability
 * installed helper commands
 * current version
+
+### Command Usage
+
+All commands can be executed using either `agent47` or `a47`.
+Examples:
+
+```bash
+agent47 doctor
+a47 doctor
+
+agent47 add-spec
+a47 add-spec
+
+agent47 add-agent-prompt
+a47 add-agent-prompt
+```
+
+Note: `a47` is a real executable installed by the CLI.
+It is not a shell alias and requires no shell configuration.
 
 ---
 
@@ -111,7 +151,7 @@ This verifies:
 From inside a project directory:
 
 ```bash
-agent64 init-agent
+agent47 init-agent
 ```
 
 This will copy:
@@ -131,7 +171,7 @@ You opt-in to each component.
 ### Add a base spec
 
 ```bash
-add-spec
+agent47 add-spec
 ```
 
 Creates:
@@ -145,18 +185,18 @@ specs/spec.yml
 ### Add skills
 
 ```bash
-add-skills
+agent47 add-skills
 ```
 
 Creates:
 
 ```text
 skills/
-├── analyze.yml
-├── implement.yml
-├── review.yml
-├── refactor.yml
-└── optimize.yml
+├── analyze.md
+├── implement.md
+├── review.md
+├── refactor.md
+└── optimize.md
 ```
 
 ---
@@ -164,7 +204,7 @@ skills/
 ### Add a general agent prompt
 
 ```bash
-add-agent-prompt
+agent47 add-agent-prompt
 ```
 
 Creates:
@@ -178,7 +218,7 @@ prompts/agent-prompt.txt
 ### Add a spec & skill–driven prompt (SDD flow)
 
 ```bash
-add-agent-prompt-ss
+agent47 add-agent-prompt-ss
 ```
 
 Creates:
@@ -189,15 +229,16 @@ prompts/agent-prompt-ss.txt
 
 ---
 
-## Upgrade
+## Upgrade / Repair
 
-If you update the `agent64` repository and want to reinstall the scripts:
+If you update the `agent47` repository or want to repair the installation:
 
 ```bash
-agent64 upgrade
+agent47 install
 ```
 
-This safely reinstalls all helper commands.
+This safely reinstalls helper commands and templates.
+Run this after pulling repo changes to propagate updated templates (e.g., new `skills/*.md`) into `~/.agent47`.
 
 ---
 
@@ -206,7 +247,7 @@ This safely reinstalls all helper commands.
 To remove the installed helper commands from your system:
 
 ```bash
-agent64 uninstall
+agent47 uninstall
 ```
 
 This does **not** delete:
@@ -215,13 +256,13 @@ This does **not** delete:
 * specs
 * prompts
 * templates
-* the `agent64` repository itself
+* the `agent47` repository itself
 
 ---
 
 ## Versioning
 
-`agent64` follows **Semantic Versioning (SemVer)**.
+`agent47` follows **Semantic Versioning (SemVer)**.
 
 The current version is stored in:
 
@@ -232,18 +273,18 @@ VERSION
 You can check it with:
 
 ```bash
-agent64 help
-agent64 doctor
+agent47 help
+agent47 doctor
 ```
 
 ---
 
-## Directory Structure (agent64)
+## Directory Structure (agent47)
 
 ```text
-agent64/
+agent47/
 ├── bin/
-│   └── agent64
+│   └── agent47
 ├── scripts/
 │   ├── add-agent
 │   ├── add-spec
@@ -261,33 +302,54 @@ agent64/
 
 ---
 
-## What agent64 Does NOT Do
+## What agent47 Does NOT Do
 
 * It does not run agents
 * It does not modify code automatically
 * It does not hide decisions
 * It does not enforce tools or vendors
 
-`agent64` is intentionally minimal.
+`agent47` is intentionally minimal.
 
 ---
 
 ## Intended Workflow (High Level)
 
 ```text
-agent64 install
+./install.sh
 ↓
 cd project
 ↓
-agent64 init-agent
+agent47 init-agent
 ↓
-add-spec (optional)
+agent47 add-spec (optional)
 ↓
-add-skills (optional)
+agent47 add-skills (optional)
 ↓
-add-agent-prompt / add-agent-prompt-ss
+agent47 add-agent-prompt / agent47 add-agent-prompt-ss
 ↓
 Use your AI tool of choice
+```
+
+---
+
+### Notes
+
+#### Moving the agent47 repository
+
+If you move the `agent47` repository after installation, the CLI command may stop working.
+This is expected behavior when using symbolic links.
+To fix it, recreate the symlink:
+
+```bash
+cd /new/path/to/agent47
+ln -sf "$(pwd)/bin/agent47" ~/bin/agent47
+```
+
+Alternatively, rerun the installer:
+
+```bash
+./install.sh
 ```
 
 ---
@@ -296,7 +358,5 @@ Use your AI tool of choice
 
 Internal tooling / personal workflow.
 Adapt freely to your needs.
-
-```
 
 ---

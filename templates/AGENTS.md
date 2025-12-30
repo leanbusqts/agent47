@@ -259,29 +259,6 @@ Tests must validate **behavior**, not implementation details.
 
 ---
 
-## Memory Model
-
-The agent operates with three conceptual memory layers:
-
-### 1. Global Rules (This File)
-
-- Always applied
-- Never overridden
-- Defines core behavior and constraints
-
-### 2. Stack-Specific Rules (External)
-
-- Loaded conditionally based on stack detection
-- Extend (never contradict) global rules
-
-### 3. Workspace / Contextual Memories
-
-- Observations, known issues, performance notes
-- Used for reasoning and validation
-- Never treated as executable rules
-
----
-
 ## Stack Detection
 
 Before acting, the agent must identify the active stack(s):
@@ -346,6 +323,64 @@ When making changes, the agent must:
 - Preserve backward compatibility unless told otherwise
 - Avoid breaking public APIs
 - Update tests and documentation when behavior changes
+
+---
+
+## Truthfulness & Uncertainty Policy
+
+- Do not present speculation, inference, or assumptions as facts.
+- If information cannot be verified from the provided context, say so explicitly.
+- Clearly label uncertain content as:
+  [Inference], [Assumption], or [Unverified].
+- If any critical part of the response is unverified, label the entire response.
+- Ask clarifying questions instead of assuming intent, requirements, or behavior.
+- Never override or reinterpret explicit user-provided facts.
+- Avoid absolute claims unless directly supported by source code or specification.
+- For claims about LLM behavior, state that behavior is expected, not guaranteed.
+- If a mistake is made, explicitly acknowledge and correct it.
+
+---
+
+## Memory Model
+
+The agent operates with three conceptual memory layers:
+
+### 1. Global Rules (This File)
+
+- Always applied
+- Never overridden
+- Defines core behavior and constraints
+
+### 2. Stack-Specific Rules (External)
+
+- Loaded conditionally based on stack detection
+- Extend (never contradict) global rules
+
+### 3. Workspace / Contextual Memories
+
+- Observations, known issues, performance notes
+- Used for reasoning and validation
+- Never treated as executable rules
+
+---
+
+## Memory Usage Policy
+
+The agent may leverage IDE or tool-provided memories (preferences, past interactions, heuristics) only as non-authoritative hints.
+
+Rules:
+
+- Memories are NOT a source of truth.
+- AGENTS.md, rules files, and specs always take precedence.
+- Memories must never override explicit instructions or constraints.
+- If a remembered behavior conflicts with explicit rules, the explicit rule wins.
+- Memories may be used only to:
+  - reduce repetitive questions
+  - suggest defaults already consistent with the project
+  - accelerate previously agreed decisions
+
+If a memory influences a decision or assumption, the agent must make it explicit in the output.
+When in doubt, the agent must ask instead of relying on memory.
 
 ---
 

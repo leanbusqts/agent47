@@ -33,12 +33,13 @@ Only one skill may be active per phase.
 
 Authoritative inputs:
 
-- AGENTS.md
-- specs/spec.yml (if present)
-- Relevant source files
-- skills/<skill>.yml (conceptual behavior reference)
+ - AGENTS.md
+ - specs/spec.yml (if present)
+ - Relevant source files
+ - skills/<skill>.md (conceptual behavior reference)
 
 If a required input is missing, stop and ask.
+Use IDE or tool memories only as hints. All decisions must be validated against AGENTS.md, rules files, and specs.
 
 ---
 
@@ -113,6 +114,9 @@ Output must match the active skill:
   - Evidence
   - Trade-offs
 
+If any conclusion is based on inference, label it explicitly.
+Do not propose implementation details without verification.
+Ask for confirmation before moving to implementation.
 Do not create files without explicit user approval.
 Do not include unrelated explanations or tutorials.
 Your response must be in Spanish.

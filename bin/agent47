@@ -1,0 +1,268 @@
+#!/bin/bash
+
+USER_DIR="$HOME/bin"
+AGENT47_HOME="$HOME/.agent47"
+
+# Resolve real path even if agent47 is a symlink
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+SCRIPTS_DIR="$ROOT_DIR/scripts"
+VERSION_FILE="$AGENT47_HOME/VERSION"
+
+# ---------------------------
+# Version
+# ---------------------------
+if [ -f "$VERSION_FILE" ]; then
+  AGENT47_VERSION="$(cat "$VERSION_FILE")"
+else
+  AGENT47_VERSION="unknown"
+fi
+
+# ---------------------------
+# Help
+# ---------------------------
+print_help() {
+  echo "agent47 - Agent & SDD CLI"
+  echo "Version: $AGENT47_VERSION"
+  echo ""
+  echo "Core commands:"
+  echo "  agent47 help"
+  echo "  agent47 install"
+  echo "  agent47 upgrade"
+  echo "  agent47 uninstall"
+  echo "  agent47 doctor"
+  echo "  agent47 init-agent"
+  echo ""
+  echo "Add commands:"
+  echo "  agent47 add-agent"
+  echo "  agent47 add-spec"
+  echo "  agent47 add-skills"
+  echo "  agent47 add-agent-prompt"
+  echo "  agent47 add-agent-prompt-ss"
+  echo ""
+  echo "Aliases:"
+  echo "  a47 <command>   (shorthand for agent47)"
+}
+
+# ---------------------------
+# Install templates
+# ---------------------------
+install_templates() {
+  echo "[*] Installing agent47 templates..."
+
+  mkdir -p "$AGENT47_HOME"
+
+  if [ -d "$ROOT_DIR/templates" ]; then
+    rm -rf "$AGENT47_HOME/templates"
+    cp -R "$ROOT_DIR/templates" "$AGENT47_HOME/"
+    echo "[OK] Templates installed"
+  else
+    echo "[WARN] Templates directory not found in repo"
+  fi
+
+  if [ -f "$ROOT_DIR/VERSION" ]; then
+    cp "$ROOT_DIR/VERSION" "$AGENT47_HOME/VERSION"
+    echo "[OK] VERSION installed"
+  else
+    echo "[WARN] VERSION file not found in repo"
+  fi
+}
+
+# ---------------------------
+# Install
+# ---------------------------
+install_scripts() {
+  echo "[*] Installing agent47 scripts..."
+
+  mkdir -p "$USER_DIR"
+
+  for script in add-agent add-spec add-skills add-agent-prompt add-agent-prompt-ss; do
+    if [ -f "$SCRIPTS_DIR/$script" ]; then
+      cp "$SCRIPTS_DIR/$script" "$USER_DIR/$script"
+      chmod +x "$USER_DIR/$script"
+      echo "[OK] Installed $script"
+    else
+      echo "[WARN] Script not found: $script"
+    fi
+  done
+
+  install_templates
+
+  # ---------------------------
+  # Install a47 wrapper
+  # ---------------------------
+  A47_BIN="$USER_DIR/a47"
+
+  if [ ! -x "$A47_BIN" ]; then
+    cat <<'EOF' > "$A47_BIN"
+#!/bin/bash
+exec agent47 "$@"
+EOF
+    chmod +x "$A47_BIN"
+    echo "[OK] Installed a47 wrapper"
+  else
+    echo "[INFO] a47 wrapper already installed"
+  fi
+
+  echo "[OK] agent47 installation complete"
+}
+
+# ---------------------------
+# Upgrade (reinstall)
+# ---------------------------
+upgrade() {
+  echo "[*] Upgrading agent47 scripts..."
+  install_scripts
+  echo "[OK] Upgrade completed"
+}
+
+# ---------------------------
+# Uninstall
+# ---------------------------
+uninstall() {
+  echo "[*] Uninstalling agent47 scripts..."
+
+  for script in add-agent add-spec add-skills add-agent-prompt add-agent-prompt-ss; do
+    if [ -f "$USER_DIR/$script" ]; then
+      rm "$USER_DIR/$script"
+      echo "[OK] Removed $script"
+    else
+      echo "[WARN] $script not found in $USER_DIR"
+    fi
+  done
+
+  echo "[OK] agent47 tools removed from system"
+}
+
+# ---------------------------
+# Init Agent (project)
+# ---------------------------
+init_agent() {
+  echo "[*] Initializing AGENT setup in current directory..."
+  add-agent
+  echo "[OK] AGENT initialized"
+}
+
+# ---------------------------
+# Doctor
+# ---------------------------
+doctor() {
+  echo "[*] agent47 doctor"
+  echo "[INFO] Version: $AGENT47_VERSION"
+
+  # ---------------------------
+  # agent47 in PATH
+  # ---------------------------
+  if command -v agent47 >/dev/null; then
+    echo "[OK] agent47 in PATH"
+  else
+    echo "[WARN] agent47 not in PATH"
+    echo "[HINT] Fix: run ./install.sh"
+  fi
+
+  # ---------------------------
+  # Helper scripts
+  # ---------------------------
+  for script in add-agent add-spec add-skills add-agent-prompt add-agent-prompt-ss; do
+    if command -v "$script" >/dev/null; then
+      echo "[OK] $script available"
+    else
+      echo "[WARN] $script missing"
+      echo "[HINT] Fix: agent47 install"
+    fi
+  done
+
+  # ---------------------------
+  # Templates
+  # ---------------------------
+  if [ -d "$AGENT47_HOME/templates" ]; then
+    echo "[OK] Templates installed"
+  else
+    echo "[WARN] Templates missing"
+    echo "[HINT] Fix: agent47 install"
+  fi
+
+  # ---------------------------
+  # Skills template format check
+  # ---------------------------
+  if [ -d "$AGENT47_HOME/templates/skills" ]; then
+    if ls "$AGENT47_HOME/templates/skills"/*.yml >/dev/null 2>&1; then
+      echo "[WARN] Legacy .yml skills found in $AGENT47_HOME/templates/skills"
+      echo "[HINT] Run agent47 install to refresh .md skill templates"
+    else
+      echo "[OK] Skills templates (.md) present"
+    fi
+  fi
+
+  # ---------------------------
+  # Symlink check
+  # ---------------------------
+  if [ -L "$USER_DIR/agent47" ]; then
+    echo "[OK] agent47 symlink present in ~/bin"
+  else
+    echo "[WARN] agent47 symlink missing"
+    echo "[HINT] Fix: run ./install.sh"
+  fi
+
+  # ---------------------------
+  # PATH sanity
+  # ---------------------------
+  if [[ ":$PATH:" == *":$USER_DIR:"* ]]; then
+    echo "[OK] ~/bin in PATH"
+  else
+    echo "[WARN] ~/bin not in PATH"
+    echo "[HINT] Add to your shell config:"
+    echo '       export PATH="$HOME/bin:$PATH"'
+  fi
+}
+
+# ---------------------------
+# Command router
+# ---------------------------
+case "$1" in
+  help|"")
+    print_help
+    ;;
+  install)
+    install_scripts
+    ;;
+  upgrade)
+    upgrade
+    ;;
+  uninstall)
+    uninstall
+    ;;
+  init-agent)
+    init_agent
+    ;;
+  doctor)
+    doctor
+    ;;
+  add-agent)
+    add-agent
+    ;;
+  add-spec)
+    add-spec
+    ;;
+  add-skills)
+    add-skills
+    ;;
+  add-agent-prompt)
+    add-agent-prompt
+    ;;
+  add-agent-prompt-ss)
+    add-agent-prompt-ss
+    ;;
+  *)
+    echo "Unknown command: $1"
+    print_help
+    ;;
+esac

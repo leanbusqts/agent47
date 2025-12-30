@@ -1,7 +1,7 @@
 #!/bin/bash
 
-AGENT64_HOME="$HOME/.agent64"
-TEMPLATES_DIR="$AGENT64_HOME/templates"
+AGENT47_HOME="$HOME/.agent47"
+TEMPLATES_DIR="$AGENT47_HOME/templates/skills"
 
 SKILLS_DIR="skills"
 
@@ -15,7 +15,7 @@ else
   echo "📁 Directory already exists: $SKILLS_DIR/"
 fi
 
-for skill in analyze.yml implement.yml review.yml refactor.yml optimize.yml; do
+for skill in analyze.md implement.md review.md refactor.md optimize.md; do
   if [ -f "$SKILLS_DIR/$skill" ]; then
     echo "⚠️  Skill already exists, skipping: $skill"
   else

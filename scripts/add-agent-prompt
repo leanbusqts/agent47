@@ -1,7 +1,7 @@
 #!/bin/bash
 
-AGENT64_HOME="$HOME/.agent64"
-TEMPLATES_DIR="$AGENT64_HOME/templates"
+AGENT47_HOME="$HOME/.agent47"
+TEMPLATES_DIR="$AGENT47_HOME/templates/prompts"
 
 PROMPT_DIR="prompts"
 PROMPT_FILE="$PROMPT_DIR/agent-prompt.txt"

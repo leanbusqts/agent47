@@ -1,0 +1,114 @@
+##############################
+# OS-Specific
+##############################
+.DS_Store
+**/.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+Desktop.ini
+
+##############################
+# IDEs & Editor Configs
+##############################
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*.tmp
+*.bak
+*~
+
+##############################
+# Android
+##############################
+.gradle/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+*.keystore
+*.jks
+*.hprof
+*.log
+*.apk
+*.ap_
+*.dex
+*.class
+*.so
+*.jar
+
+# Android Studio Specific
+/app/build/
+/app/outputs/
+/app/captures/
+keystore.properties
+google-services.json
+
+##############################
+# iOS / Xcode
+##############################
+*.xcuserstate
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata
+*.xcworkspace
+DerivedData/
+build/
+Pods/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserdatad
+*.xcworkspace/
+
+##############################
+# Backend (Ktor / Kotlin MPP)
+##############################
+/build/
+/out/
+/bin/
+/logs/
+.kotlin/
+.intellijPlatform/
+*.db
+
+##############################
+# Frontend (React / Next.js / Node.js)
+##############################
+node_modules/
+.next/
+dist/
+out/
+coverage/
+.nyc_output/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+##############################
+# TypeScript
+##############################
+*.tsbuildinfo
+
+##############################
+# Misc Sensitive or System
+##############################
+.env
+.env.*
+.secret
+*.pem
+*.crt
+*.key
+
+##############################
+# macOS / Linux temp
+##############################
+*.lock
+*.pid
