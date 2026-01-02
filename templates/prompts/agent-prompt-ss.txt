@@ -122,4 +122,4 @@ Do not propose implementation details without verification.
 Ask for confirmation before moving to implementation.
 Do not create files without explicit user approval.
 Do not include unrelated explanations or tutorials.
-Your response must be in English.
+Your response must be in Spanish.
