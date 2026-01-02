@@ -133,6 +133,15 @@ This verifies:
 * installed helper commands
 * current version
 
+### Check for updates (manual, cached)
+
+```bash
+agent47 check-update          # uses cache (24h)
+agent47 check-update --force  # bypass cache
+```
+
+`agent47 doctor` also runs the check once per invocation and reports the result without updating anything.
+
 ### Command Usage
 
 All commands can be executed using either `agent47` or `a47`.
