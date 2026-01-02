@@ -75,6 +75,80 @@ But **must not** add explanatory comments inside production code unless explicit
 
 ---
 
+## Rules & Memories (Abstract Model)
+
+- **Authoritative order**: User request/instructions > AGENTS.md > stack rules (`rules-*.yaml`) > specs > source of truth in code/tests > tool/IDE memories (only as hints).
+- **Rules application**: Load and respect all relevant rules files for the active stack. If rules conflict, stop and ask.
+- **Memories**: Treat memories/contextual notes as non-authoritative hints. Verify against rules/specs/code before acting. If a memory looks stale or conflicting, surface the risk and request confirmation.
+
+---
+
+## Authority & Priority
+
+1. User instructions
+2. AGENTS.md (this contract)
+3. Stack rules (`rules-*.yaml`)
+4. Specs
+5. Code and tests
+6. Memories / hints (non-authoritative)
+
+When sources conflict, stop, explain the conflict, and ask for guidance.
+
+---
+
+## Required Inputs
+
+- This AGENTS.md
+- Applicable stack rules (`rules-*.yaml`)
+- Relevant specs for the task
+- Relevant source files and tests
+- Any user-provided context
+
+If an expected input is missing, ask before proceeding.
+
+---
+
+## Required Outputs
+
+- Concise summary of what was analyzed or done
+- Explicit risks and assumptions
+- Scope boundaries (what was intentionally not covered)
+- For changes: list of files touched and intent of the change
+
+---
+
+## Decision Flow
+
+1. Plan the approach.
+2. Validate against AGENTS.md, stack rules, and specs.
+3. Execute strictly within the approved scope.
+4. Report results with risks and assumptions.
+
+---
+
+## Architecture & Layering
+
+- Use a layered model: presentation/adapters handle transport/UI; domain/services own business logic and orchestration; data/integrations handle persistence and external calls.
+- No circular dependencies across layers; depend downward via interfaces/abstractions and adapt upward at boundaries.
+- Keep business logic out of adapters/controllers and out of persistence/integration layers.
+
+---
+
+## Async & Concurrency
+
+- Keep UI/main threads for presentation; run IO/compute off the main thread.
+- Design async flows to be cancelable and avoid shared mutable state across concurrent paths.
+- Prefer idempotent operations and explicit cancellation/cleanup where applicable.
+
+---
+
+## Error Contracts
+
+- Surface a uniform error contract per boundary; map internal errors to it and avoid leaking raw exceptions.
+- Attach enough context for observability without exposing sensitive data.
+
+---
+
 ## Engineering Principles
 
 All code analysis, generation, refactors, and modifications must follow these engineering principles.

@@ -39,8 +39,11 @@ Rules:
 
 Read and consider as authoritative:
 - AGENTS.md
+- rules-*.yaml (stack rules)
 - Relevant source files
 - Any additional context explicitly provided by the user
+
+Authoritative order: user instructions > AGENTS.md > rules-*.yaml > specs > code/tests > memories/hints. Treat IDE/tool memories as hints; verify before acting and flag anything that looks stale or conflicting.
 
 Do not assume missing requirements.
 Use IDE or tool memories only as hints. All decisions must be validated against AGENTS.md, rules files, and specs.
@@ -89,6 +92,7 @@ UI (optional - User interface elements):
 - Do not introduce new dependencies.
 - Do not change public APIs unless explicitly requested.
 - Follow Engineering Principles, Refactor Triggers and Red Flags from AGENTS.md.
+- Resolve conflicts by the authoritative order above; if unclear, stop and ask.
 - Do not invent facts or behaviors.
 - Explicitly state uncertainty when information is missing.
 - Ask before assuming.

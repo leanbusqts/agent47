@@ -1,19 +1,26 @@
 # specs/spec.yml
 
-feature: ""
+id: ""
+summary: ""
 context: |
-  Describe el contexto del problema o necesidad.
+  Briefly describe the current situation and background.
 
-goal: |
-  Define claramente qué se quiere lograr con esta feature.
+goals: |
+  Clearly define what you want to achieve with this feature.
 
-# data:
-#   - name: ""
-#     type: ""
+requirements:
+  - id: R1
+    desc: ""
+    rationale: ""
 
-# ui:
-#   - screen: ""
-#     description: ""
+acceptance_tests:
+  - id: AT1
+    given: ""
+    when: ""
+    then: ""
 
-tests:
+risks:
+  - ""
+
+assumptions:
   - ""

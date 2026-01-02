@@ -16,8 +16,18 @@
 - Skills-based agent execution
 - Reusable prompts
 - Consistent project initialization
+- Abstract handling of rules and memories (authoritative order: user > AGENTS > stack rules > specs > code/tests > memories/hints)
+- Templates inspired by agents.md (contracts), Anthropic/agentskills (skills format), and a simplified Spec Kit pattern (spec.yml)
 
 It is designed to be **simple, explicit, and composable**, without hidden automation.
+
+---
+
+## What agent47 is for
+
+- Bootstrap agent workflows with explicit contracts (AGENTS, stack rules, skills, specs, prompts) so agents act consistently.
+- Keep templates and conventions versioned; copy them into projects when you decide.
+- Stay language-agnostic: no generators, no hidden automation—just scaffolding and guidance.
 
 ---
 
@@ -39,6 +49,33 @@ The goal is to make agent-driven workflows:
 - Unix-like environment (macOS / Linux)
 - Bash
 - `~/bin` included in your `$PATH`
+
+---
+
+## Quickstart
+
+```bash
+# Install CLI + templates into ~/.agent47 and link to ~/bin
+./install.sh
+
+# In your project
+cd /path/to/project
+
+# Bootstrap agent scaffolding (copies AGENTS.md and rules-*.yaml)
+agent47 init-agent
+
+# Optional: add spec, skills, and prompts
+agent47 add-spec
+agent47 add-skills
+agent47 add-agent-prompt        # general prompt
+agent47 add-agent-prompt-ss     # spec + skills prompt
+```
+
+What you get:
+- `AGENTS.md` and `rules-*.yaml` in the project root
+- `specs/spec.yml` (fill it in)
+- `skills/*.md` (behavior contracts)
+- `prompts/agent-prompt*.txt` (edit before running your agent)
 
 ---
 
@@ -72,33 +109,6 @@ During installation, both `agent47` and `a47` commands are installed.
 
 Note: install.sh is the recommended entry point.
 Manual steps are provided only for troubleshooting or advanced usage.
-
----
-
-## Quickstart
-
-```bash
-# Install CLI + templates into ~/.agent47 and link to ~/bin
-./install.sh
-
-# In your project
-cd /path/to/project
-
-# Bootstrap agent scaffolding (copies AGENTS.md and rules-*.yaml)
-agent47 init-agent
-
-# Optional: add spec, skills, and prompts
-agent47 add-spec
-agent47 add-skills
-agent47 add-agent-prompt        # general prompt
-agent47 add-agent-prompt-ss     # spec + skills prompt
-```
-
-What you get:
-- `AGENTS.md` and `rules-*.yaml` in the project root
-- `specs/spec.yml` (fill it in)
-- `skills/*.md` (behavior contracts)
-- `prompts/agent-prompt*.txt` (edit before running your agent)
 
 ---
 

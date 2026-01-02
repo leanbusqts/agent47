@@ -1,208 +1,42 @@
 # rules-mobile.yaml
-# Mobile (Android / iOS) rules derived from testing rules, mobile-specific conventions, and mobile memories.
-# These rules extend AGENTS.md and are loaded conditionally when the active stack is mobile.
+# Mobile rules are architectural and conceptual. They extend AGENTS.md and are loaded when the active stack is mobile (Android / iOS).
 
 rules:
 
   # --------------------------------------------------
-  # Testing – Structure & Style (Mobile-only)
+  # Testing – Structure & Style
   # --------------------------------------------------
 
   - topic: "testing:structure"
-    level: "critical"
-    rule: "All mobile tests must follow the Given / When / Then structure. This convention is mandatory for mobile and must not be applied to other stacks."
+    level: "high"
+    rule: "Use a clear behavior-driven structure in mobile tests (express scenario, action, and outcome consistently)."
     fix:
       dont: |
-        @Test
-        fun testSomething() {
-          val result = doWork()
-          assertTrue(result)
-        }
+        @Test fun testSomething() { val result = doWork(); assertTrue(result) }
       do: |
-        @Test
-        fun `when something happens - then expected result occurs`() {
+        @Test fun `when something happens - then expected result occurs`() {
           // Given
-          val subject = createSubject()
-
           // When
-          val result = subject.doWork()
-
           // Then
-          assertTrue(result)
         }
 
   - topic: "testing:naming"
-    level: "high"
-    rule: "Mobile test names must describe behavior using a when/then format, matching the existing project convention."
+    level: "medium"
+    rule: "Name tests by behavior and expected outcome; prefer readable scenario-based names."
     fix:
       dont: |
         fun testInit()
         fun shouldWorkCorrectly()
       do: |
-        fun `when viewModel is created - then initial state is emitted`()
         fun `when permission is denied - then error state is shown`()
 
   # --------------------------------------------------
-  # Android – Testing Frameworks & Constraints
-  # --------------------------------------------------
-
-  - topic: "android:testing-frameworks"
-    level: "critical"
-    rule: "Use only the testing frameworks already present in the project. Do not add or change testing dependencies."
-    fix:
-      dont: |
-        testImplementation("org.mockito:mockito-inline:5.x.x")
-        testImplementation("new.testing:library:1.0.0")
-      do: |
-        // Use existing frameworks only (e.g. JUnit, MockK, Mockito, Robolectric)
-        // Keep versions defined by the project
-
-  - topic: "android:dependencies"
-    level: "critical"
-    rule: "Never add or modify dependencies in build.gradle files for mobile projects."
-    fix:
-      dont: |
-        dependencies {
-          testImplementation("io.mockk:mockk:1.13.x")
-        }
-      do: |
-        // Do not modify Gradle dependency declarations
-        // Work strictly with existing dependencies
-
-  # --------------------------------------------------
-  # Android – Mocking Rules
-  # --------------------------------------------------
-
-  - topic: "android:mocking"
-    level: "high"
-    rule: "Prefer MockK over Mockito for Android tests and never mix both in the same test."
-    fix:
-      dont: |
-        val repo = Mockito.mock(Repository::class.java)
-        every { service.call() } returns result
-      do: |
-        val repo = mockk<Repository>()
-        every { service.call() } returns result
-
-  - topic: "android:mock-cleanup"
-    level: "high"
-    rule: "All MockK mocks must be cleaned up deterministically after each test."
-    fix:
-      dont: |
-        @After
-        fun tearDown() {
-          // no cleanup
-        }
-      do: |
-        @After
-        fun tearDown() {
-          clearAllMocks()
-          unmockkAll()
-        }
-
-  # --------------------------------------------------
-  # Android – ViewModel & Lifecycle Testing
-  # --------------------------------------------------
-
-  - topic: "android:viewmodel"
-    level: "high"
-    rule: "When an Activity uses by viewModels(), the ViewModel must be mocked using ViewModelLazy and controlled reflection."
-    fix:
-      dont: |
-        activity.viewModel = mockViewModel
-      do: |
-        ViewModelLazy(
-          ViewModel::class.java,
-          { activity.viewModelStore },
-          { viewModelFactory }
-        ).also {
-          ViewModel::class.java.getDeclaredField("viewModel$delegate").apply {
-            isAccessible = true
-            set(activity, it)
-          }
-        }
-
-  # --------------------------------------------------
-  # Android – Coroutines Testing
-  # --------------------------------------------------
-
-  - topic: "android:coroutines-testing"
-    level: "critical"
-    rule: "Use modern coroutine testing APIs (runTest, StandardTestDispatcher, TestScope) and ensure proper cleanup."
-    fix:
-      dont: |
-        runBlocking {
-          viewModel.load()
-        }
-      do: |
-        @Test
-        fun `when data is loaded - then state is updated`() = runTest {
-          viewModel.load()
-          advanceUntilIdle()
-          assertEquals(expected, viewModel.state.value)
-        }
-
-  # --------------------------------------------------
-  # iOS – Testing Structure & Style
-  # --------------------------------------------------
-
-  - topic: "ios:testing-structure"
-    level: "critical"
-    rule: "All iOS tests must inherit from XCTestCase and follow Given / When / Then comments without extra explanations."
-    fix:
-      dont: |
-        class MyTests {
-          func testSomething() {
-            // setup data
-            // execute logic
-            // assert result
-          }
-        }
-      do: |
-        final class MyTests: XCTestCase {
-          func test_whenSomethingHappens_thenExpectedResultOccurs() {
-            // Given
-
-            // When
-
-            // Then
-          }
-        }
-
-  # --------------------------------------------------
-  # iOS – Dependencies & Modifications
-  # --------------------------------------------------
-
-  - topic: "ios:dependencies"
-    level: "critical"
-    rule: "Do not add, remove, or update dependencies in Swift Package Manager, CocoaPods, or other configuration files."
-    fix:
-      dont: |
-        .package(url: "https://github.com/new/library.git", from: "1.0.0")
-      do: |
-        // Keep dependency definitions unchanged
-
-  # --------------------------------------------------
-  # Mobile – Code Style & Comments
-  # --------------------------------------------------
-
-  - topic: "mobile:comments"
-    level: "medium"
-    rule: "Do not add comments to production mobile code. Only Given / When / Then labels are allowed in tests."
-    fix:
-      dont: |
-        // This variable holds the user state
-        let state = viewModel.state
-      do: |
-        let state = viewModel.state
-
-  # --------------------------------------------------
-  # Mobile – General Constraints
+  # Architecture & Consistency
   # --------------------------------------------------
 
   - topic: "mobile:encapsulation"
     level: "high"
-    rule: "Respect existing access modifiers and encapsulation. Do not relax visibility for convenience."
+    rule: "Preserve intended encapsulation; do not widen visibility to bypass design constraints."
     fix:
       dont: |
         public var internalState: State
@@ -211,10 +45,109 @@ rules:
 
   - topic: "mobile:consistency"
     level: "medium"
-    rule: "Always match the existing style, patterns, and testing approach used in the surrounding mobile codebase."
+    rule: "Follow existing patterns and styles in the surrounding module; avoid introducing divergent patterns without justification."
     fix:
       dont: |
-        // Introduce a new testing pattern not used in the project
+        // Introduce a new pattern unrelated to nearby code
       do: |
-        // Follow the same patterns already used in nearby files
+        // Match the existing approach used in adjacent files
 
+  # --------------------------------------------------
+  # Preferences (non-binding; enforce via tooling/review)
+  # --------------------------------------------------
+
+  - topic: "preference:android-testing-frameworks"
+    level: "low"
+    rule: "On Android, prefer the existing testing frameworks in the project; avoid adding new ones without approval."
+
+  - topic: "preference:android-mocking"
+    level: "low"
+    rule: "If the project uses MockK/Mockito conventions, stay consistent within a test/module; avoid mixing frameworks."
+
+  - topic: "preference:android-coroutines-testing"
+    level: "low"
+    rule: "Use the project's standard coroutine testing approach (e.g., runTest/TestDispatcher) for consistency."
+
+  - topic: "preference:android-viewmodel"
+    level: "low"
+    rule: "When testing ViewModels with DI/lazy patterns, follow the project's established setup strategy; avoid ad-hoc reflection."
+
+  - topic: "preference:ios-testing"
+    level: "low"
+    rule: "On iOS, align with the project's test base classes and structure; avoid introducing new test harnesses without approval."
+
+  - topic: "preference:dependencies"
+    level: "low"
+    rule: "Avoid adding or changing mobile dependencies/config without approval; follow project dependency governance."
+
+  - topic: "preference:comments"
+    level: "low"
+    rule: "Keep production code lean; prefer self-documenting code. In tests, limit comments to structure/intent where helpful."
+
+  - topic: "preference:performance-threading"
+    level: "low"
+    rule: "Avoid heavy work on UI/main threads; run IO/compute off-main and ensure UI updates happen on the main thread."
+
+  - topic: "preference:caching-ttl"
+    level: "low"
+    rule: "Cache expensive results with clear TTL/invalidations when it benefits performance and user experience."
+
+  - topic: "preference:testing-mocking"
+    level: "low"
+    rule: "Prefer the project's primary mocking framework (e.g., MockK) and avoid mixing frameworks within the same test."
+
+  - topic: "preference:testing-structure-style"
+    level: "low"
+    rule: "Keep behavior-driven test names (when…- then…) with Given/When/Then sections; place private helpers/companions at the end of the test class."
+
+  - topic: "preference:testing-async"
+    level: "low"
+    rule: "In async tests, use the standard test dispatcher/runTest and advance/idle the main looper to flush pending work."
+
+  - topic: "preference:activity-viewmodel"
+    level: "low"
+    rule: "Keep Activities light and delegate async/business flows to ViewModels (viewModelScope); inject/mocks via ViewModelLazy per project conventions."
+
+  - topic: "preference:dependencies-immutability"
+    level: "low"
+    rule: "Avoid adding or changing dependencies/config (Gradle, Podfile, Package.swift) without approval; verify and reuse existing libraries."
+
+  - topic: "preference:testing-ios-structure"
+    level: "low"
+    rule: "In iOS, tests inherit from XCTestCase, use names like test_when…_then…, and keep Given/When/Then labels only."
+
+  - topic: "preference:testing-ios-mocking"
+    level: "low"
+    rule: "Use a single mocking framework per suite (e.g., Cuckoo/Mockingbird) and avoid mixing frameworks; prefer concrete instances over broad matchers."
+
+  - topic: "preference:ios-architecture"
+    level: "low"
+    rule: "Favor ports-and-adapters (hexagonal) patterns: protocols in domain, adapters implementing them, DI for external services; keep view controllers lightweight."
+
+  - topic: "preference:ios-concurrency"
+    level: "low"
+    rule: "Use async/await or GCD appropriately; keep UI updates on the main queue and avoid blocking it."
+
+  - topic: "preference:android-constructor-tests"
+    level: "low"
+    rule: "When classes have default constructors using real implementations, include a test that covers the default construction path."
+
+  - topic: "preference:android-mock-cleanup"
+    level: "low"
+    rule: "Clean up mocks per the chosen framework (clearAllMocks/unmockkAll for MockK; openMocks/clearInlineMocks for Mockito) only when mocks are used."
+
+  - topic: "preference:ios-security"
+    level: "low"
+    rule: "Store sensitive data in Keychain and rely on ATS/HTTPS; avoid custom CORS/header tweaks at app level unless mandated."
+
+  - topic: "preference:ios-networking"
+    level: "low"
+    rule: "Use URLSession with proper error handling, status codes, caching/reachability as needed; keep UI thread unblocked."
+
+  - topic: "preference:ios-persistence"
+    level: "low"
+    rule: "Choose persistence per need (Core Data/SQLite/UserDefaults) and handle migrations; do not impose Core Data when not warranted."
+
+  - topic: "preference:ios-accessibility-hig"
+    level: "low"
+    rule: "Follow HIG and accessibility basics (labels, hints, dynamic type, contrast) as part of UI work."

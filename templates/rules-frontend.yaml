@@ -1,11 +1,10 @@
 # rules-frontend.yaml
-# Frontend (React / Node / Nordic) rules derived primarily from rules-frontend and frontend-specific guidelines.
-# These rules extend AGENTS.md and are loaded conditionally when the active stack is frontend.
+# Frontend rules are architectural and conceptual. They extend AGENTS.md and are loaded when the active stack is frontend.
 
 rules:
 
   # --------------------------------------------------
-  # General Development Principles
+  # General Principles
   # --------------------------------------------------
 
   - topic: "general:simplicity"
@@ -13,15 +12,13 @@ rules:
     rule: "Prefer simple, maintainable solutions and avoid unnecessary complexity."
     fix:
       dont: |
-        // Over-engineered abstraction for a simple use case
         class GenericProcessorFactoryBuilder {}
       do: |
-        // Straightforward implementation focused on the actual requirement
-        function processData(data) { /* ... */ }
+        function processData(data) { /* focused on requirement */ }
 
   - topic: "general:completion"
     level: "critical"
-    rule: "Never leave unfinished work such as TODOs, placeholders, or partially implemented logic."
+    rule: "Do not leave placeholders or partially implemented logic; deliver complete behavior."
     fix:
       dont: |
         // TODO: implement validation
@@ -32,162 +29,45 @@ rules:
         }
 
   # --------------------------------------------------
-  # Language & Code Style
-  # --------------------------------------------------
-
-  - topic: "style:language"
-    level: "medium"
-    rule: "All frontend code must be written in English, including identifiers and comments."
-    fix:
-      dont: |
-        function obtenerUsuario() {}
-      do: |
-        function getUser() {}
-
-  - topic: "style:naming"
-    level: "medium"
-    rule: "Use meaningful, pronounceable names and avoid unnecessary repetition in identifiers."
-    fix:
-      dont: |
-        const car = { carColor: "red" }
-      do: |
-        const car = { color: "red" }
-
-  # --------------------------------------------------
   # Architecture & Responsibilities
   # --------------------------------------------------
 
   - topic: "architecture:server-logic"
     level: "high"
-    rule: "Business rules must live in the BFF or backend. Avoid client-side business logic when possible."
+    rule: "Business rules should live on the backend/BFF; clients consume computed results rather than replicate business logic."
     fix:
       dont: |
-        if (user.isPremium) {
-          price = price * 0.9
-        }
+        if (user.isPremium) price = price * 0.9
       do: |
-        // Receive final price calculated by backend
         const { price } = response
 
   - topic: "architecture:services"
     level: "high"
-    rule: "Frontend services must encapsulate external integrations or business abstractions and be implemented as classes."
+    rule: "Encapsulate external integrations and business orchestration behind service modules; UI should not call integrations directly."
     fix:
       dont: |
         fetch('/api/data').then(handle)
       do: |
-        class DataService {
-          fetchData() { return fetch('/api/data') }
-        }
+        dataService.fetchData()
 
-  - topic: "architecture:middlewares"
+  - topic: "architecture:orchestration"
     level: "medium"
-    rule: "Use middlewares to orchestrate service calls, validation, and request/response handling."
+    rule: "Use an orchestration layer (controller/middleware) to handle validation and request/response flow instead of mixing concerns in handlers/views."
     fix:
       dont: |
         app.get('/page', async (req, res) => render(await fetchData()))
       do: |
         app.get('/page', dataMiddleware, renderMiddleware)
 
-  # --------------------------------------------------
-  # React & Components
-  # --------------------------------------------------
-
-  - topic: "react:components"
+  - topic: "architecture:components"
     level: "high"
-    rule: "Components must be small, reusable, and have a single responsibility."
+    rule: "UI units should have a single responsibility; separate presentation from state/data orchestration."
     fix:
       dont: |
-        function Page() {
-          // rendering, data fetching, validation, tracking
-        }
+        function Page() { /* rendering + data fetching + validation */ }
       do: |
         function PageView(props) {}
         function PageContainer() {}
-
-  - topic: "react:hooks"
-    level: "medium"
-    rule: "Custom hooks must be prefixed with use and return objects instead of arrays."
-    fix:
-      dont: |
-        const [state, setState] = useCustom()
-      do: |
-        const { state, setState } = useCustom()
-
-  # --------------------------------------------------
-  # TypeScript
-  # --------------------------------------------------
-
-  - topic: "typescript:typing"
-    level: "high"
-    rule: "Avoid using any or unknown. Prefer explicit interfaces and generics."
-    fix:
-      dont: |
-        function process(data: any) {}
-      do: |
-        function process<T>(data: T) {}
-
-  - topic: "typescript:structures"
-    level: "medium"
-    rule: "Use interfaces for data structures and type aliases only for component props."
-    fix:
-      dont: |
-        type User = { id: string }
-      do: |
-        interface User { id: string }
-
-  # --------------------------------------------------
-  # CSS & Styling
-  # --------------------------------------------------
-
-  - topic: "css:conventions"
-    level: "medium"
-    rule: "Use the block__element--modifier (BEM) naming convention for CSS classes."
-    fix:
-      dont: |
-        .headerTitle {}
-      do: |
-        .header__title {}
-
-  - topic: "css:priority"
-    level: "medium"
-    rule: "Avoid using !important. Increase selector specificity instead."
-    fix:
-      dont: |
-        color: red !important;
-      do: |
-        .component .title { color: red; }
-
-  # --------------------------------------------------
-  # Testing – Frontend
-  # --------------------------------------------------
-
-  - topic: "testing:frameworks"
-    level: "high"
-    rule: "Use Jest for unit tests and Cypress for end-to-end tests."
-    fix:
-      dont: |
-        // Use unsupported testing framework
-      do: |
-        // Jest for unit tests, Cypress for E2E
-
-  - topic: "testing:structure"
-    level: "high"
-    rule: "Frontend unit tests must start with 'Should' and follow the existing project structure."
-    fix:
-      dont: |
-        it('renders correctly', () => {})
-      do: |
-        it('Should render correctly', () => {})
-
-  - topic: "testing:queries"
-    level: "medium"
-    rule: "Prefer React Testing Library queries over querySelector or data-testid when possible."
-    fix:
-      dont: |
-        document.querySelector('.button')
-      do: |
-        screen.getByRole('button')
 
   # --------------------------------------------------
   # Observability & Tracking
@@ -195,23 +75,85 @@ rules:
 
   - topic: "observability:tracking"
     level: "medium"
-    rule: "Use the standard tracking and logging tools provided by the framework for observability."
+    rule: "Use the standard tracking/logging mechanisms provided by the stack; ensure events include necessary context."
     fix:
       dont: |
         console.log('user clicked')
       do: |
-        melidata.track('user_click')
+        tracking.track('user_click', { userId })
 
   # --------------------------------------------------
-  # Dependencies & Tooling
+  # Preferences (non-binding; enforce via tooling/review)
   # --------------------------------------------------
 
-  - topic: "dependencies:management"
-    level: "critical"
-    rule: "Do not add or modify frontend dependencies or their versions unless explicitly requested."
-    fix:
-      dont: |
-        npm install new-library
-      do: |
-        // Use existing dependencies only
+  - topic: "preference:language-style"
+    level: "low"
+    rule: "Keep code and identifiers in English for consistency."
 
+  - topic: "preference:naming"
+    level: "low"
+    rule: "Use meaningful, pronounceable names and avoid repetition."
+
+  - topic: "preference:hooks"
+    level: "low"
+    rule: "For React, prefer custom hooks prefixed with use and return objects for clarity."
+
+  - topic: "preference:typing"
+    level: "low"
+    rule: "Prefer explicit typing and clear data shapes; avoid untyped/any where possible."
+
+  - topic: "preference:css-structure"
+    level: "low"
+    rule: "Use consistent naming for styles (e.g., BEM or project standard) and avoid relying on !important."
+
+  - topic: "preference:testing-stack"
+    level: "low"
+    rule: "Use the existing testing stack (e.g., Jest for unit, Cypress for E2E) unless instructed otherwise."
+
+  - topic: "preference:testing-structure"
+    level: "low"
+    rule: "Prefer behavior-oriented test names and readable Arrange/Act/Assert structure."
+
+  - topic: "preference:testing-queries"
+    level: "low"
+    rule: "When using React Testing Library, prefer semantic queries over raw selectors."
+
+  - topic: "preference:dependencies"
+    level: "low"
+    rule: "Avoid adding or upgrading dependencies without explicit approval; prefer existing stack libraries."
+
+  - topic: "preference:dependencies-approval"
+    level: "low"
+    rule: "Explicit user/stakeholder approval is required before modifying frontend dependency versions or adding new ones."
+
+  - topic: "preference:performance-caching"
+    level: "low"
+    rule: "Cache expensive client-side computations or fetched data when it improves UX, with clear invalidation/TTL."
+
+  - topic: "preference:render-props-structure"
+    level: "low"
+    rule: "Group render props by business/entity (e.g., device, platform, user) and then by visual/feature (e.g., widget, track); avoid flat ad-hoc props."
+
+  - topic: "preference:services-as-classes"
+    level: "low"
+    rule: "Keep service modules as classes encapsulating external integrations or business orchestration; avoid ad-hoc functions scattered in UI code."
+
+  - topic: "preference:middleware-validation"
+    level: "low"
+    rule: "Centralize validation and orchestration in middlewares/controllers instead of mixing concerns inside views/components."
+
+  - topic: "preference:typescript-interfaces"
+    level: "low"
+    rule: "Prefer interfaces for data shapes, avoid any/unknown, and centralize shared interfaces; avoid enums for simple constants—use objects."
+
+  - topic: "preference:react-hooks-shape"
+    level: "low"
+    rule: "Custom hooks return objects (not arrays) and are typed; keep them small and focused."
+
+  - topic: "preference:testing-naming"
+    level: "low"
+    rule: "Unit test names start with 'Should...' and follow behavior-based naming."
+
+  - topic: "preference:testing-paths"
+    level: "low"
+    rule: "Keep test modules colocated mirroring the production path (same structure under tests/unit/app)."

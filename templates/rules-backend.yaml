@@ -1,119 +1,155 @@
 # rules-backend.yaml
-# Backend (Kotlin / JVM) rules derived from backend rules and backend memories.
-# These rules extend AGENTS.md and are loaded conditionally when the active stack is backend.
+# Backend rules are architectural and conceptual. They extend AGENTS.md and are loaded when the active stack is backend.
 
 rules:
 
   # --------------------------------------------------
-  # Security – Credentials & Sensitive Data
+  # Security
   # --------------------------------------------------
 
   - topic: "security:credentials"
     level: "critical"
-    rule: "Never hardcode secrets, credentials, tokens, or API keys. All sensitive values must be injected via the official secrets mechanism or environment configuration."
+    rule: "Never hardcode secrets or sensitive data. Inject via approved secrets/config mechanisms."
     fix:
       dont: |
-        val apiKey = "secret-key"
-        val password = "admin123"
+        secret = "hardcoded-secret"
       do: |
-        val apiKey = secretsService.get("API_KEY")
-        val password = env.get("DB_PASSWORD")
+        secret = secrets.get("API_KEY")
 
   - topic: "security:logging"
     level: "critical"
-    rule: "Never log sensitive information such as credentials, tokens, PII, headers, or full payloads."
+    rule: "Do not log credentials, tokens, PII, headers, or full payloads."
     fix:
       dont: |
-        logger.error("Login failed for user=$user with token=$token")
+        log.error("token={}", token)
       do: |
-        logger.error("Login failed", mapOf("userId" to user.id))
-
-  # --------------------------------------------------
-  # Security – Input Validation & Execution
-  # --------------------------------------------------
+        log.error("operation failed", mapOf("userId" to user.id))
 
   - topic: "security:input-validation"
     level: "critical"
-    rule: "Always validate all user input using allow-list strategies and enforce business rules server-side."
+    rule: "Validate all external input with allow-lists and enforce business rules at the backend boundary."
     fix:
       dont: |
-        fun createUser(request: Request) = service.create(request.body)
+        service.create(request.body)
       do: |
-        fun createUser(request: Request) =
-          validate(request.body)
-            .flatMap { service.create(it) }
+        validate(request.body)
+        service.create(validatedPayload)
 
   - topic: "security:code-execution"
     level: "critical"
-    rule: "Never execute code from strings or untrusted input. Reflection and dynamic execution are forbidden."
+    rule: "Do not execute code from strings or untrusted input; avoid dynamic execution and unsafe reflection."
     fix:
       dont: |
-        Class.forName(className).newInstance()
+        eval(userInput)
       do: |
-        // Use explicit types and dependency injection
+        // Use explicit types and controlled factories
 
-  # --------------------------------------------------
-  # Architecture – Functional Error Handling
-  # --------------------------------------------------
-
-  - topic: "architecture:errors"
+  - topic: "security:deserialization"
     level: "critical"
-    rule: "All backend services must use functional error handling with Either. Exceptions must not escape service boundaries."
+    rule: "Do not deserialize untrusted input with unsafe mechanisms. Prefer safe structured formats; if unavoidable, enforce strict allow-lists."
     fix:
       dont: |
-        fun findUser(id: String): User = repository.find(id) ?: throw NotFound()
+        val obj = ObjectInputStream(bytes).readObject()
       do: |
-        fun findUser(id: String): Either<ApiError, User> =
-          repository.find(id)?.right() ?: ApiError.notFound().left()
+        val payload = json.decodeFromString<WhitelistedType>(input)
+
+  - topic: "security:outbound-allowlist"
+    level: "critical"
+    rule: "Do not pass user-controlled destinations directly to outbound HTTP/IO. Validate targets against trusted allow-lists or patterns."
+    fix:
+      dont: |
+        httpClient.get(userProvidedUrl)
+      do: |
+        httpClient.get(allowedUrlFor(userInput))
+
+  - topic: "security:randomness"
+    level: "critical"
+    rule: "Use cryptographically secure randomness for tokens/IDs/seeds; avoid weak generators."
+    fix:
+      dont: |
+        val token = Math.random().toString()
+      do: |
+        val token = secureRandom.generateSeed(32)
+
+  # --------------------------------------------------
+  # Architecture & Boundaries
+  # --------------------------------------------------
+
+  - topic: "architecture:error-contracts"
+    level: "high"
+    rule: "Service boundaries must return explicit success/error results; map internal errors to a uniform boundary contract and avoid leaking raw exceptions."
+    fix:
+      dont: |
+        throw NotFound("user")
+      do: |
+        return ErrorResult.notFound("user")
 
   - topic: "architecture:controller-flow"
     level: "high"
-    rule: "Controllers must delegate business logic to services and resolve results explicitly at the boundary."
+    rule: "Transport adapters/controllers handle transport concerns only and delegate business logic to services; adapt service results to transport responses explicitly."
     fix:
       dont: |
-        @GetMapping
-        fun get() = service.getData()
+        controller() { serviceCall(); repository.save() }
       do: |
-        @GetMapping
-        fun get() =
-          service.getData()
-            .resolve { ResponseEntity.ok(it) }
-
-  # --------------------------------------------------
-  # Architecture – Layered Responsibilities
-  # --------------------------------------------------
+        controller() { val result = service.handle(request); respond(result) }
 
   - topic: "architecture:layering"
     level: "high"
-    rule: "Controllers handle HTTP concerns only. Services contain business logic. Persistence and external calls must not leak into controllers."
+    rule: "Controllers/adapters must not access persistence or external integrations directly; services own business logic and orchestration."
     fix:
       dont: |
-        fun controller() {
-          repository.save(entity)
-        }
+        controller.save(entity)
       do: |
-        fun controller() {
-          service.save(entity)
-        }
+        service.save(entity)
 
   - topic: "architecture:dependency-injection"
     level: "high"
-    rule: "Always inject dependencies via constructors. Never instantiate dependencies inside classes."
+    rule: "Use inversion of control (constructor/factory injection). Do not instantiate collaborators inside business components."
     fix:
       dont: |
-        class MyService {
-          private val client = HttpClient()
-        }
+        class Service { private val client = HttpClient() }
       do: |
-        class MyService(private val client: HttpClient)
+        class Service(private val client: HttpClient)
 
-  # --------------------------------------------------
-  # Data Access & Concurrency
-  # --------------------------------------------------
+  - topic: "api:design"
+    level: "high"
+    rule: "HTTP/transport APIs must use correct methods and status codes, consistent resource naming, and standardized error payloads."
+    fix:
+      dont: |
+        POST /getUsers -> 200 or 500 with raw exception text
+      do: |
+        GET /users -> 200 with payload, 404 not found, 422 validation error, 500 internal with standardized error body
 
-  - topic: "data:sql"
+  - topic: "resilience:external-calls"
+    level: "high"
+    rule: "External calls must define timeouts, bounded retries with backoff/jitter, and fallbacks or circuit breakers where appropriate."
+    fix:
+      dont: |
+        external.call()
+      do: |
+        external.call()
+          .withTimeout()
+          .withRetry(backoff = jittered)
+          .withCircuitBreaker()
+
+  - topic: "security:authz-authn"
     level: "critical"
-    rule: "Never build SQL queries using string concatenation with user input. Always use parameterized queries or ORM abstractions."
+    rule: "Enforce authentication and authorization at service boundaries for sensitive operations; apply least privilege to tokens/permissions."
+    fix:
+      dont: |
+        fun deleteUser(id: Id) = service.delete(id)
+      do: |
+        requireAuth()
+        requirePermission("delete:user")
+        service.delete(id)
+
+  # --------------------------------------------------
+  # Data & Concurrency
+  # --------------------------------------------------
+
+  - topic: "data:parameterization"
+    level: "critical"
+    rule: "Never concatenate user input into queries. Use parameterized queries or safe data-access abstractions."
     fix:
       dont: |
         "SELECT * FROM users WHERE id = $id"
@@ -122,7 +158,7 @@ rules:
 
   - topic: "concurrency:state"
     level: "critical"
-    rule: "Never rely on shared mutable state in request-handling or concurrent execution paths."
+    rule: "Avoid shared mutable state in concurrent/request-handling paths; prefer request-scoped or thread-safe coordination."
     fix:
       dont: |
         object Cache { var value: String? = null }
@@ -135,49 +171,88 @@ rules:
 
   - topic: "errors:handling"
     level: "high"
-    rule: "All errors must be mapped to ApiError and handled consistently with proper HTTP status and tracking."
+    rule: "Normalize errors to the boundary contract, attach context, and emit consistent status/codes."
     fix:
       dont: |
         catch (e: Exception) { throw e }
       do: |
-        catch (e: Exception) { ApiError.internal(e.message).left() }
+        catch (e: Exception) { return ErrorResult.internal(e.message) }
 
-  - topic: "observability:tracking"
+  - topic: "observability:context"
     level: "medium"
-    rule: "Populate tracking and context information before resolving responses and ensure cleanup after request completion."
+    rule: "Establish correlation/trace context at the start of a request, propagate through calls, and clean up after completion."
     fix:
       dont: |
         tracking.track(event)
       do: |
-        TrackingContextHolder.populate(context)
-        tracking.track(event)
-        TrackingContextHolder.clear()
+        tracking.withContext(context) { track(event) }
 
   # --------------------------------------------------
-  # Testing – Backend
+  # Preferences (non-binding; enforce via tooling/review)
   # --------------------------------------------------
 
-  - topic: "testing:structure"
-    level: "high"
-    rule: "Backend tests must follow the Arrange / Act / Assert pattern and verify both behavior and interactions."
+  - topic: "preference:functional-errors"
+    level: "low"
+    rule: "In JVM/Kotlin stacks, prefer explicit result wrappers (e.g., Either/Result) for error handling to improve clarity."
     fix:
       dont: |
-        fun test() {
-          service.call()
-        }
+        fun find(id: Id): User = repo.find(id) ?: throw NotFound()
       do: |
-        fun `should return result when condition is met`() {
+        fun find(id: Id): Result<User> = repo.find(id)?.toSuccess() ?: Result.notFound()
+
+  - topic: "preference:testing-structure"
+    level: "low"
+    rule: "Prefer Arrange/Act/Assert (or similar behavior-driven) structure in tests for readability."
+    fix:
+      dont: |
+        fun test() { service.call() }
+      do: |
+        fun `should return result`() {
           // Arrange
           // Act
           // Assert
         }
 
-  - topic: "testing:dependencies"
-    level: "critical"
-    rule: "Do not add or modify backend testing dependencies unless explicitly requested."
+  - topic: "preference:kotlin-quality"
+    level: "low"
+    rule: "Favor immutability (val over var), null-safety, and clear data modeling (data/sealed classes) for domain types."
+
+  - topic: "preference:kotlin-scope-functions"
+    level: "low"
+    rule: "Use scope functions judiciously; prefer readability and avoid nesting that obscures control flow."
+
+  - topic: "preference:package-by-domain"
+    level: "low"
+    rule: "Organize code by business domain (controller/adapter, service, data/integration) rather than by layer-only packages."
+
+  - topic: "preference:arrow-either"
+    level: "low"
+    rule: "When using Arrow or similar, prefer Either<Result, Error> flows with map/flatMap and a resolve/adapt step at boundaries."
+
+  - topic: "preference:tracking-context"
+    level: "low"
+    rule: "If using request-scoped tracking context, ensure it is populated early and cleared deterministically after handling."
+
+  - topic: "preference:response-entity-format"
+    level: "low"
+    rule: "When building responses, prefer a readable builder style (status/contentType/body on separate lines) for clarity."
     fix:
       dont: |
-        testImplementation("new.lib:test:1.0.0")
+        return ResponseEntity.status(OK).body(payload)
       do: |
-        // Use existing testing libraries only
+        return ResponseEntity
+          .status(OK)
+          .contentType(APPLICATION_JSON)
+          .body(payload)
 
+  - topic: "preference:enums-jsonvalue"
+    level: "low"
+    rule: "For string enums exposed via JSON, use an explicit value field and @JsonValue on toString() for consistent serialization."
+    fix:
+      dont: |
+        enum class ErrorCode { FAILED_OPERATION }
+      do: |
+        enum class ErrorCode(private val value: String) {
+          FAILED_OPERATION("failed_operation");
+          @JsonValue override fun toString(): String = value
+        }

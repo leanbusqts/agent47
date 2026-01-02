@@ -1,22 +1,33 @@
 # Skill: implement
 
-## Description
-Implement a new feature or component based on the provided specification or explicit requirements.
+## Objective
+Implement a new feature or change based on explicit requirements or an approved spec.
 
-## Allowed
-- Create new files
-- Make localized changes
-- Follow architecture defined in AGENTS.md
-
-## Forbidden
-- Large refactors
-- Public API changes unless specified
-- Speculative abstractions
+## When to Use
+- A spec or clear requirements are provided.
+- Behavior change is expected and approved.
 
 ## Inputs
-- AGENTS.md
-- specs/<feature>.yml
+- AGENTS.md and applicable `rules-*.yaml`
+- Relevant spec(s)
+- User instructions and acceptance criteria
+- Relevant source files and tests
+
+## Process
+1. Validate scope against AGENTS, rules, and spec.
+2. Plan localized changes; avoid speculative abstractions.
+3. Implement with minimal invasiveness.
+4. Update/add tests when behavior changes.
 
 ## Outputs
-- New or modified files
-- Implementation summary
+- Files created/modified with intent noted.
+- Brief implementation notes.
+- Tests added/updated (if behavior changed).
+
+## Boundaries
+- Allowed: Localized changes; new files; adhering to existing architecture.
+- Forbidden: Large refactors; public API changes unless requested; speculative abstractions.
+
+## Expected Quality
+- Behavior matches requirements/spec.
+- Minimal surface area change; no unrelated edits.
