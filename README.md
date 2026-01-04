@@ -17,7 +17,7 @@
 - Reusable prompts
 - Consistent project initialization
 - Abstract handling of rules and memories (authoritative order: user > AGENTS > stack rules > specs > code/tests > memories/hints)
-- Templates inspired by agents.md (contracts), Anthropic/agentskills (skills format), and a simplified Spec Kit pattern (spec.yml)
+- Templates inspired by agents.md (contracts), Anthropic/agentskills (skills format), a simplified Spec Kit pattern (spec.yml), and aligned with community resources (https://github.com/anthropics/skills, https://agents.md, https://github.com/github/spec-kit/blob/main/spec-driven.md, https://agentskills.io/home)
 
 It is designed to be **simple, explicit, and composable**, without hidden automation.
 
@@ -28,6 +28,18 @@ It is designed to be **simple, explicit, and composable**, without hidden automa
 - Bootstrap agent workflows with explicit contracts (AGENTS, stack rules, skills, specs, prompts) so agents act consistently.
 - Keep templates and conventions versioned; copy them into projects when you decide.
 - Stay language-agnostic: no generators, no hidden automation—just scaffolding and guidance.
+
+---
+
+## Context Access Policy (MCP-aligned)
+
+All templates and prompts enforce explicit context boundaries:
+- Use only files, resources, and data explicitly provided in the prompt/workspace/approved context.
+- Do not assume access to files not listed, undeclared APIs, or external services not explicitly enabled.
+- If required context is missing, stop and ask.
+
+This keeps agent runs auditable and prevents accidental access to unintended resources.
+Note: This is an alignment with the MCP principle of explicit contexts; agent47 does not implement Model Context Protocol servers/clients.
 
 ---
 
