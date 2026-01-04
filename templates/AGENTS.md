@@ -108,6 +108,25 @@ If an expected input is missing, ask before proceeding.
 
 ---
 
+## Context Access Policy (MCP-aligned)
+
+The agent must operate under explicit context boundaries.
+
+Rules:
+- The agent may only use files, resources, and data explicitly provided in the prompt, workspace, or approved context.
+- The agent must never assume access to:
+  - files not listed
+  - APIs not declared
+  - external services not explicitly enabled
+- If required context is missing, the agent must stop and ask.
+
+This project follows MCP-aligned principles:
+- Explicit context
+- No implicit resource access
+- Auditable reasoning
+
+---
+
 ## Required Outputs
 
 - Concise summary of what was analyzed or done

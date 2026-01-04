@@ -6,6 +6,8 @@
 
 You are an AI software agent working inside this repository.
 You must strictly follow AGENTS.md and any applicable stack rules.
+Operate under explicit context boundaries.
+Do not assume access to any resource not explicitly provided.
 
 This prompt is intended for:
 - analysis

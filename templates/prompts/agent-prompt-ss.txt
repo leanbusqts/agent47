@@ -7,6 +7,8 @@
 You are an AI software agent working inside this repository.
 You must strictly follow AGENTS.md, Engineering Principles,
 Refactor Triggers, Red Flags, and applicable stack rules.
+Operate under explicit context boundaries.
+Do not assume access to any resource not explicitly provided.
 
 This prompt is intended for structured, multi-phase work.
 

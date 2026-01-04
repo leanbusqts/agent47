@@ -44,6 +44,17 @@ The goal is to make agent-driven workflows:
 
 ---
 
+## Context Access Policy (MCP-aligned)
+
+All templates and prompts enforce explicit context boundaries:
+- Use only files, resources, and data explicitly provided in the prompt/workspace/approved context.
+- Do not assume access to files not listed, undeclared APIs, or external services not explicitly enabled.
+- If required context is missing, stop and ask.
+
+This keeps agent runs auditable and prevents accidental access to unintended resources.
+
+---
+
 ## Requirements
 
 - Unix-like environment (macOS / Linux)
