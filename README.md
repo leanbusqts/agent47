@@ -85,20 +85,34 @@ This keeps agent runs auditable and prevents accidental access to unintended res
 cd /path/to/project
 
 # Bootstrap agent scaffolding (copies AGENTS.md and rules-*.yaml)
-agent47 init-agent
+agent47 add-agent --with-skills --prompt skills   # or --prompt base|sdd; drop flags to skip
 
-# Optional: add spec, skills, and prompts
-agent47 add-spec
-agent47 add-skills
-agent47 add-agent-prompt        # general prompt
-agent47 add-agent-prompt-ss     # spec + skills prompt
+# Optional: add spec or refresh skills/prompts later
+agent47 add-spec                    # creates specs/spec.yml if missing
+agent47 add-skills                  # rerun to refresh skills/AVAILABLE_SKILLS.xml after edits
+agent47 add-agent-prompt-base       # base prompt (no skills)
+agent47 add-agent-prompt-skills     # skills prompt
+agent47 add-agent-prompt-sdd        # spec + skills prompt (SDD)
 ```
 
 What you get:
 - `AGENTS.md` and `rules-*.yaml` in the project root
 - `specs/spec.yml` (fill it in)
-- `skills/*.md` (behavior contracts)
-- `prompts/agent-prompt*.txt` (edit before running your agent)
+- `skills/<name>/SKILL.md` (behavior contracts) and `skills/AVAILABLE_SKILLS.xml`
+- `prompts/agent-prompt-*.txt` (edit before running your agent)
+
+---
+
+## Skills overview (curated set)
+
+- analyze: understand current state, flows, and issues before changes.
+- implement: deliver scoped changes to requirements/spec with minimal surface.
+- review: inspect changes for correctness, risks, regressions.
+- refactor: improve structure without changing behavior.
+- optimize: improve performance/resources with evidence.
+- plan: create concise plans with risks and checkpoints.
+- spec-clarify: ask targeted questions to clarify scope and edge cases.
+- troubleshoot: isolate root causes and propose targeted fixes.
 
 ---
 
@@ -136,7 +150,13 @@ Manual steps are provided only for troubleshooting or advanced usage.
 ---
 
 ## Usage
-All examples below use `agent47`, but `a47` works identically.
+All examples below use `agent47`, but `a47` works identically. Use flags to include skills and prompts in one step if desired.
+
+## Command cheatsheet (common)
+- `agent47 add-agent [--with-skills] [--prompt base|skills|sdd]`
+- `agent47 add-spec`
+- `agent47 add-skills` / `agent47 reload-skills`
+- `agent47 add-agent-prompt-base` / `agent47 add-agent-prompt-skills` / `agent47 add-agent-prompt-sdd`
 
 ### Show help
 
@@ -155,6 +175,15 @@ This verifies:
 * `agent47` availability
 * installed helper commands
 * current version
+
+### Initialize agent (AGENTS + rules) with optional skills and prompt
+
+```bash
+agent47 add-agent --with-skills --prompt skills   # or --prompt base | --prompt sdd
+```
+
+- `--with-skills` copies the curated skills and generates `skills/AVAILABLE_SKILLS.xml`.
+- `--prompt` chooses which prompt to add: base (no skills), skills, or sdd (spec + skills). Omit to skip prompts.
 
 ### Check for updates (manual, cached)
 
@@ -177,8 +206,9 @@ a47 doctor
 agent47 add-spec
 a47 add-spec
 
-agent47 add-agent-prompt
-a47 add-agent-prompt
+agent47 add-agent-prompt-base
+agent47 add-agent-prompt-skills
+agent47 add-agent-prompt-sdd
 ```
 
 Note: `a47` is a real executable installed by the CLI.
@@ -234,40 +264,90 @@ Creates:
 
 ```text
 skills/
-├── analyze.md
-├── implement.md
-├── review.md
-├── refactor.md
-└── optimize.md
+├── analyze/
+│   └── SKILL.md
+├── implement/
+│   └── SKILL.md
+├── review/
+│   └── SKILL.md
+├── refactor/
+│   └── SKILL.md
+├── optimize/
+│   └── SKILL.md
+├── plan/
+│   └── SKILL.md
+├── spec-clarify/
+│   └── SKILL.md
+└── troubleshoot/
+    └── SKILL.md
 ```
 
 ---
 
-### Add a general agent prompt
+### Add a base prompt (no skills)
 
 ```bash
-agent47 add-agent-prompt
+agent47 add-agent-prompt-base
 ```
 
 Creates:
 
 ```text
-prompts/agent-prompt.txt
+prompts/agent-prompt-base.txt
 ```
+
+Usage notes:
+- No skills or spec template embedded; uses only provided context.
+- Sections: role, tasks (context/resources/description), constraints, outputs.
 
 ---
 
-### Add a spec & skill–driven prompt (SDD flow)
+### Add a skills prompt
 
 ```bash
-agent47 add-agent-prompt-ss
+agent47 add-agent-prompt-skills
 ```
 
 Creates:
 
 ```text
-prompts/agent-prompt-ss.txt
+prompts/agent-prompt-skills.txt
 ```
+
+Usage notes:
+- Uses skills if present; the prompt instructs the agent to read `skills/AVAILABLE_SKILLS.xml` directly from the filesystem (no manual pasting).
+- Intended for general work with skills; no spec template embedded (specs are optional context if provided).
+- Sections: role, skills (active + available), tasks (context/resources/description), constraints, outputs.
+
+---
+
+### Add a spec + skills prompt (SDD flow)
+
+```bash
+agent47 add-agent-prompt-sdd
+```
+
+Creates:
+
+```text
+prompts/agent-prompt-sdd.txt
+```
+
+Usage notes:
+- Uses skills if present; the prompt instructs the agent to read `skills/AVAILABLE_SKILLS.xml` directly from the filesystem (no manual pasting).
+- Intended for structured, multi-phase work; includes a spec notes section and expects `specs/spec.yml` when a spec is in scope.
+- Sections: role, skills (active + available), phase objective, phase guardrails, spec notes (optional), constraints, outputs.
+
+---
+
+### Agent Skills format and validation
+
+- Skills follow the Agent Skills spec (`SKILL.md` with YAML frontmatter `name` + `description`, body in Markdown). Reference: https://agentskills.io/specification
+- Optional folders (`scripts/`, `references/`, `assets/`) are not created by default. Add them only if needed, keep files small, and reference them with relative paths from `SKILL.md` (progressive disclosure).
+- `agent47 add-skills` also generates `skills/AVAILABLE_SKILLS.xml` with the `<available_skills>` block (name, description, location). Prompts instruct the agent to read this file directly for filesystem-based activation; no manual pasting required.
+- If you add or edit skills later, rerun `agent47 add-skills` to refresh `skills/AVAILABLE_SKILLS.xml`.
+- Alternatively, run `agent47 reload-skills` to regenerate only `skills/AVAILABLE_SKILLS.xml` without copying templates.
+- To validate a skill after editing/creating it: `skills-ref validate skills/<skill>` (optional, requires the `skills-ref` tool).
 
 ---
 
@@ -329,10 +409,11 @@ agent47/
 │   └── agent47
 ├── scripts/
 │   ├── add-agent
-│   ├── add-spec
 │   ├── add-skills
-│   ├── add-agent-prompt
-│   └── add-agent-prompt-ss
+│   ├── add-spec
+│   ├── add-agent-prompt-base
+│   ├── add-agent-prompt-skills
+│   └── add-agent-prompt-sdd
 ├── templates/
 │   ├── AGENTS.md
 │   ├── rules-*.yaml
@@ -362,13 +443,15 @@ agent47/
 ↓
 cd project
 ↓
-agent47 init-agent
+agent47 add-agent --with-skills --prompt skills   # or --prompt base|sdd; drop flags to skip
 ↓
 agent47 add-spec (optional)
 ↓
-agent47 add-skills (optional)
+agent47 add-skills (optional, to refresh skills/templates)
 ↓
-agent47 add-agent-prompt / agent47 add-agent-prompt-ss
+agent47 reload-skills (optional, regenerate skills/AVAILABLE_SKILLS.xml only)
+↓
+agent47 add-agent-prompt-base / agent47 add-agent-prompt-skills / agent47 add-agent-prompt-sdd (optional, if not added via flags)
 ↓
 Use your AI tool of choice
 ```

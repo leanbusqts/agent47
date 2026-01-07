@@ -347,14 +347,15 @@ print_help() {
   echo "  agent47 uninstall"
   echo "  agent47 doctor"
   echo "  agent47 check-update"
-  echo "  agent47 init-agent"
   echo ""
   echo "Add commands:"
-  echo "  agent47 add-agent"
+  echo "  agent47 add-agent [--with-skills] [--prompt base|skills|sdd]   # flags optional"
   echo "  agent47 add-spec"
   echo "  agent47 add-skills"
-  echo "  agent47 add-agent-prompt"
-  echo "  agent47 add-agent-prompt-ss"
+  echo "  agent47 reload-skills"
+  echo "  agent47 add-agent-prompt-base"
+  echo "  agent47 add-agent-prompt-skills"
+  echo "  agent47 add-agent-prompt-sdd"
   echo ""
   echo "Aliases:"
   echo "  a47 <command>   (shorthand for agent47)"
@@ -376,6 +377,15 @@ install_templates() {
     echo "[WARN] Templates directory not found in repo"
   fi
 
+  # Install helper scripts (for sourcing)
+  mkdir -p "$AGENT47_HOME/scripts"
+  if [ -f "$SCRIPTS_DIR/skill-utils.sh" ]; then
+    cp "$SCRIPTS_DIR/skill-utils.sh" "$AGENT47_HOME/scripts/"
+    echo "[OK] Helper installed: skill-utils.sh"
+  else
+    echo "[WARN] Helper not found: skill-utils.sh"
+  fi
+
   if [ -f "$ROOT_DIR/VERSION" ]; then
     cp "$ROOT_DIR/VERSION" "$AGENT47_HOME/VERSION"
     echo "[OK] VERSION installed"
@@ -392,13 +402,21 @@ install_scripts() {
 
   mkdir -p "$USER_DIR"
 
-  for script in add-agent add-spec add-skills add-agent-prompt add-agent-prompt-ss; do
+  for script in add-agent add-spec add-skills reload-skills add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd; do
     if [ -f "$SCRIPTS_DIR/$script" ]; then
       cp "$SCRIPTS_DIR/$script" "$USER_DIR/$script"
       chmod +x "$USER_DIR/$script"
       echo "[OK] Installed $script"
     else
       echo "[WARN] Script not found: $script"
+    fi
+  done
+
+  # Clean legacy prompt scripts if present
+  for legacy in add-agent-prompt add-agent-prompt-ss; do
+    if [ -f "$USER_DIR/$legacy" ]; then
+      rm -f "$USER_DIR/$legacy"
+      echo "[INFO] Removed legacy script: $legacy"
     fi
   done
 
@@ -479,12 +497,20 @@ doctor() {
   # ---------------------------
   # Helper scripts
   # ---------------------------
-  for script in add-agent add-spec add-skills add-agent-prompt add-agent-prompt-ss; do
+  for script in add-agent add-spec add-skills reload-skills add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd; do
     if command -v "$script" >/dev/null; then
       echo "[OK] $script available"
     else
       echo "[WARN] $script missing"
       echo "[HINT] Fix: agent47 install"
+    fi
+  done
+
+  # Legacy prompt scripts check
+  for legacy in add-agent-prompt add-agent-prompt-ss; do
+    if command -v "$legacy" >/dev/null; then
+      echo "[INFO] Legacy script detected: $legacy (no longer used)"
+      echo "[HINT] Run agent47 install to clean legacy scripts"
     fi
   done
 
@@ -553,9 +579,6 @@ case "$1" in
   uninstall)
     uninstall
     ;;
-  init-agent)
-    init_agent
-    ;;
   doctor)
     doctor
     ;;
@@ -571,11 +594,17 @@ case "$1" in
   add-skills)
     add-skills
     ;;
-  add-agent-prompt)
-    add-agent-prompt
+  reload-skills)
+    reload-skills
     ;;
-  add-agent-prompt-ss)
-    add-agent-prompt-ss
+  add-agent-prompt-base)
+    add-agent-prompt-base
+    ;;
+  add-agent-prompt-skills)
+    add-agent-prompt-skills
+    ;;
+  add-agent-prompt-sdd)
+    add-agent-prompt-sdd
     ;;
   *)
     echo "Unknown command: $1"

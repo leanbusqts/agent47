@@ -2,12 +2,22 @@
 
 AGENT47_HOME="$HOME/.agent47"
 TEMPLATES_DIR="$AGENT47_HOME/templates/skills"
+HELPERS_FILE="$AGENT47_HOME/scripts/skill-utils.sh"
 
 SKILLS_DIR="skills"
+SKILL_LIST=(
+  analyze
+  implement
+  review
+  refactor
+  optimize
+  plan
+  spec-clarify
+  troubleshoot
+)
 
 echo "🧠 Initializing agent skills..."
 
-# Create skills directory if it doesn't exist
 if [ ! -d "$SKILLS_DIR" ]; then
   mkdir "$SKILLS_DIR"
   echo "📁 Created directory: $SKILLS_DIR/"
@@ -15,17 +25,32 @@ else
   echo "📁 Directory already exists: $SKILLS_DIR/"
 fi
 
-for skill in analyze.md implement.md review.md refactor.md optimize.md; do
-  if [ -f "$SKILLS_DIR/$skill" ]; then
-    echo "⚠️  Skill already exists, skipping: $skill"
-  else
-    if [ -f "$TEMPLATES_DIR/$skill" ]; then
-      cp "$TEMPLATES_DIR/$skill" "$SKILLS_DIR/$skill"
-      echo "✅ Created skill: $SKILLS_DIR/$skill"
-    else
-      echo "❌ Template not found: $skill"
-    fi
+for skill in "${SKILL_LIST[@]}"; do
+  src="$TEMPLATES_DIR/$skill"
+  dest="$SKILLS_DIR/$skill"
+
+  if [ ! -d "$src" ]; then
+    echo "❌ Template not found: $skill"
+    continue
   fi
+
+  if [ -d "$dest" ]; then
+    echo "⚠️  Skill already exists, skipping copy: $skill"
+  else
+    cp -R "$src" "$dest"
+    echo "✅ Created skill: $dest/"
+  fi
+
+  validate_skill "$dest/SKILL.md" || true
 done
 
+write_available_skills "$SKILLS_DIR" "$SKILLS_DIR/AVAILABLE_SKILLS.xml"
+
 echo "🚀 Skills setup complete."
+if [ -f "$HELPERS_FILE" ]; then
+  # shellcheck disable=SC1090
+  source "$HELPERS_FILE"
+else
+  echo "❌ Helper not found: $HELPERS_FILE"
+  exit 1
+fi

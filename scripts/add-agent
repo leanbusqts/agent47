@@ -10,6 +10,34 @@ FILES=(
   "rules-backend.yaml"
 )
 
+WITH_SKILLS=false
+PROMPT_CHOICE=""
+
+usage() {
+  echo "Usage: add-agent [--with-skills] [--prompt base|skills|sdd]"
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --with-skills)
+      WITH_SKILLS=true
+      shift
+      ;;
+    --prompt)
+      if [[ -z "$2" ]]; then
+        usage
+        exit 1
+      fi
+      PROMPT_CHOICE="$2"
+      shift 2
+      ;;
+    *)
+      usage
+      exit 1
+      ;;
+  esac
+done
+
 echo "📁 Initializing agent environment..."
 
 for file in "${FILES[@]}"; do
@@ -30,5 +58,44 @@ if [ ! -f "README.md" ]; then
   touch README.md
   echo "📝 README.md created"
 fi
+
+# Optional: add skills
+if [ "$WITH_SKILLS" = true ]; then
+  if [ -x "$AGENT47_HOME/scripts/add-skills" ]; then
+    "$AGENT47_HOME/scripts/add-skills"
+  else
+    echo "❌ add-skills script not found at $AGENT47_HOME/scripts/add-skills"
+  fi
+fi
+
+# Optional: add prompt
+case "$PROMPT_CHOICE" in
+  "")
+    ;;
+  base)
+    if [ -x "$AGENT47_HOME/scripts/add-agent-prompt-base" ]; then
+      "$AGENT47_HOME/scripts/add-agent-prompt-base"
+    else
+      echo "❌ add-agent-prompt-base not found at $AGENT47_HOME/scripts/add-agent-prompt-base"
+    fi
+    ;;
+  skills)
+    if [ -x "$AGENT47_HOME/scripts/add-agent-prompt-skills" ]; then
+      "$AGENT47_HOME/scripts/add-agent-prompt-skills"
+    else
+      echo "❌ add-agent-prompt-skills not found at $AGENT47_HOME/scripts/add-agent-prompt-skills"
+    fi
+    ;;
+  sdd)
+    if [ -x "$AGENT47_HOME/scripts/add-agent-prompt-sdd" ]; then
+      "$AGENT47_HOME/scripts/add-agent-prompt-sdd"
+    else
+      echo "❌ add-agent-prompt-sdd not found at $AGENT47_HOME/scripts/add-agent-prompt-sdd"
+    fi
+    ;;
+  *)
+    echo "❌ Invalid prompt choice: $PROMPT_CHOICE (use base|skills|sdd)"
+    ;;
+esac
 
 echo "✅ Agent environment ready"

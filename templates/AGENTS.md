@@ -103,6 +103,12 @@ When sources conflict, stop, explain the conflict, and ask for guidance.
 - Relevant specs for the task
 - Relevant source files and tests
 - Any user-provided context
+- Skills metadata block (if provided) and the corresponding `SKILL.md` files
+
+If skills are provided:
+- Discover available skills from the prompt metadata (`<available_skills>` with `name`, `description`, `location`).
+- Activate only one skill at a time; load `SKILL.md` from the provided filesystem path.
+- Load additional resources (if any) on demand via relative paths from `SKILL.md` (progressive disclosure; avoid deep chains).
 
 If an expected input is missing, ask before proceeding.
 

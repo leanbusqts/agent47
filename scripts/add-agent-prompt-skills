@@ -1,0 +1,28 @@
+#!/bin/bash
+
+AGENT47_HOME="$HOME/.agent47"
+TEMPLATES_DIR="$AGENT47_HOME/templates/prompts"
+
+PROMPTS_DIR="prompts"
+TARGET_FILE="$PROMPTS_DIR/agent-prompt-skills.txt"
+
+echo "🧠 Initializing skills prompt..."
+
+if [ ! -d "$PROMPTS_DIR" ]; then
+  mkdir "$PROMPTS_DIR"
+  echo "📁 Created directory: $PROMPTS_DIR/"
+fi
+
+if [ -f "$TARGET_FILE" ]; then
+  echo "⚠️  $TARGET_FILE already exists, skipping"
+  exit 0
+fi
+
+if [ -f "$TEMPLATES_DIR/agent-prompt-skills.txt" ]; then
+  cp "$TEMPLATES_DIR/agent-prompt-skills.txt" "$TARGET_FILE"
+  echo "✅ Created prompt: $TARGET_FILE"
+else
+  echo "❌ Template not found: agent-prompt-skills.txt"
+fi
+
+echo "🚀 Skills prompt setup complete."

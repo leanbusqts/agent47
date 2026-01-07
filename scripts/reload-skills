@@ -1,0 +1,22 @@
+#!/bin/bash
+
+SKILLS_DIR="skills"
+AVAILABLE_SKILLS_FILE="$SKILLS_DIR/AVAILABLE_SKILLS.xml"
+HELPERS_FILE="$HOME/.agent47/scripts/skill-utils.sh"
+
+echo "🧠 Regenerating skills metadata..."
+
+if [ ! -d "$SKILLS_DIR" ]; then
+  echo "⚠️  $SKILLS_DIR/ not found. Nothing to do."
+  exit 0
+fi
+
+if [ -f "$HELPERS_FILE" ]; then
+  # shellcheck disable=SC1090
+  source "$HELPERS_FILE"
+else
+  echo "❌ Helper not found: $HELPERS_FILE"
+  exit 1
+fi
+
+write_available_skills "$SKILLS_DIR" "$AVAILABLE_SKILLS_FILE"
