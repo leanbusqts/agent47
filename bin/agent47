@@ -87,6 +87,11 @@ load_update_cache() {
     return 1
   fi
 
+  # If local version changed since cache, ignore cache
+  if [ -n "$cached_local" ] && [ "$cached_local" != "$AGENT47_VERSION" ]; then
+    return 1
+  fi
+
   UPDATE_STATUS="$cached_status"
   UPDATE_METHOD="$cached_method"
   UPDATE_LOCAL_VERSION="${cached_local:-$AGENT47_VERSION}"
