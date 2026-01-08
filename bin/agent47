@@ -25,10 +25,11 @@ REMOTE_VERSION_URL="${AGENT47_VERSION_URL:-$DEFAULT_VERSION_URL}"
 # ---------------------------
 # Version
 # ---------------------------
-if [ -f "$VERSION_FILE" ]; then
-  AGENT47_VERSION="$(cat "$VERSION_FILE")"
-elif [ -f "$ROOT_DIR/VERSION" ]; then
+# Prefer repo VERSION if present; fallback to installed copy
+if [ -f "$ROOT_DIR/VERSION" ]; then
   AGENT47_VERSION="$(cat "$ROOT_DIR/VERSION")"
+elif [ -f "$VERSION_FILE" ]; then
+  AGENT47_VERSION="$(cat "$VERSION_FILE")"
 else
   AGENT47_VERSION="unknown"
 fi
