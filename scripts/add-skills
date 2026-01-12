@@ -16,13 +16,21 @@ SKILL_LIST=(
   troubleshoot
 )
 
-echo "🧠 Initializing agent skills..."
+if [ -f "$HELPERS_FILE" ]; then
+  # shellcheck disable=SC1090
+  source "$HELPERS_FILE"
+else
+  echo "[ERR] Helper not found: $HELPERS_FILE"
+  exit 1
+fi
+
+echo "[INFO] Initializing agent skills..."
 
 if [ ! -d "$SKILLS_DIR" ]; then
   mkdir "$SKILLS_DIR"
-  echo "📁 Created directory: $SKILLS_DIR/"
+  echo "[OK] Created directory: $SKILLS_DIR/"
 else
-  echo "📁 Directory already exists: $SKILLS_DIR/"
+  echo "[INFO] Directory already exists: $SKILLS_DIR/"
 fi
 
 for skill in "${SKILL_LIST[@]}"; do
@@ -30,15 +38,20 @@ for skill in "${SKILL_LIST[@]}"; do
   dest="$SKILLS_DIR/$skill"
 
   if [ ! -d "$src" ]; then
-    echo "❌ Template not found: $skill"
+    echo "[ERR] Template not found: $skill"
     continue
   fi
 
   if [ -d "$dest" ]; then
-    echo "⚠️  Skill already exists, skipping copy: $skill"
+    if [ ! -f "$dest/SKILL.md" ]; then
+      cp "$src/SKILL.md" "$dest/SKILL.md"
+      echo "[OK] Restored SKILL.md: $skill"
+    else
+      echo "[INFO] Skill exists, skipping copy: $skill"
+    fi
   else
     cp -R "$src" "$dest"
-    echo "✅ Created skill: $dest/"
+    echo "[OK] Created skill: $skill"
   fi
 
   validate_skill "$dest/SKILL.md" || true
@@ -46,11 +59,4 @@ done
 
 write_available_skills "$SKILLS_DIR" "$SKILLS_DIR/AVAILABLE_SKILLS.xml"
 
-echo "🚀 Skills setup complete."
-if [ -f "$HELPERS_FILE" ]; then
-  # shellcheck disable=SC1090
-  source "$HELPERS_FILE"
-else
-  echo "❌ Helper not found: $HELPERS_FILE"
-  exit 1
-fi
+echo "[OK] Skills setup complete."

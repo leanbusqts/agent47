@@ -407,12 +407,15 @@ install_scripts() {
   echo "[*] Installing agent47 scripts..."
 
   mkdir -p "$USER_DIR"
+  mkdir -p "$AGENT47_HOME/scripts"
 
   for script in add-agent add-spec add-skills reload-skills add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd; do
     if [ -f "$SCRIPTS_DIR/$script" ]; then
       cp "$SCRIPTS_DIR/$script" "$USER_DIR/$script"
       chmod +x "$USER_DIR/$script"
       echo "[OK] Installed $script"
+      cp "$SCRIPTS_DIR/$script" "$AGENT47_HOME/scripts/$script"
+      chmod +x "$AGENT47_HOME/scripts/$script"
     else
       echo "[WARN] Script not found: $script"
     fi
@@ -592,25 +595,25 @@ case "$1" in
     check_update "$2"
     ;;
   add-agent)
-    add-agent
+    add-agent "${@:2}"
     ;;
   add-spec)
-    add-spec
+    add-spec "${@:2}"
     ;;
   add-skills)
-    add-skills
+    add-skills "${@:2}"
     ;;
   reload-skills)
-    reload-skills
+    reload-skills "${@:2}"
     ;;
   add-agent-prompt-base)
-    add-agent-prompt-base
+    add-agent-prompt-base "${@:2}"
     ;;
   add-agent-prompt-skills)
-    add-agent-prompt-skills
+    add-agent-prompt-skills "${@:2}"
     ;;
   add-agent-prompt-sdd)
-    add-agent-prompt-sdd
+    add-agent-prompt-sdd "${@:2}"
     ;;
   *)
     echo "Unknown command: $1"

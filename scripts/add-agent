@@ -13,6 +13,25 @@ FILES=(
 WITH_SKILLS=false
 PROMPT_CHOICE=""
 
+run_helper() {
+  local cmd="$1"
+  local fallback="$2"
+  local args=("${@:3}")
+
+  if command -v "$cmd" >/dev/null 2>&1; then
+    "$cmd" "${args[@]}"
+    return $?
+  fi
+
+  if [ -n "$fallback" ] && [ -x "$fallback" ]; then
+    "$fallback" "${args[@]}"
+    return $?
+  fi
+
+  echo "[ERR] $cmd not found (checked PATH${fallback:+ and $fallback})"
+  return 1
+}
+
 usage() {
   echo "Usage: add-agent [--with-skills] [--prompt base|skills|sdd]"
 }
@@ -38,34 +57,30 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-echo "📁 Initializing agent environment..."
+echo "[INFO] Initializing agent environment..."
 
 for file in "${FILES[@]}"; do
   if [ -f "$TEMPLATES_DIR/$file" ]; then
     if [ -f "./$file" ]; then
-      echo "⚠️  $file already exists, skipping"
+      echo "[WARN] $file already exists, skipping"
     else
       cp "$TEMPLATES_DIR/$file" .
-      echo "✅ Copied: $file"
+      echo "[OK] Copied: $file"
     fi
   else
-    echo "❌ Template not found: $file"
+    echo "[ERR] Template not found: $file"
   fi
 done
 
 # Create README.md if not present
 if [ ! -f "README.md" ]; then
   touch README.md
-  echo "📝 README.md created"
+  echo "[OK] README.md created"
 fi
 
 # Optional: add skills
 if [ "$WITH_SKILLS" = true ]; then
-  if [ -x "$AGENT47_HOME/scripts/add-skills" ]; then
-    "$AGENT47_HOME/scripts/add-skills"
-  else
-    echo "❌ add-skills script not found at $AGENT47_HOME/scripts/add-skills"
-  fi
+  run_helper add-skills "$AGENT47_HOME/scripts/add-skills"
 fi
 
 # Optional: add prompt
@@ -73,29 +88,19 @@ case "$PROMPT_CHOICE" in
   "")
     ;;
   base)
-    if [ -x "$AGENT47_HOME/scripts/add-agent-prompt-base" ]; then
-      "$AGENT47_HOME/scripts/add-agent-prompt-base"
-    else
-      echo "❌ add-agent-prompt-base not found at $AGENT47_HOME/scripts/add-agent-prompt-base"
-    fi
+    run_helper add-agent-prompt-base "$AGENT47_HOME/scripts/add-agent-prompt-base"
     ;;
   skills)
-    if [ -x "$AGENT47_HOME/scripts/add-agent-prompt-skills" ]; then
-      "$AGENT47_HOME/scripts/add-agent-prompt-skills"
-    else
-      echo "❌ add-agent-prompt-skills not found at $AGENT47_HOME/scripts/add-agent-prompt-skills"
-    fi
+    run_helper add-agent-prompt-skills "$AGENT47_HOME/scripts/add-agent-prompt-skills"
+    run_helper reload-skills "$AGENT47_HOME/scripts/reload-skills"
     ;;
   sdd)
-    if [ -x "$AGENT47_HOME/scripts/add-agent-prompt-sdd" ]; then
-      "$AGENT47_HOME/scripts/add-agent-prompt-sdd"
-    else
-      echo "❌ add-agent-prompt-sdd not found at $AGENT47_HOME/scripts/add-agent-prompt-sdd"
-    fi
+    run_helper add-agent-prompt-sdd "$AGENT47_HOME/scripts/add-agent-prompt-sdd"
+    run_helper reload-skills "$AGENT47_HOME/scripts/reload-skills"
     ;;
   *)
-    echo "❌ Invalid prompt choice: $PROMPT_CHOICE (use base|skills|sdd)"
+    echo "[ERR] Invalid prompt choice: $PROMPT_CHOICE (use base|skills|sdd)"
     ;;
 esac
 
-echo "✅ Agent environment ready"
+echo "[OK] Agent environment ready"

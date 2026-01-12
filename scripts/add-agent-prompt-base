@@ -6,23 +6,23 @@ TEMPLATES_DIR="$AGENT47_HOME/templates/prompts"
 PROMPTS_DIR="prompts"
 TARGET_FILE="$PROMPTS_DIR/agent-prompt-base.txt"
 
-echo "🧠 Initializing base prompt (no skills)..."
+echo "[INFO] Initializing base prompt (no skills)..."
 
 if [ ! -d "$PROMPTS_DIR" ]; then
   mkdir "$PROMPTS_DIR"
-  echo "📁 Created directory: $PROMPTS_DIR/"
+  echo "[OK] Created directory: $PROMPTS_DIR/"
 fi
 
 if [ -f "$TARGET_FILE" ]; then
-  echo "⚠️  $TARGET_FILE already exists, skipping"
+  echo "[WARN] $TARGET_FILE already exists, skipping"
   exit 0
 fi
 
 if [ -f "$TEMPLATES_DIR/agent-prompt-base.txt" ]; then
   cp "$TEMPLATES_DIR/agent-prompt-base.txt" "$TARGET_FILE"
-  echo "✅ Created prompt: $TARGET_FILE"
+  echo "[OK] Created prompt: $TARGET_FILE"
 else
-  echo "❌ Template not found: agent-prompt-base.txt"
+  echo "[ERR] Template not found: agent-prompt-base.txt"
 fi
 
-echo "🚀 Base prompt setup complete."
+echo "[OK] Base prompt setup complete."
