@@ -72,7 +72,6 @@ Pods/
 ##############################
 /build/
 /out/
-/bin/
 /logs/
 .kotlin/
 .intellijPlatform/

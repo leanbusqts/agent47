@@ -1,0 +1,608 @@
+#!/bin/bash
+
+USER_DIR="$HOME/bin"
+AGENT47_HOME="$HOME/.agent47"
+
+# Resolve real path even if a47 is a symlink
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+SCRIPTS_DIR="$ROOT_DIR/scripts"
+VERSION_FILE="$AGENT47_HOME/VERSION"
+CACHE_DIR="$AGENT47_HOME/cache"
+UPDATE_CACHE_FILE="$CACHE_DIR/update.json"
+UPDATE_CACHE_TTL_SECONDS=86400
+DEFAULT_VERSION_URL="https://raw.githubusercontent.com/leanbusqts/agent47/main/VERSION"
+REMOTE_VERSION_URL="${AGENT47_VERSION_URL:-$DEFAULT_VERSION_URL}"
+
+# ---------------------------
+# Version
+# ---------------------------
+# Prefer repo VERSION if present; fallback to installed copy
+if [ -f "$ROOT_DIR/VERSION" ]; then
+  AGENT47_VERSION="$(cat "$ROOT_DIR/VERSION")"
+elif [ -f "$VERSION_FILE" ]; then
+  AGENT47_VERSION="$(cat "$VERSION_FILE")"
+else
+  AGENT47_VERSION="unknown"
+fi
+
+# ---------------------------
+# Update check helpers
+# ---------------------------
+json_escape() {
+  echo "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+get_file_mtime() {
+  local target="$1"
+
+  if [ -z "$target" ] || [ ! -f "$target" ]; then
+    echo ""
+    return
+  fi
+
+  if stat -f %m "$target" >/dev/null 2>&1; then
+    stat -f %m "$target"
+  elif stat -c %Y "$target" >/dev/null 2>&1; then
+    stat -c %Y "$target"
+  else
+    echo ""
+  fi
+}
+
+load_update_cache() {
+  local now_ts="$1"
+
+  if [ ! -f "$UPDATE_CACHE_FILE" ]; then
+    return 1
+  fi
+
+  local mtime
+  mtime="$(get_file_mtime "$UPDATE_CACHE_FILE")"
+  if [ -z "$mtime" ]; then
+    return 1
+  fi
+
+  local age=$((now_ts - mtime))
+  if [ "$age" -ge "$UPDATE_CACHE_TTL_SECONDS" ]; then
+    return 1
+  fi
+
+  local cached_status cached_method cached_local cached_latest cached_message
+  cached_status="$(sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$UPDATE_CACHE_FILE" | head -n 1)"
+  cached_method="$(sed -n 's/.*"method"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$UPDATE_CACHE_FILE" | head -n 1)"
+  cached_local="$(sed -n 's/.*"local"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$UPDATE_CACHE_FILE" | head -n 1)"
+  cached_latest="$(sed -n 's/.*"latest"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$UPDATE_CACHE_FILE" | head -n 1)"
+  cached_message="$(sed -n 's/.*"message"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$UPDATE_CACHE_FILE" | head -n 1)"
+
+  if [ -z "$cached_status" ]; then
+    return 1
+  fi
+
+  # If local version changed since cache, ignore cache
+  if [ -n "$cached_local" ] && [ "$cached_local" != "$AGENT47_VERSION" ]; then
+    return 1
+  fi
+
+  UPDATE_STATUS="$cached_status"
+  UPDATE_METHOD="$cached_method"
+  UPDATE_LOCAL_VERSION="${cached_local:-$AGENT47_VERSION}"
+  UPDATE_LATEST_VERSION="$cached_latest"
+  UPDATE_MESSAGE="$cached_message"
+  UPDATE_FROM_CACHE=true
+  UPDATE_CACHE_AGE="$age"
+  return 0
+}
+
+save_update_cache() {
+  mkdir -p "$CACHE_DIR"
+
+  local now_ts
+  now_ts="$(date +%s)"
+  cat >"$UPDATE_CACHE_FILE" <<EOF
+{
+  "checked_at": $now_ts,
+  "status": "$(json_escape "$UPDATE_STATUS")",
+  "method": "$(json_escape "$UPDATE_METHOD")",
+  "local": "$(json_escape "$UPDATE_LOCAL_VERSION")",
+  "latest": "$(json_escape "$UPDATE_LATEST_VERSION")",
+  "message": "$(json_escape "$UPDATE_MESSAGE")"
+}
+EOF
+}
+
+print_update_result() {
+  if [ "${UPDATE_FROM_CACHE:-false}" = true ]; then
+    local hours=$((UPDATE_CACHE_AGE / 3600))
+    echo "[INFO] Using cached update check (age ${hours}h)"
+  fi
+
+  case "$UPDATE_STATUS" in
+    up-to-date)
+      echo "[OK] Up to date (version ${UPDATE_LOCAL_VERSION})"
+      ;;
+    update-available)
+      echo "Update available: ${UPDATE_LOCAL_VERSION} -> ${UPDATE_LATEST_VERSION}"
+      if [ -d "$ROOT_DIR/.git" ]; then
+        echo "[HINT] Update via: git -C \"$ROOT_DIR\" pull && ./install.sh"
+      else
+        echo "[HINT] Update via: re-download agent47 and rerun install.sh"
+      fi
+      ;;
+    local-ahead)
+      echo "[INFO] Local copy is ahead of ${UPDATE_METHOD}; no update needed"
+      ;;
+    *)
+      echo "[WARN] Cannot check for updates: ${UPDATE_MESSAGE}"
+      ;;
+  esac
+}
+
+git_update_check() {
+  if ! command -v git >/dev/null 2>&1; then
+    UPDATE_STATUS="error"
+    UPDATE_MESSAGE="git not available"
+    UPDATE_METHOD="git"
+    return 1
+  fi
+
+  if [ ! -d "$ROOT_DIR/.git" ]; then
+    UPDATE_STATUS="error"
+    UPDATE_MESSAGE="agent47 not installed from a git checkout"
+    UPDATE_METHOD="git"
+    return 1
+  fi
+
+  local remote_list
+  remote_list="$(git -C "$ROOT_DIR" remote 2>/dev/null)"
+  if [ -z "$remote_list" ]; then
+    UPDATE_STATUS="error"
+    UPDATE_MESSAGE="no git remotes configured"
+    UPDATE_METHOD="git"
+    return 1
+  fi
+
+  local remote
+  if [ -n "$AGENT47_REMOTE" ]; then
+    remote="$AGENT47_REMOTE"
+  else
+    remote="$(echo "$remote_list" | head -n 1)"
+  fi
+
+  if ! git -C "$ROOT_DIR" fetch "$remote" --quiet 2>/dev/null; then
+    UPDATE_STATUS="error"
+    UPDATE_MESSAGE="git fetch failed for remote '$remote' (network or access issue)"
+    UPDATE_METHOD="git"
+    return 1
+  fi
+
+  local upstream_ref
+  upstream_ref="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)"
+
+  local remote_head
+  remote_head="$(git -C "$ROOT_DIR" symbolic-ref --quiet --short "refs/remotes/$remote/HEAD" 2>/dev/null)"
+
+  local current_branch
+  current_branch="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+
+  local remote_ref=""
+  if [ -n "$upstream_ref" ]; then
+    remote_ref="$upstream_ref"
+  elif [ -n "$remote_head" ]; then
+    remote_ref="$remote_head"
+  elif [ -n "$current_branch" ] && [ "$current_branch" != "HEAD" ]; then
+    remote_ref="$remote/$current_branch"
+  fi
+
+  if [ -z "$remote_ref" ]; then
+    UPDATE_STATUS="error"
+    UPDATE_MESSAGE="no upstream branch detected"
+    UPDATE_METHOD="git"
+    return 1
+  fi
+
+  local remote_commit local_commit
+  remote_commit="$(git -C "$ROOT_DIR" rev-parse "$remote_ref" 2>/dev/null)"
+  local_commit="$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null)"
+
+  if [ -z "$remote_commit" ] || [ -z "$local_commit" ]; then
+    UPDATE_STATUS="error"
+    UPDATE_MESSAGE="unable to resolve commits for comparison"
+    UPDATE_METHOD="git"
+    return 1
+  fi
+
+  local remote_version
+  remote_version="$(git -C "$ROOT_DIR" show "$remote_ref:VERSION" 2>/dev/null || echo "")"
+  if [ -z "$remote_version" ]; then
+    remote_version="unknown"
+  fi
+
+  UPDATE_LOCAL_VERSION="$AGENT47_VERSION"
+  UPDATE_LATEST_VERSION="$remote_version"
+  UPDATE_METHOD="git ($remote_ref)"
+
+  if [ "$local_commit" = "$remote_commit" ]; then
+    UPDATE_STATUS="up-to-date"
+    UPDATE_MESSAGE="local matches $remote_ref"
+    return 0
+  fi
+
+  local behind_count ahead_count
+  behind_count="$(git -C "$ROOT_DIR" rev-list --count "$local_commit..$remote_ref" 2>/dev/null || echo "0")"
+  ahead_count="$(git -C "$ROOT_DIR" rev-list --count "$remote_ref..$local_commit" 2>/dev/null || echo "0")"
+
+  if [ "$behind_count" -gt 0 ]; then
+    UPDATE_STATUS="update-available"
+    UPDATE_MESSAGE="behind by $behind_count commit(s)"
+    return 0
+  fi
+
+  if [ "$ahead_count" -gt 0 ]; then
+    UPDATE_STATUS="local-ahead"
+    UPDATE_MESSAGE="local branch is ahead of $remote_ref"
+    return 0
+  fi
+
+  UPDATE_STATUS="error"
+  UPDATE_MESSAGE="unable to determine ahead/behind status"
+  return 1
+}
+
+remote_update_check() {
+  if [ -z "$REMOTE_VERSION_URL" ]; then
+    UPDATE_STATUS="error"
+    UPDATE_MESSAGE="no remote VERSION URL configured"
+    UPDATE_METHOD="remote"
+    return 1
+  fi
+
+  if ! command -v curl >/dev/null 2>&1; then
+    UPDATE_STATUS="error"
+    UPDATE_MESSAGE="curl not available for remote version check"
+    UPDATE_METHOD="remote"
+    return 1
+  fi
+
+  local latest_version
+  latest_version="$(curl -fsSL --connect-timeout 5 --max-time 10 "$REMOTE_VERSION_URL" 2>/dev/null | head -n 1)"
+
+  if [ -z "$latest_version" ]; then
+    UPDATE_STATUS="error"
+    UPDATE_MESSAGE="failed to download VERSION from $REMOTE_VERSION_URL"
+    UPDATE_METHOD="remote"
+    return 1
+  fi
+
+  UPDATE_LOCAL_VERSION="$AGENT47_VERSION"
+  UPDATE_LATEST_VERSION="$latest_version"
+  UPDATE_METHOD="remote"
+
+  if [ "$AGENT47_VERSION" = "$latest_version" ]; then
+    UPDATE_STATUS="up-to-date"
+    UPDATE_MESSAGE="remote VERSION matches local"
+  else
+    UPDATE_STATUS="update-available"
+    UPDATE_MESSAGE="remote VERSION differs"
+  fi
+  return 0
+}
+
+check_update() {
+  UPDATE_STATUS=""
+  UPDATE_METHOD=""
+  UPDATE_LOCAL_VERSION="$AGENT47_VERSION"
+  UPDATE_LATEST_VERSION=""
+  UPDATE_MESSAGE=""
+  UPDATE_FROM_CACHE=false
+  UPDATE_CACHE_AGE=0
+
+  local force_refresh=false
+  if [ "$1" = "--force" ]; then
+    force_refresh=true
+  fi
+
+  mkdir -p "$CACHE_DIR"
+
+  local now_ts
+  now_ts="$(date +%s)"
+
+  if [ "$force_refresh" = false ] && load_update_cache "$now_ts"; then
+    print_update_result
+    return
+  fi
+
+  if git_update_check; then
+    save_update_cache
+    print_update_result
+    return
+  fi
+
+  if remote_update_check; then
+    save_update_cache
+    print_update_result
+    return
+  fi
+
+  UPDATE_STATUS="error"
+  if [ -z "$UPDATE_MESSAGE" ]; then
+    UPDATE_MESSAGE="all update methods failed"
+  fi
+  print_update_result
+}
+
+# ---------------------------
+# Help
+# ---------------------------
+print_help() {
+  echo "a47 - Agent & SDD CLI"
+  echo "Version: $AGENT47_VERSION"
+  echo ""
+  echo "Core commands:"
+  echo "  a47 help"
+  echo "  a47 install"
+  echo "  a47 upgrade"
+  echo "  a47 uninstall"
+  echo "  a47 doctor"
+  echo "  a47 check-update"
+  echo ""
+  echo "Add commands:"
+  echo "  a47 add-agent [--with-skills] [--prompt base|skills|sdd]   # flags optional"
+  echo "  a47 add-spec"
+  echo "  a47 add-skills"
+  echo "  a47 reload-skills"
+  echo "  a47 add-agent-prompt-base"
+  echo "  a47 add-agent-prompt-skills"
+  echo "  a47 add-agent-prompt-sdd"
+}
+
+# ---------------------------
+# Install templates
+# ---------------------------
+install_templates() {
+  echo "[*] Installing agent47 templates..."
+
+  mkdir -p "$AGENT47_HOME"
+
+  if [ -d "$ROOT_DIR/templates" ]; then
+    rm -rf "$AGENT47_HOME/templates"
+    cp -R "$ROOT_DIR/templates" "$AGENT47_HOME/"
+    echo "[OK] Templates installed"
+  else
+    echo "[WARN] Templates directory not found in repo"
+  fi
+
+  # Install helper scripts (for sourcing)
+  mkdir -p "$AGENT47_HOME/scripts"
+  if [ -f "$SCRIPTS_DIR/skill-utils.sh" ]; then
+    cp "$SCRIPTS_DIR/skill-utils.sh" "$AGENT47_HOME/scripts/"
+    echo "[OK] Helper installed: skill-utils.sh"
+  else
+    echo "[WARN] Helper not found: skill-utils.sh"
+  fi
+
+  if [ -f "$ROOT_DIR/VERSION" ]; then
+    cp "$ROOT_DIR/VERSION" "$AGENT47_HOME/VERSION"
+    echo "[OK] VERSION installed"
+  else
+    echo "[WARN] VERSION file not found in repo"
+  fi
+}
+
+# ---------------------------
+# Install
+# ---------------------------
+install_scripts() {
+  echo "[*] Installing agent47 scripts..."
+
+  mkdir -p "$USER_DIR"
+  mkdir -p "$AGENT47_HOME/scripts"
+
+  for script in add-agent add-spec add-skills reload-skills add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd; do
+    if [ -f "$SCRIPTS_DIR/$script" ]; then
+      cp "$SCRIPTS_DIR/$script" "$USER_DIR/$script"
+      chmod +x "$USER_DIR/$script"
+      echo "[OK] Installed $script"
+      cp "$SCRIPTS_DIR/$script" "$AGENT47_HOME/scripts/$script"
+      chmod +x "$AGENT47_HOME/scripts/$script"
+    else
+      echo "[WARN] Script not found: $script"
+    fi
+  done
+
+  # Clean legacy prompt scripts if present
+  for legacy in add-agent-prompt add-agent-prompt-ss; do
+    if [ -f "$USER_DIR/$legacy" ]; then
+      rm -f "$USER_DIR/$legacy"
+      echo "[INFO] Removed legacy script: $legacy"
+    fi
+  done
+
+  install_templates
+
+  echo "[OK] a47 installation complete"
+}
+
+# ---------------------------
+# Upgrade (reinstall)
+# ---------------------------
+upgrade() {
+  echo "[*] Upgrading a47 scripts..."
+  install_scripts
+  echo "[OK] Upgrade completed"
+}
+
+# ---------------------------
+# Uninstall
+# ---------------------------
+uninstall() {
+  echo "[*] Uninstalling a47 scripts..."
+
+  for script in add-agent add-spec add-skills add-agent-prompt add-agent-prompt-ss; do
+    if [ -f "$USER_DIR/$script" ]; then
+      rm "$USER_DIR/$script"
+      echo "[OK] Removed $script"
+    else
+      echo "[WARN] $script not found in $USER_DIR"
+    fi
+  done
+
+  if [ -L "$USER_DIR/a47" ]; then
+    rm "$USER_DIR/a47"
+    echo "[OK] Removed a47 symlink"
+  fi
+
+  echo "[OK] a47 tools removed from system"
+}
+
+# ---------------------------
+# Init Agent (project)
+# ---------------------------
+init_agent() {
+  echo "[*] Initializing AGENT setup in current directory..."
+  add-agent
+  echo "[OK] AGENT initialized"
+}
+
+# ---------------------------
+# Doctor
+# ---------------------------
+doctor() {
+  echo "[*] a47 doctor"
+  echo "[INFO] Version: $AGENT47_VERSION"
+
+  # ---------------------------
+  # a47 in PATH
+  # ---------------------------
+  if command -v a47 >/dev/null; then
+    echo "[OK] a47 in PATH"
+  else
+    echo "[WARN] a47 not in PATH"
+    echo "[HINT] Fix: run ./install.sh"
+  fi
+
+  # ---------------------------
+  # Helper scripts
+  # ---------------------------
+  for script in add-agent add-spec add-skills reload-skills add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd; do
+    if command -v "$script" >/dev/null; then
+      echo "[OK] $script available"
+    else
+      echo "[WARN] $script missing"
+      echo "[HINT] Fix: a47 install"
+    fi
+  done
+
+  # Legacy prompt scripts check
+  for legacy in add-agent-prompt add-agent-prompt-ss; do
+    if command -v "$legacy" >/dev/null; then
+      echo "[INFO] Legacy script detected: $legacy (no longer used)"
+      echo "[HINT] Run a47 install to clean legacy scripts"
+    fi
+  done
+
+  # ---------------------------
+  # Templates
+  # ---------------------------
+  if [ -d "$AGENT47_HOME/templates" ]; then
+    echo "[OK] Templates installed"
+  else
+    echo "[WARN] Templates missing"
+    echo "[HINT] Fix: a47 install"
+  fi
+
+  # ---------------------------
+  # Skills template format check
+  # ---------------------------
+  if [ -d "$AGENT47_HOME/templates/skills" ]; then
+    if ls "$AGENT47_HOME/templates/skills"/*.yml >/dev/null 2>&1; then
+      echo "[WARN] Legacy .yml skills found in $AGENT47_HOME/templates/skills"
+      echo "[HINT] Run a47 install to refresh .md skill templates"
+    else
+      echo "[OK] Skills templates (.md) present"
+    fi
+  fi
+
+  # ---------------------------
+  # Symlink check
+  # ---------------------------
+  if [ -L "$USER_DIR/a47" ]; then
+    echo "[OK] a47 symlink present in ~/bin"
+  else
+    echo "[WARN] a47 symlink missing"
+    echo "[HINT] Fix: run ./install.sh"
+  fi
+
+  # ---------------------------
+  # PATH sanity
+  # ---------------------------
+  if [[ ":$PATH:" == *":$USER_DIR:"* ]]; then
+    echo "[OK] ~/bin in PATH"
+  else
+    echo "[WARN] ~/bin not in PATH"
+    echo "[HINT] Add to your shell config:"
+    echo '       export PATH="$HOME/bin:$PATH"'
+  fi
+
+  # ---------------------------
+  # Update check
+  # ---------------------------
+  check_update
+}
+
+# ---------------------------
+# Command router
+# ---------------------------
+case "$1" in
+  help|"")
+    print_help
+    ;;
+  install)
+    install_scripts
+    ;;
+  upgrade)
+    upgrade
+    ;;
+  uninstall)
+    uninstall
+    ;;
+  doctor)
+    doctor
+    ;;
+  check-update)
+    check_update "$2"
+    ;;
+  add-agent)
+    add-agent "${@:2}"
+  ;;
+  add-spec)
+    add-spec "${@:2}"
+  ;;
+  add-skills)
+    add-skills "${@:2}"
+  ;;
+  reload-skills)
+    reload-skills "${@:2}"
+  ;;
+  add-agent-prompt-base)
+    add-agent-prompt-base "${@:2}"
+  ;;
+  add-agent-prompt-skills)
+    add-agent-prompt-skills "${@:2}"
+  ;;
+  add-agent-prompt-sdd)
+    add-agent-prompt-sdd "${@:2}"
+  ;;
+  *)
+    echo "Unknown command: $1"
+    print_help
+    ;;
+esac
