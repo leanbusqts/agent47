@@ -19,7 +19,7 @@ This file is **authoritative**. Stack-specific rules extend it but never overrid
 This AGENTS.md applies to:
 - Mobile (Android / iOS)
 - Backend (Kotlin / JVM services)
-- Frontend (React / Node / Nordic)
+- Frontend (React / Node)
 - Testing, refactors, optimizations, and migrations
 
 It is intentionally **stack-agnostic** and **stable over time**.
@@ -365,7 +365,7 @@ Before acting, the agent must identify the active stack(s):
 - **Mobile / Android** → Kotlin, Gradle, Robolectric, MockK, Coroutines
 - **Mobile / iOS** → Swift, SwiftUI/UIKit, XCTest
 - **Backend** → Kotlin/JVM, Spring/Ktor, Arrow, REST APIs
-- **Frontend** → React, Node.js, Nordic, Jest, Cypress
+- **Frontend** → React, Node.js, Jest, Cypress
 
 Multiple stacks may apply simultaneously.
 
@@ -378,7 +378,7 @@ Stack-specific rules are **not duplicated here**.
 Instead, the agent must dynamically load them based on context:
 
 ```
-IF stack == mobile/android  → rules-mobile.yaml
+IF stack == android/ios/mobile  → rules-mobile.yaml
 IF stack == backend         → rules-backend.yaml
 IF stack == frontend        → rules-frontend.yaml
 ```
