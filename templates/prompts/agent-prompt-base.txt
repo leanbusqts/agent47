@@ -43,7 +43,6 @@ Use IDE or tool memories only as hints. All decisions must be validated against 
 ---
 
 ## CONSTRAINTS (Hard limits and safety constraints)
-
 - Respect existing architecture and conventions.
 - Do not refactor unrelated code.
 - Do not introduce new dependencies.

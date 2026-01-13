@@ -2,7 +2,7 @@
 set -e
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-BIN="$REPO_DIR/bin/agent47"
+BIN="$REPO_DIR/bin/a47"
 USER_BIN="$HOME/bin"
 VERSION="$(cat "$REPO_DIR/VERSION" 2>/dev/null || echo "unknown")"
 
@@ -53,13 +53,10 @@ chmod +x "$BIN"
 # 3) Ensure ~/bin exists
 mkdir -p "$USER_BIN"
 
-# 4) Create symlink if missing
-if [ ! -L "$USER_BIN/agent47" ]; then
-  ln -s "$BIN" "$USER_BIN/agent47"
-echo "[OK] Linked agent47 into ~/bin"
-else
-  echo "[INFO] agent47 already linked"
-fi
+# 4) Create/refresh symlink (primary entrypoint: a47)
+rm -f "$USER_BIN/a47"
+ln -s "$BIN" "$USER_BIN/a47"
+echo "[OK] Linked a47 into ~/bin -> $BIN"
 
 # 5) PATH check
 if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
@@ -73,5 +70,5 @@ else
   echo "[OK] ~/bin in PATH"
 fi
 
-echo "[OK] agent47 installed"
-echo "[HINT] Run: agent47 doctor"
+echo "[OK] a47 installed"
+echo "[HINT] Run: a47 doctor"

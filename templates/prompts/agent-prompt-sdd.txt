@@ -15,28 +15,28 @@ This prompt is intended for structured, multi-phase work that uses skills and an
 
 ## SKILLS
 
-### Active skill for this phase
+### Active skill for the current phase
 
-Select ONE skill for the current phase:
-
-- analyze
-- implement
-- review
-- refactor
-- optimize
-- plan
-- spec-clarify
-- troubleshoot
+Select the skill:
+- analyze        (read-only, no code changes)
+- implement      (scoped change guided by requirements/spec)
+- review         (read-only review, recommendations only)
+- refactor       (structure improvements, no behavior change)
+- optimize       (performance/cost changes with evidence)
+- plan           (short plan with risks and checkpoints)
+- spec-clarify   (clarify scope, edge cases, acceptance)
+- troubleshoot   (isolate root cause and propose fix path)
 
 Skill:
 <REPLACE_ME>
 
-Only one skill may be active per phase.
-
 Multi-phase (optional, sequential):
-- If you need multiple skills, plan phases and change the skill between phases (not within).
-- For each phase: state objective + skill, execute, then summarize outputs/risks and ask before the next.
-- Example: Phase 1 (analyze) — map current behavior and risks. Phase 2 (spec-clarify/plan) — ask questions or propose a short plan.
+- If single phase, use the skill above and proceed.
+- If multiple phases, list them here with skill + objective (one line each), then run one phase at a time:
+  - Phase 1 (analyze): map current behavior and risks.
+  - Phase 2 (spec-clarify/plan): ask questions or propose a short plan.
+  - Phase 3 (implement): execute approved tasks.
+- After each phase, summarize outputs/risks and ask before moving to the next.
 
 ### Available skills (metadata)
 
@@ -47,10 +47,9 @@ If `skills/AVAILABLE_SKILLS.xml` exists, read it directly from the filesystem to
 ## INPUT CONTEXT
 
 Authoritative inputs:
-
  - AGENTS.md
  - rules-*.yaml (stack rules)
- - specs/spec.yml (if present)
+ - specs/spec.yml (if present; includes optional plan/tasks/log)
  - Relevant source files
  - skills/<skill>/SKILL.md (skill instructions; load referenced resources on demand)
 
@@ -61,39 +60,38 @@ Use IDE or tool memories only as hints. All decisions must be validated against 
 
 ---
 
-## PHASE OBJECTIVE
+## TASKS (user input)
 
-Clearly define the objective of this phase.
+### Task Context
+<PROVIDE_CONTEXT_HERE>
 
-Examples:
-- Analyze current flow and identify issues
-- Propose task breakdown and spec structure
-- Implement approved tasks from the spec
+### Task Resources (files/paths to read)
+- <OPTIONAL>
+- <OPTIONAL>
 
-Phase objective:
-<REPLACE_ME>
+### Task Description (what to do)
+<DESCRIBE_TASK_HERE>
+
+Use this block with AGENTS/rules/specs/spec.yml to derive or update spec/plan/tasks before implementing. If information is missing, ask first.
 
 ---
 
 ## PHASE GUARDRAILS
-
 - Stay strictly within the boundaries of the selected skill.
 - Do not anticipate future phases.
 - Do not modify code during analysis phases.
 - Stop immediately if a Red Flag is encountered.
+- If Spec/Plan/Tasks are incomplete or unclear, ask for the missing info and confirm before implementing; do not invent.
 
 ---
 
 ## SPEC NOTES (if a spec is in scope)
 
-If this phase involves implementing or changing behavior, capture or reference spec essentials here:
+If this phase involves implementing or changing behavior, point to the spec instead of duplicating it.
 
+- Spec source: specs/spec.yml (fill or update there if needed)
 - Feature / change ID:
-- Goal (desired outcome):
-- Acceptance (bullets):
-  - 
-  - 
--
+- Gaps or confirmations needed:
 
 ---
 
@@ -102,15 +100,8 @@ If this phase involves implementing or changing behavior, capture or reference s
 If this phase is exploratory (analyze):
 
 - Propose a structured task breakdown using checklists.
-- Propose (but do not finalize) spec content.
+- Propose (but do not finalize) updates to spec/plan/tasks (sync with specs/spec.yml).
 - Wait for explicit user confirmation before moving to implementation.
-
-Example output format:
-
-- [ ] Task: Feature A
-  - [ ] Subtask 1
-  - [ ] Subtask 2
-- [ ] Task: Feature B
 
 ---
 

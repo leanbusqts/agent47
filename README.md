@@ -85,21 +85,31 @@ This keeps agent runs auditable and prevents accidental access to unintended res
 cd /path/to/project
 
 # Bootstrap agent scaffolding (copies AGENTS.md and rules-*.yaml)
-agent47 add-agent --with-skills --prompt skills   # or --prompt base|sdd; drop flags to skip
+a47 add-agent --with-skills --prompt skills   # or --prompt base|sdd; drop flags to skip
 
 # Optional: add spec or refresh skills/prompts later
-agent47 add-spec                    # creates specs/spec.yml if missing
-agent47 add-skills                  # rerun to refresh skills/AVAILABLE_SKILLS.xml after edits
-agent47 add-agent-prompt-base       # base prompt (no skills)
-agent47 add-agent-prompt-skills     # skills prompt
-agent47 add-agent-prompt-sdd        # spec + skills prompt (SDD)
+a47 add-spec                    # creates specs/spec.yml if missing
+a47 add-skills                  # rerun to refresh skills/AVAILABLE_SKILLS.xml after edits
+a47 add-agent-prompt-base       # base prompt (no skills)
+a47 add-agent-prompt-skills     # skills prompt
+a47 add-agent-prompt-sdd        # spec + skills prompt (SDD)
 ```
 
-What you get:
+### What you get
 - `AGENTS.md` and `rules-*.yaml` in the project root
-- `specs/spec.yml` (fill it in)
+- `specs/spec.yml` (fill it in; includes optional plan/tasks/log scaffold)
 - `skills/<name>/SKILL.md` (behavior contracts) and `skills/AVAILABLE_SKILLS.xml`
 - `prompts/agent-prompt-*.txt` (edit before running your agent)
+
+### Prompt workflows (how to use each prompt)
+- `templates/prompts/agent-prompt-base.txt`: fill TASKS (Context/Resources/Description); agent reads AGENTS/rules/spec.yml, clarifies gaps, then executes with confirmation if needed.
+- `templates/prompts/agent-prompt-skills.txt`: fill TASKS and choose the skill (analyze/implement/review/refactor/optimize/plan/spec-clarify/troubleshoot); agent loads the skill’s SKILL.md + AGENTS/rules/spec.yml; for multi-phase, list phases with skill+objective, run one at a time, summarize, then ask to proceed.
+- `templates/prompts/agent-prompt-sdd.txt`: fill TASKS; agent uses AGENTS/rules/specs/spec.yml to propose/update spec/plan/tasks inside spec.yml before coding, shows changes for approval, follows the checklist, updates tasks/log, and implements only what’s confirmed, respecting the active skill per phase.
+
+### Spec template (plan before code)
+- `specs/spec.yml` follows the Spec Kit format and accepts optional nodes `plan`, `tasks`, `log`.
+- Use those nodes to persist decisions, checklist, and log; complete or confirm before implementing.
+- No extra files are created; everything lives in the same spec.
 
 ---
 
@@ -132,17 +142,16 @@ This command will:
 - Make the CLI executable
 - Install helper commands into ~/bin
 - Install templates into ~/.agent47
-- Link agent47 into your PATH (via ~/bin)
+- Link a47 into your PATH (via ~/bin)
 - Verify the installation
 
 After installation, verify:
 
 ```bash
-agent47 doctor
+a47 doctor
 ```
 
-During installation, both `agent47` and `a47` commands are installed.
-`a47` is a shorthand wrapper for `agent47`.
+During installation, `a47` is installed as the entrypoint (symlinked into ~/bin).
 
 Note: install.sh is the recommended entry point.
 Manual steps are provided only for troubleshooting or advanced usage.
@@ -150,36 +159,36 @@ Manual steps are provided only for troubleshooting or advanced usage.
 ---
 
 ## Usage
-All examples below use `agent47`, but `a47` works identically. Use flags to include skills and prompts in one step if desired.
+All examples below use `a47`. Use flags to include skills and prompts in one step if desired.
 
 ## Command cheatsheet (common)
-- `agent47 add-agent [--with-skills] [--prompt base|skills|sdd]`
-- `agent47 add-spec`
-- `agent47 add-skills` / `agent47 reload-skills`
-- `agent47 add-agent-prompt-base` / `agent47 add-agent-prompt-skills` / `agent47 add-agent-prompt-sdd`
+- `a47 add-agent [--with-skills] [--prompt base|skills|sdd]`
+- `a47 add-spec`
+- `a47 add-skills` / `a47 reload-skills`
+- `a47 add-agent-prompt-base` / `a47 add-agent-prompt-skills` / `a47 add-agent-prompt-sdd`
 
 ### Show help
 
 ```bash
-agent47 help
+a47 help
 ```
 
 ### Check installation
 
 ```bash
-agent47 doctor
+a47 doctor
 ```
 
 This verifies:
 
-* `agent47` availability
+* `a47` availability
 * installed helper commands
 * current version
 
 ### Initialize agent (AGENTS + rules) with optional skills and prompt
 
 ```bash
-agent47 add-agent --with-skills --prompt skills   # or --prompt base | --prompt sdd
+a47 add-agent --with-skills --prompt skills   # or --prompt base | --prompt sdd
 ```
 
 - `--with-skills` copies the curated skills and generates `skills/AVAILABLE_SKILLS.xml`.
@@ -188,27 +197,20 @@ agent47 add-agent --with-skills --prompt skills   # or --prompt base | --prompt 
 ### Check for updates (manual, cached)
 
 ```bash
-agent47 check-update          # uses cache (24h)
-agent47 check-update --force  # bypass cache
+a47 check-update          # uses cache (24h)
+a47 check-update --force  # bypass cache
 ```
 
-`agent47 doctor` also runs the check once per invocation and reports the result without updating anything.
-
-### Command Usage
-
-All commands can be executed using either `agent47` or `a47`.
-Examples:
+`a47 doctor` also runs the check once per invocation and reports the result without updating anything.
 
 ```bash
-agent47 doctor
 a47 doctor
 
-agent47 add-spec
 a47 add-spec
 
-agent47 add-agent-prompt-base
-agent47 add-agent-prompt-skills
-agent47 add-agent-prompt-sdd
+a47 add-agent-prompt-base
+a47 add-agent-prompt-skills
+a47 add-agent-prompt-sdd
 ```
 
 Note: `a47` is a real executable installed by the CLI.
@@ -223,7 +225,7 @@ It is not a shell alias and requires no shell configuration.
 From inside a project directory:
 
 ```bash
-agent47 init-agent
+a47 init-agent
 ```
 
 This will copy:
@@ -243,7 +245,7 @@ You opt-in to each component.
 ### Add a base spec
 
 ```bash
-agent47 add-spec
+a47 add-spec
 ```
 
 Creates:
@@ -257,7 +259,7 @@ specs/spec.yml
 ### Add skills
 
 ```bash
-agent47 add-skills
+a47 add-skills
 ```
 
 Creates:
@@ -287,7 +289,7 @@ skills/
 ### Add a base prompt (no skills)
 
 ```bash
-agent47 add-agent-prompt-base
+a47 add-agent-prompt-base
 ```
 
 Creates:
@@ -305,7 +307,7 @@ Usage notes:
 ### Add a skills prompt
 
 ```bash
-agent47 add-agent-prompt-skills
+a47 add-agent-prompt-skills
 ```
 
 Creates:
@@ -324,7 +326,7 @@ Usage notes:
 ### Add a spec + skills prompt (SDD flow)
 
 ```bash
-agent47 add-agent-prompt-sdd
+a47 add-agent-prompt-sdd
 ```
 
 Creates:
@@ -344,9 +346,9 @@ Usage notes:
 
 - Skills follow the Agent Skills spec (`SKILL.md` with YAML frontmatter `name` + `description`, body in Markdown). Reference: https://agentskills.io/specification
 - Optional folders (`scripts/`, `references/`, `assets/`) are not created by default. Add them only if needed, keep files small, and reference them with relative paths from `SKILL.md` (progressive disclosure).
-- `agent47 add-skills` also generates `skills/AVAILABLE_SKILLS.xml` with the `<available_skills>` block (name, description, location). Prompts instruct the agent to read this file directly for filesystem-based activation; no manual pasting required.
-- If you add or edit skills later, rerun `agent47 add-skills` to refresh `skills/AVAILABLE_SKILLS.xml`.
-- Alternatively, run `agent47 reload-skills` to regenerate only `skills/AVAILABLE_SKILLS.xml` without copying templates.
+- `a47 add-skills` also generates `skills/AVAILABLE_SKILLS.xml` with the `<available_skills>` block (name, description, location). Prompts instruct the agent to read this file directly for filesystem-based activation; no manual pasting required.
+- If you add or edit skills later, rerun `a47 add-skills` to refresh `skills/AVAILABLE_SKILLS.xml`.
+- Alternatively, run `a47 reload-skills` to regenerate only `skills/AVAILABLE_SKILLS.xml` without copying templates.
 - To validate a skill after editing/creating it: `skills-ref validate skills/<skill>` (optional, requires the `skills-ref` tool).
 
 ---
@@ -356,7 +358,7 @@ Usage notes:
 If you update the `agent47` repository or want to repair the installation:
 
 ```bash
-agent47 install
+a47 install
 ```
 
 This safely reinstalls helper commands and templates.
@@ -369,7 +371,7 @@ Run this after pulling repo changes to propagate updated templates (e.g., new `s
 To remove the installed helper commands from your system:
 
 ```bash
-agent47 uninstall
+a47 uninstall
 ```
 
 This does **not** delete:
@@ -395,8 +397,8 @@ VERSION
 You can check it with:
 
 ```bash
-agent47 help
-agent47 doctor
+a47 help
+a47 doctor
 ```
 
 ---
@@ -406,7 +408,7 @@ agent47 doctor
 ```text
 agent47/
 ├── bin/
-│   └── agent47
+│   └── a47
 ├── scripts/
 │   ├── add-agent
 │   ├── add-skills
@@ -443,15 +445,15 @@ agent47/
 ↓
 cd project
 ↓
-agent47 add-agent --with-skills --prompt skills   # or --prompt base|sdd; drop flags to skip
+a47 add-agent --with-skills --prompt skills   # or --prompt base|sdd; drop flags to skip
 ↓
-agent47 add-spec (optional)
+a47 add-spec (optional)
 ↓
-agent47 add-skills (optional, to refresh skills/templates)
+a47 add-skills (optional, to refresh skills/templates)
 ↓
-agent47 reload-skills (optional, regenerate skills/AVAILABLE_SKILLS.xml only)
+a47 reload-skills (optional, regenerate skills/AVAILABLE_SKILLS.xml only)
 ↓
-agent47 add-agent-prompt-base / agent47 add-agent-prompt-skills / agent47 add-agent-prompt-sdd (optional, if not added via flags)
+a47 add-agent-prompt-base / a47 add-agent-prompt-skills / a47 add-agent-prompt-sdd (optional, if not added via flags)
 ↓
 Use your AI tool of choice
 ```
@@ -468,7 +470,7 @@ To fix it, recreate the symlink:
 
 ```bash
 cd /new/path/to/agent47
-ln -sf "$(pwd)/bin/agent47" ~/bin/agent47
+ln -sf "$(pwd)/bin/a47" ~/bin/a47
 ```
 
 Alternatively, rerun the installer:

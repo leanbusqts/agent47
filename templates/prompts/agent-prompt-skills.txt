@@ -16,8 +16,7 @@ This prompt is intended for structured work using skills. If a spec exists, use 
 
 ### Active skill for the current phase (execution intent and boundaries)
 
-Select ONE skill for the current phase:
-
+Select the skill:
 - analyze        (read-only, no code changes)
 - implement      (scoped change guided by requirements/spec)
 - review         (read-only review, recommendations only)
@@ -37,7 +36,10 @@ Rules:
 Multi-phase (optional, sequential):
 - If you need multiple skills, plan phases and change the skill between phases (not within).
 - For each phase: state objective + skill, execute, then summarize outputs/risks and ask before the next.
-- Example: Phase 1 (analyze) — map current behavior and risks. Phase 2 (spec-clarify/plan) — ask questions or propose a short plan.
+- Example: 
+    Phase 1 (analyze) — map current behavior and risks. 
+    Phase 2 (spec-clarify/plan) — ask questions or propose a short plan.
+    ...
 
 ### Available skills (metadata)
 
@@ -77,7 +79,6 @@ Use IDE or tool memories only as hints. All decisions must be validated against 
 ---
 
 ## CONSTRAINTS (Hard limits and safety constraints)
-
 - Respect existing architecture and conventions.
 - Do not refactor unrelated code.
 - Do not introduce new dependencies.
