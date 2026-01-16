@@ -26,6 +26,17 @@ fi
 
 echo "[INFO] Initializing agent skills..."
 
+if [ ! -w "." ]; then
+  echo "[ERR] Current directory is not writable"
+  exit 1
+fi
+
+FORCE=false
+if [ "$1" = "--force" ]; then
+  FORCE=true
+  shift
+fi
+
 if [ ! -d "$SKILLS_DIR" ]; then
   mkdir "$SKILLS_DIR"
   echo "[OK] Created directory: $SKILLS_DIR/"
@@ -33,29 +44,48 @@ else
   echo "[INFO] Directory already exists: $SKILLS_DIR/"
 fi
 
+# Validate in temp to keep atomic
+tmp_skills="$(mktemp -d "${TMPDIR:-/tmp}/a47-skills-XXXXXX")"
+cp -R "$SKILLS_DIR/." "$tmp_skills/" 2>/dev/null || true
+
 for skill in "${SKILL_LIST[@]}"; do
   src="$TEMPLATES_DIR/$skill"
-  dest="$SKILLS_DIR/$skill"
+  dest_tmp="$tmp_skills/$skill"
+  dest_existing="$SKILLS_DIR/$skill"
 
   if [ ! -d "$src" ]; then
-    echo "[ERR] Template not found: $skill"
+    echo "[WARN] Template not found: $skill (skipping)"
     continue
   fi
 
-  if [ -d "$dest" ]; then
-    if [ ! -f "$dest/SKILL.md" ]; then
-      cp "$src/SKILL.md" "$dest/SKILL.md"
-      echo "[OK] Restored SKILL.md: $skill"
-    else
-      echo "[INFO] Skill exists, skipping copy: $skill"
-    fi
+  mkdir -p "$dest_tmp"
+
+  if [ -d "$dest_existing" ] && [ "$FORCE" != "true" ]; then
+    # Preserve existing skill contents
+    cp -R "$dest_existing/." "$dest_tmp/"
   else
-    cp -R "$src" "$dest"
-    echo "[OK] Created skill: $skill"
+    cp -R "$src/." "$dest_tmp/"
   fi
 
-  validate_skill "$dest/SKILL.md" || true
+  # If SKILL.md is missing (e.g., partial custom), restore from template
+  if [ ! -f "$dest_tmp/SKILL.md" ]; then
+    cp "$src/SKILL.md" "$dest_tmp/SKILL.md"
+  fi
+
+  if ! validate_skill "$dest_tmp/SKILL.md"; then
+    if [ "$FORCE" = "true" ]; then
+      echo "[ERR] Invalid skill template: $skill"
+      rm -rf "$tmp_skills"
+      exit 1
+    else
+      echo "[WARN] Invalid SKILL.md for $skill; preserving existing content"
+    fi
+  fi
 done
+
+# Replace real skills with validated temp copy
+rm -rf "$SKILLS_DIR"
+mv "$tmp_skills" "$SKILLS_DIR"
 
 write_available_skills "$SKILLS_DIR" "$SKILLS_DIR/AVAILABLE_SKILLS.xml"
 

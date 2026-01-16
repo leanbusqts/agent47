@@ -59,6 +59,24 @@ done
 
 echo "[INFO] Initializing agent environment..."
 
+if [ ! -w "." ]; then
+  echo "[ERR] Current directory is not writable"
+  exit 1
+fi
+
+# Preflight: ensure all templates exist
+missing=0
+for file in "${FILES[@]}"; do
+  if [ ! -f "$TEMPLATES_DIR/$file" ]; then
+    echo "[ERR] Template not found: $file"
+    missing=1
+  fi
+done
+if [ "$missing" -ne 0 ]; then
+  echo "[ERR] Aborting: required templates missing."
+  exit 1
+fi
+
 for file in "${FILES[@]}"; do
   if [ -f "$TEMPLATES_DIR/$file" ]; then
     if [ -f "./$file" ]; then
@@ -68,7 +86,7 @@ for file in "${FILES[@]}"; do
       echo "[OK] Copied: $file"
     fi
   else
-    echo "[ERR] Template not found: $file"
+    echo "[ERR] Template not found: $file"  # unreachable due to preflight
   fi
 done
 
@@ -100,6 +118,7 @@ case "$PROMPT_CHOICE" in
     ;;
   *)
     echo "[ERR] Invalid prompt choice: $PROMPT_CHOICE (use base|skills|sdd)"
+    exit 1
     ;;
 esac
 

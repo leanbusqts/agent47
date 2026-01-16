@@ -6,23 +6,34 @@ TEMPLATES_DIR="$AGENT47_HOME/templates/specs"
 SPEC_DIR="specs"
 SPEC_FILE="$SPEC_DIR/spec.yml"
 
-echo "📄 Initializing spec..."
+echo "[INFO] Initializing spec..."
+
+if [ ! -w "." ]; then
+  echo "[ERR] Current directory is not writable"
+  exit 1
+fi
+
+if [ ! -f "$TEMPLATES_DIR/spec.yml" ]; then
+  echo "[ERR] Template not found: spec.yml"
+  exit 1
+fi
 
 # Create specs directory if it doesn't exist
 if [ ! -d "$SPEC_DIR" ]; then
   mkdir "$SPEC_DIR"
-  echo "📁 Created directory: specs/"
+  echo "[OK] Created directory: specs/"
 fi
 
 # Do not overwrite existing spec
 if [ -f "$SPEC_FILE" ]; then
-  echo "⚠️  $SPEC_FILE already exists, skipping"
+  echo "[WARN] $SPEC_FILE already exists, skipping"
   exit 0
 fi
 
 if [ -f "$TEMPLATES_DIR/spec.yml" ]; then
   cp "$TEMPLATES_DIR/spec.yml" "$SPEC_FILE"
-  echo "✅ Created spec: $SPEC_FILE"
+  echo "[OK] Created spec: $SPEC_FILE"
 else
-  echo "❌ Template not found: spec.yml"
+  echo "[ERR] Template not found: spec.yml"
+  exit 1
 fi

@@ -142,8 +142,11 @@ print_update_result() {
       ;;
     *)
       echo "[WARN] Cannot check for updates: ${UPDATE_MESSAGE}"
+      return 1
       ;;
   esac
+
+  return 0
 }
 
 git_update_check() {
@@ -317,19 +320,19 @@ check_update() {
 
   if [ "$force_refresh" = false ] && load_update_cache "$now_ts"; then
     print_update_result
-    return
+    return 0
   fi
 
   if git_update_check; then
     save_update_cache
     print_update_result
-    return
+    return 0
   fi
 
   if remote_update_check; then
     save_update_cache
     print_update_result
-    return
+    return 0
   fi
 
   UPDATE_STATUS="error"
@@ -337,6 +340,7 @@ check_update() {
     UPDATE_MESSAGE="all update methods failed"
   fi
   print_update_result
+  return 0
 }
 
 # ---------------------------
@@ -348,11 +352,12 @@ print_help() {
   echo ""
   echo "Core commands:"
   echo "  a47 help"
-  echo "  a47 install"
-  echo "  a47 upgrade"
+  echo "  a47 install [--force]"
+  echo "  a47 upgrade [--force]"
   echo "  a47 uninstall"
   echo "  a47 doctor"
   echo "  a47 check-update"
+  echo "  a47 templates --restore-latest|--list|--clear-backups"
   echo ""
   echo "Add commands:"
   echo "  a47 add-agent [--with-skills] [--prompt base|skills|sdd]   # flags optional"
@@ -371,6 +376,21 @@ install_templates() {
   echo "[*] Installing agent47 templates..."
 
   mkdir -p "$AGENT47_HOME"
+
+  local force="${1:-false}"
+
+  if [ -d "$AGENT47_HOME/templates" ]; then
+    if [ "$force" != "true" ]; then
+      echo "[WARN] Templates already exist at $AGENT47_HOME/templates (use --force to overwrite)"
+      return
+    fi
+    echo "[WARN] Overwriting existing templates at $AGENT47_HOME/templates"
+    ts="$(date +%Y%m%d%H%M%S)"
+    bak_dir="$AGENT47_HOME/templates.bak.$ts"
+    rm -rf "$AGENT47_HOME"/templates.bak.*
+    cp -R "$AGENT47_HOME/templates" "$bak_dir"
+    echo "[INFO] Backup created: $bak_dir"
+  fi
 
   if [ -d "$ROOT_DIR/templates" ]; then
     rm -rf "$AGENT47_HOME/templates"
@@ -398,21 +418,77 @@ install_templates() {
 }
 
 # ---------------------------
+# Templates command (backup utils)
+# ---------------------------
+templates_cmd() {
+  local action="$1"
+
+  if [ ! -d "$AGENT47_HOME" ]; then
+    echo "[ERR] $AGENT47_HOME not found"
+    return 1
+  fi
+
+  case "$action" in
+    --restore-latest|"")
+      latest_bak="$(ls -1dt "$AGENT47_HOME"/templates.bak.* 2>/dev/null | head -n 1)"
+      if [ -z "$latest_bak" ] || [ ! -d "$latest_bak" ]; then
+        echo "[ERR] No template backups found in $AGENT47_HOME"
+        return 1
+      fi
+      echo "[INFO] Restoring templates from $latest_bak"
+      rm -rf "$AGENT47_HOME/templates"
+      cp -R "$latest_bak" "$AGENT47_HOME/templates"
+      echo "[OK] Templates restored to $AGENT47_HOME/templates"
+      ;;
+    --list)
+      ls -1dt "$AGENT47_HOME"/templates.bak.* 2>/dev/null || echo "No backups found"
+      ;;
+    --clear-backups)
+      if ls "$AGENT47_HOME"/templates.bak.* >/dev/null 2>&1; then
+        rm -rf "$AGENT47_HOME"/templates.bak.*
+        echo "[OK] Template backups cleared"
+      else
+        echo "[INFO] No template backups to clear"
+      fi
+      ;;
+    *)
+      echo "Usage: a47 templates [--restore-latest|--list|--clear-backups]"
+      return 1
+      ;;
+  esac
+}
+
+# ---------------------------
 # Install
 # ---------------------------
 install_scripts() {
   echo "[*] Installing agent47 scripts..."
+
+  local force=false
+  if [ "$1" = "--force" ]; then
+    force=true
+    shift
+  fi
 
   mkdir -p "$USER_DIR"
   mkdir -p "$AGENT47_HOME/scripts"
 
   for script in add-agent add-spec add-skills reload-skills add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd; do
     if [ -f "$SCRIPTS_DIR/$script" ]; then
-      cp "$SCRIPTS_DIR/$script" "$USER_DIR/$script"
-      chmod +x "$USER_DIR/$script"
-      echo "[OK] Installed $script"
-      cp "$SCRIPTS_DIR/$script" "$AGENT47_HOME/scripts/$script"
-      chmod +x "$AGENT47_HOME/scripts/$script"
+      if [ -f "$USER_DIR/$script" ] && [ "$force" != "true" ]; then
+        echo "[WARN] $script already exists in $USER_DIR (use --force to overwrite)"
+      else
+        cp "$SCRIPTS_DIR/$script" "$USER_DIR/$script"
+        chmod +x "$USER_DIR/$script"
+        echo "[OK] Installed $script"
+      fi
+
+      if [ -f "$AGENT47_HOME/scripts/$script" ] && [ "$force" != "true" ]; then
+        echo "[WARN] $script already exists in $AGENT47_HOME/scripts (use --force to overwrite)"
+      else
+        cp "$SCRIPTS_DIR/$script" "$AGENT47_HOME/scripts/$script"
+        chmod +x "$AGENT47_HOME/scripts/$script"
+      fi
     else
       echo "[WARN] Script not found: $script"
     fi
@@ -426,7 +502,7 @@ install_scripts() {
     fi
   done
 
-  install_templates
+  install_templates "$force"
 
   echo "[OK] a47 installation complete"
 }
@@ -436,7 +512,7 @@ install_scripts() {
 # ---------------------------
 upgrade() {
   echo "[*] Upgrading a47 scripts..."
-  install_scripts
+  install_scripts "${@:1}"
   echo "[OK] Upgrade completed"
 }
 
@@ -446,7 +522,7 @@ upgrade() {
 uninstall() {
   echo "[*] Uninstalling a47 scripts..."
 
-  for script in add-agent add-spec add-skills add-agent-prompt add-agent-prompt-ss; do
+  for script in add-agent add-spec add-skills reload-skills add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd add-agent-prompt add-agent-prompt-ss; do
     if [ -f "$USER_DIR/$script" ]; then
       rm "$USER_DIR/$script"
       echo "[OK] Removed $script"
@@ -464,11 +540,38 @@ uninstall() {
 }
 
 # ---------------------------
+# Command runner with fallback
+# ---------------------------
+run_cmd() {
+  local cmd="$1"
+  shift || true
+
+  if command -v "$cmd" >/dev/null 2>&1; then
+    "$cmd" "$@"
+    return $?
+  fi
+
+  if [ -x "$SCRIPTS_DIR/$cmd" ]; then
+    "$SCRIPTS_DIR/$cmd" "$@"
+    return $?
+  fi
+
+  echo "[ERR] Command not found: $cmd"
+  return 1
+}
+
+# ---------------------------
 # Init Agent (project)
 # ---------------------------
 init_agent() {
   echo "[*] Initializing AGENT setup in current directory..."
-  add-agent
+
+  if [ ! -w "." ]; then
+    echo "[ERR] Current directory is not writable"
+    exit 1
+  fi
+
+  run_cmd add-agent
   echo "[OK] AGENT initialized"
 }
 
@@ -566,7 +669,7 @@ case "$1" in
     print_help
     ;;
   install)
-    install_scripts
+    install_scripts "${@:2}"
     ;;
   upgrade)
     upgrade
@@ -581,25 +684,31 @@ case "$1" in
     check_update "$2"
     ;;
   add-agent)
-    add-agent "${@:2}"
+    run_cmd add-agent "${@:2}"
   ;;
   add-spec)
-    add-spec "${@:2}"
+    run_cmd add-spec "${@:2}"
   ;;
   add-skills)
-    add-skills "${@:2}"
+    run_cmd add-skills "${@:2}"
   ;;
   reload-skills)
-    reload-skills "${@:2}"
+    run_cmd reload-skills "${@:2}"
   ;;
   add-agent-prompt-base)
-    add-agent-prompt-base "${@:2}"
+    run_cmd add-agent-prompt-base "${@:2}"
   ;;
   add-agent-prompt-skills)
-    add-agent-prompt-skills "${@:2}"
+    run_cmd add-agent-prompt-skills "${@:2}"
   ;;
   add-agent-prompt-sdd)
-    add-agent-prompt-sdd "${@:2}"
+    run_cmd add-agent-prompt-sdd "${@:2}"
+  ;;
+  init-agent)
+    init_agent
+  ;;
+  templates)
+    templates_cmd "${@:2}"
   ;;
   *)
     echo "Unknown command: $1"

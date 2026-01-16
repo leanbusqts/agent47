@@ -164,7 +164,8 @@ All examples below use `a47`. Use flags to include skills and prompts in one ste
 ## Command cheatsheet (common)
 - `a47 add-agent [--with-skills] [--prompt base|skills|sdd]`
 - `a47 add-spec`
-- `a47 add-skills` / `a47 reload-skills`
+- `a47 add-skills [--force]` / `a47 reload-skills`
+- `a47 install [--force]` / `a47 upgrade [--force]` / `a47 uninstall`
 - `a47 add-agent-prompt-base` / `a47 add-agent-prompt-skills` / `a47 add-agent-prompt-sdd`
 
 ### Show help
@@ -172,6 +173,20 @@ All examples below use `a47`. Use flags to include skills and prompts in one ste
 ```bash
 a47 help
 ```
+
+### Templates backups
+
+```bash
+a47 templates --restore-latest    # restore templates from latest backup
+a47 templates --list              # list available template backups
+a47 templates --clear-backups     # remove all template backups
+```
+
+Backups live in `~/.agent47/templates.bak.<timestamp>`, created automatically by `a47 install/upgrade` (only the latest is kept).
+
+Notes:
+- `a47 install/upgrade` require write access to `$HOME/.agent47`.
+- `add-*` commands require write access to the current directory and fail-fast if required templates are missing.
 
 ### Check installation
 
@@ -184,6 +199,7 @@ This verifies:
 * `a47` availability
 * installed helper commands
 * current version
+* update check (shows warnings if git/curl or network are unavailable; does not block)
 
 ### Initialize agent (AGENTS + rules) with optional skills and prompt
 
@@ -259,7 +275,7 @@ specs/spec.yml
 ### Add skills
 
 ```bash
-a47 add-skills
+a47 add-skills [--force]
 ```
 
 Creates:
@@ -283,6 +299,8 @@ skills/
 └── troubleshoot/
     └── SKILL.md
 ```
+
+- Without `--force`, existing skills are preserved and only missing skills/`AVAILABLE_SKILLS.xml` are generated. Use `--force` to overwrite skills from templates.
 
 ---
 
@@ -358,11 +376,12 @@ Usage notes:
 If you update the `agent47` repository or want to repair the installation:
 
 ```bash
-a47 install
+a47 install [--force]
 ```
 
 This safely reinstalls helper commands and templates.
 Run this after pulling repo changes to propagate updated templates (e.g., new `skills/*.md`) into `~/.agent47`.
+Use `--force` to overwrite existing templates/scripts (backs up templates before overwriting); without the flag, existing files are left intact.
 
 ---
 
@@ -458,7 +477,12 @@ a47 add-agent-prompt-base / a47 add-agent-prompt-skills / a47 add-agent-prompt-s
 Use your AI tool of choice
 ```
 
----
+### Testing
+
+- Run the suite: `make test` (uses `scripts/test`; prefers `tests/vendor/bats/bin/bats` and falls back to `bats` on PATH).
+- Cleanup: temp dirs live under `/tmp/a47-test-*` and are auto-removed; use `make clean-test` to remove leftovers from interrupted runs.
+- Bats install: vendor `bats-core` into `tests/vendor/bats` or install it system-wide and ensure `bats` is on PATH.
+- Vendored deps with embedded `.git` (e.g., bats): run `make vendor-clean` to remove the nested repo before committing.
 
 ### Notes
 

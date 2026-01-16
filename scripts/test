@@ -1,0 +1,56 @@
+#!/bin/bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+BATS_BIN="${BATS_BIN:-$ROOT_DIR/tests/vendor/bats/bin/bats}"
+TEST_TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/a47-test-XXXXXX")"
+
+cleanup() {
+  rm -rf "$TEST_TMP_ROOT"
+}
+trap cleanup EXIT INT TERM
+
+# Isolate HOME/AGENT47_HOME so tests never touch the user's environment
+export HOME="$TEST_TMP_ROOT/home"
+export AGENT47_HOME="$HOME/.agent47"
+export PATH="$ROOT_DIR/bin:$ROOT_DIR/scripts:$HOME/bin:$PATH"
+export BATS_LIB_PATH="$ROOT_DIR/tests/helpers:$ROOT_DIR/tests"
+export TEST_TMP_ROOT
+export ROOT_DIR
+
+mkdir -p "$HOME/bin" "$AGENT47_HOME" "$AGENT47_HOME/scripts"
+
+# Copy templates and version into the temp AGENT47_HOME
+mkdir -p "$AGENT47_HOME/templates"
+cp -R "$ROOT_DIR/templates/." "$AGENT47_HOME/templates/"
+cp "$ROOT_DIR/VERSION" "$AGENT47_HOME/VERSION"
+cp "$ROOT_DIR/scripts/skill-utils.sh" "$AGENT47_HOME/scripts/"
+
+# Resolve bats binary (vendored preferred, fallback to system)
+if [ ! -x "$BATS_BIN" ]; then
+  if command -v bats >/dev/null 2>&1; then
+    BATS_BIN="$(command -v bats)"
+  else
+    echo "[ERR] bats not found."
+    echo "      Install via vendor (tests/vendor/bats) or system package, or set BATS_BIN."
+    exit 1
+  fi
+fi
+
+if [ "$#" -gt 0 ]; then
+  TEST_PATHS=("$@")
+else
+  TEST_PATHS=()
+  while IFS= read -r file; do
+    TEST_PATHS+=("$file")
+  done < <(find "$ROOT_DIR/tests" -path "$ROOT_DIR/tests/vendor" -prune -o -type f -name '*.bats' -print | sort)
+fi
+
+if [ "${#TEST_PATHS[@]}" -eq 0 ]; then
+  echo "[WARN] No tests found under $ROOT_DIR/tests"
+  exit 0
+fi
+
+echo "[INFO] Running tests with HOME=$HOME and AGENT47_HOME=$AGENT47_HOME"
+"$BATS_BIN" "${TEST_PATHS[@]}"
