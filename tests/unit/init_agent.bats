@@ -16,5 +16,5 @@ teardown() {
   echo "$output"
   assert_success
   assert_file_exists "AGENTS.md"
-  assert_file_exists "rules-backend.yaml"
+  assert_file_exists "rules/rules-backend.yaml"
 }

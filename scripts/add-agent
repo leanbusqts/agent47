@@ -2,14 +2,15 @@
 
 AGENT47_HOME="$HOME/.agent47"
 TEMPLATES_DIR="$AGENT47_HOME/templates"
+RULES_TEMPLATES_DIR="$TEMPLATES_DIR/rules"
 
 FILES=(
-  "AGENTS.md"
   "rules-mobile.yaml"
   "rules-frontend.yaml"
   "rules-backend.yaml"
 )
 
+RULES_DIR="rules"
 WITH_SKILLS=false
 PROMPT_CHOICE=""
 
@@ -66,8 +67,12 @@ fi
 
 # Preflight: ensure all templates exist
 missing=0
+if [ ! -f "$TEMPLATES_DIR/AGENTS.md" ]; then
+  echo "[ERR] Template not found: AGENTS.md"
+  missing=1
+fi
 for file in "${FILES[@]}"; do
-  if [ ! -f "$TEMPLATES_DIR/$file" ]; then
+  if [ ! -f "$RULES_TEMPLATES_DIR/$file" ]; then
     echo "[ERR] Template not found: $file"
     missing=1
   fi
@@ -77,18 +82,35 @@ if [ "$missing" -ne 0 ]; then
   exit 1
 fi
 
+# Ensure root directory exists
+if [ ! -d "$RULES_DIR" ]; then
+  mkdir "$RULES_DIR"
+  echo "[OK] Created directory: $RULES_DIR/"
+fi
+
 for file in "${FILES[@]}"; do
-  if [ -f "$TEMPLATES_DIR/$file" ]; then
-    if [ -f "./$file" ]; then
-      echo "[WARN] $file already exists, skipping"
+  if [ -f "$RULES_TEMPLATES_DIR/$file" ]; then
+    target_path="$RULES_DIR/$file"
+    if [ -f "$target_path" ]; then
+      echo "[WARN] $target_path already exists, skipping"
     else
-      cp "$TEMPLATES_DIR/$file" .
-      echo "[OK] Copied: $file"
+      cp "$RULES_TEMPLATES_DIR/$file" "$target_path"
+      echo "[OK] Copied: $target_path"
     fi
   else
     echo "[ERR] Template not found: $file"  # unreachable due to preflight
   fi
 done
+
+# Copy AGENTS.md
+if [ -f "$TEMPLATES_DIR/AGENTS.md" ]; then
+  if [ -f "./AGENTS.md" ]; then
+    echo "[WARN] AGENTS.md already exists, skipping"
+  else
+    cp "$TEMPLATES_DIR/AGENTS.md" ./AGENTS.md
+    echo "[OK] Copied: AGENTS.md"
+  fi
+fi
 
 # Create README.md if not present
 if [ ! -f "README.md" ]; then

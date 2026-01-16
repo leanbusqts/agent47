@@ -77,7 +77,7 @@ But **must not** add explanatory comments inside production code unless explicit
 
 ## Rules & Memories (Abstract Model)
 
-- **Authoritative order**: User request/instructions > AGENTS.md > stack rules (`rules-*.yaml`) > specs > source of truth in code/tests > tool/IDE memories (only as hints).
+- **Authoritative order**: User request/instructions > AGENTS.md > stack rules (`rules/*.yaml`) > specs > source of truth in code/tests > tool/IDE memories (only as hints).
 - **Rules application**: Load and respect all relevant rules files for the active stack. If rules conflict, stop and ask.
 - **Memories**: Treat memories/contextual notes as non-authoritative hints. Verify against rules/specs/code before acting. If a memory looks stale or conflicting, surface the risk and request confirmation.
 
@@ -87,7 +87,7 @@ But **must not** add explanatory comments inside production code unless explicit
 
 1. User instructions
 2. AGENTS.md (this contract)
-3. Stack rules (`rules-*.yaml`)
+3. Stack rules (`rules/*.yaml`)
 4. Specs
 5. Code and tests
 6. Memories / hints (non-authoritative)
@@ -99,7 +99,7 @@ When sources conflict, stop, explain the conflict, and ask for guidance.
 ## Required Inputs
 
 - This AGENTS.md
-- Applicable stack rules (`rules-*.yaml`)
+- Applicable stack rules (`rules/*.yaml`)
 - Relevant specs for the task
 - Relevant source files and tests
 - Any user-provided context
@@ -378,9 +378,9 @@ Stack-specific rules are **not duplicated here**.
 Instead, the agent must dynamically load them based on context:
 
 ```
-IF stack == android/ios/mobile  → rules-mobile.yaml
-IF stack == backend         → rules-backend.yaml
-IF stack == frontend        → rules-frontend.yaml
+IF stack == android/ios/mobile  → rules/rules-mobile.yaml
+IF stack == backend             → rules/rules-backend.yaml
+IF stack == frontend            → rules/rules-frontend.yaml
 ```
 
 Rules are:

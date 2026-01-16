@@ -96,7 +96,8 @@ a47 add-agent-prompt-sdd        # spec + skills prompt (SDD)
 ```
 
 ### What you get
-- `AGENTS.md` and `rules-*.yaml` in the project root
+- `AGENTS.md` in the project root
+- `rules-*.yaml` under `rules/`
 - `specs/spec.yml` (fill it in; includes optional plan/tasks/log scaffold)
 - `skills/<name>/SKILL.md` (behavior contracts) and `skills/AVAILABLE_SKILLS.xml`
 - `prompts/agent-prompt-*.txt` (edit before running your agent)
@@ -247,7 +248,7 @@ a47 init-agent
 This will copy:
 
 * `AGENTS.md`
-* `rules-*.yaml`
+* `rules/*.yaml`
 * create `README.md` (if missing)
 
 No specs, skills, or prompts are created automatically.
@@ -437,7 +438,10 @@ agent47/
 │   └── add-agent-prompt-sdd
 ├── templates/
 │   ├── AGENTS.md
-│   ├── rules-*.yaml
+│   ├── rules/
+│   │   ├── rules-backend.yaml
+│   │   ├── rules-frontend.yaml
+│   │   └── rules-mobile.yaml
 │   ├── prompts/
 │   ├── specs/
 │   └── skills/

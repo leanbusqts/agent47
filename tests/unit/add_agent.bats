@@ -14,9 +14,9 @@ teardown() {
   run "$ROOT_DIR/scripts/add-agent"
   assert_success
   assert_file_exists "AGENTS.md"
-  assert_file_exists "rules-mobile.yaml"
-  assert_file_exists "rules-frontend.yaml"
-  assert_file_exists "rules-backend.yaml"
+  assert_file_exists "rules/rules-mobile.yaml"
+  assert_file_exists "rules/rules-frontend.yaml"
+  assert_file_exists "rules/rules-backend.yaml"
   assert_file_exists "README.md"
 }
 
@@ -49,7 +49,9 @@ teardown() {
   assert_contains "$output" "Template not found"
   assert_contains "$output" "required templates missing"
   [ ! -f "AGENTS.md" ]
-  [ ! -f "rules-backend.yaml" ]
+  [ ! -f "rules/rules-backend.yaml" ]
+  [ ! -f "rules/rules-frontend.yaml" ]
+  [ ! -f "rules/rules-mobile.yaml" ]
 
   # Restaurar templates
   rm -rf "$AGENT47_HOME/templates"

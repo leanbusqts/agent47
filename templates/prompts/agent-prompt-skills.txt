@@ -51,13 +51,13 @@ If `skills/AVAILABLE_SKILLS.xml` exists, read it directly from the filesystem to
 
 Read and consider as authoritative:
 - AGENTS.md
-- rules-*.yaml (stack rules)
+- rules/*.yaml (stack rules)
 - specs/spec.yml (if present)
 - Relevant source files
 - skills/<skill>/SKILL.md (skill instructions; load referenced resources on demand)
 - Any additional context explicitly provided by the user
 
-Authoritative order: user instructions > AGENTS.md > rules-*.yaml > specs > code/tests > memories/hints. Treat IDE/tool memories as hints; verify before acting and flag anything that looks stale or conflicting.
+Authoritative order: user instructions > AGENTS.md > rules/*.yaml > specs > code/tests > memories/hints. Treat IDE/tool memories as hints; verify before acting and flag anything that looks stale or conflicting.
 
 Do not assume missing requirements.
 Use IDE or tool memories only as hints. All decisions must be validated against AGENTS.md, rules files, and specs.

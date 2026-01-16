@@ -47,13 +47,13 @@ If `skills/AVAILABLE_SKILLS.xml` exists, read it directly from the filesystem to
 ## INPUT CONTEXT
 
 Authoritative inputs:
- - AGENTS.md
- - rules-*.yaml (stack rules)
- - specs/spec.yml (if present; includes optional plan/tasks/log)
- - Relevant source files
- - skills/<skill>/SKILL.md (skill instructions; load referenced resources on demand)
+- AGENTS.md
+- rules/*.yaml (stack rules)
+- specs/spec.yml (if present; includes optional plan/tasks/log)
+- Relevant source files
+- skills/<skill>/SKILL.md (skill instructions; load referenced resources on demand)
 
-Authoritative order: user instructions > AGENTS.md > rules-*.yaml > specs > code/tests > memories/hints. IDE/tool memories are hints only; verify and flag stale/conflicting info.
+Authoritative order: user instructions > AGENTS.md > rules/*.yaml > specs > code/tests > memories/hints. IDE/tool memories are hints only; verify and flag stale/conflicting info.
 
 If a required input is missing, stop and ask.
 Use IDE or tool memories only as hints. All decisions must be validated against AGENTS.md, rules files, and specs.
