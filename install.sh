@@ -41,6 +41,12 @@ ensure_path_persistent() {
   esac
 }
 
+FORCE=false
+if [ "$1" = "--force" ]; then
+  FORCE=true
+  shift
+fi
+
 echo "[ AGENT47 v$VERSION ]"
 echo "[*] Installing agent47..."
 
@@ -48,7 +54,11 @@ echo "[*] Installing agent47..."
 chmod +x "$BIN"
 
 # 2) Install scripts + templates
-"$BIN" install
+if [ "$FORCE" = true ]; then
+  "$BIN" install --force
+else
+  "$BIN" install
+fi
 
 # 3) Ensure ~/bin exists
 mkdir -p "$USER_BIN"

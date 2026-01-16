@@ -135,7 +135,8 @@ From the repository root:
 
 ```bash
 chmod +x install.sh
-./install.sh
+./install.sh            # safe (does not overwrite existing templates/scripts)
+./install.sh --force    # overwrite existing templates/scripts (backs up templates)
 ```
 
 This command will:
