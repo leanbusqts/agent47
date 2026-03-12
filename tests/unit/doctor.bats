@@ -24,4 +24,9 @@ teardown() {
   assert_success
   assert_contains "$output" "[OK] a47 in PATH"
   assert_contains "$output" "[OK] Templates installed"
+  assert_contains "$output" "[OK] Prompt template present"
+  assert_contains "$output" "[OK] Security templates present"
+  assert_contains "$output" "[OK] Security rule IDs unique"
+  assert_contains "$output" "[OK] AGENTS required sections present"
+  assert_contains "$output" "[OK] bats available"
 }

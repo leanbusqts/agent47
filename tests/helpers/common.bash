@@ -30,6 +30,16 @@ assert_contains() {
   fi
 }
 
+assert_not_contains() {
+  local haystack="$1"
+  local needle="$2"
+  if [[ "$haystack" == *"$needle"* ]]; then
+    echo "Expected output to not contain: $needle"
+    echo "$haystack"
+    return 1
+  fi
+}
+
 assert_file_exists() {
   local file="$1"
   if [ ! -f "$file" ]; then

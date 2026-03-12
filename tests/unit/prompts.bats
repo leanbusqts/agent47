@@ -10,20 +10,15 @@ teardown() {
   teardown_workdir
 }
 
-@test "add-agent-prompt-base creates prompt" {
-  run "$ROOT_DIR/scripts/add-agent-prompt-base"
+@test "add-prompt creates prompt" {
+  run "$ROOT_DIR/scripts/add-prompt"
   assert_success
-  assert_file_exists "prompts/agent-prompt-base.txt"
-}
-
-@test "add-agent-prompt-skills creates prompt" {
-  run "$ROOT_DIR/scripts/add-agent-prompt-skills"
+  assert_file_exists "prompts/agent-prompt.txt"
+  run cat "prompts/agent-prompt.txt"
   assert_success
-  assert_file_exists "prompts/agent-prompt-skills.txt"
-}
-
-@test "add-agent-prompt-sdd creates prompt" {
-  run "$ROOT_DIR/scripts/add-agent-prompt-sdd"
-  assert_success
-  assert_file_exists "prompts/agent-prompt-sdd.txt"
+  assert_contains "$output" 'Use `AGENTS.md` as the single source of policy.'
+  assert_contains "$output" "skills/AVAILABLE_SKILLS.xml"
+  assert_contains "$output" "specs/spec.yml"
+  assert_contains "$output" 'If `SNAPSHOT.md` exists and the task made it stale, explicitly suggest updating it.'
+  assert_not_contains "$output" "Authoritative order:"
 }

@@ -9,6 +9,11 @@ validate_skill() {
     return 1
   fi
 
+  if [ "$(grep -c '^---[[:space:]]*$' "$skill_path")" -lt 2 ]; then
+    echo "[WARN] Missing frontmatter fence in $skill_path" >&2
+    return 1
+  fi
+
   fm="$(sed -n '1,/^---[[:space:]]*$/p' "$skill_path" | sed '1d;$d')"
   name="$(printf "%s\n" "$fm" | sed -n 's/^name:[[:space:]]*//p' | head -n 1)"
   desc="$(printf "%s\n" "$fm" | sed -n 's/^description:[[:space:]]*//p' | head -n 1)"
@@ -25,6 +30,11 @@ validate_skill() {
 
   if [ "${#name}" -gt 64 ]; then
     echo "[WARN] Skill name too long in $skill_path (${#name} chars)" >&2
+    return 1
+  fi
+
+  if [ "${#desc}" -gt 140 ]; then
+    echo "[WARN] Skill description too long in $skill_path (${#desc} chars)" >&2
     return 1
   fi
 

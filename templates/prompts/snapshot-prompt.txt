@@ -1,0 +1,9 @@
+Review this repository and update `SNAPSHOT.md` to reflect the current state.
+
+Requirements:
+- Treat `AGENTS.md`, rules, specs, code, and tests as authoritative.
+- Keep `SNAPSHOT.md` descriptive, concise, and non-authoritative.
+- Do not invent capabilities or status.
+- Include current project structure, main commands, active templates, and noteworthy constraints.
+- Exclude secrets, credentials, and private data.
+- If a fact is uncertain, say so briefly instead of guessing.

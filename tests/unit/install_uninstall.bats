@@ -16,6 +16,8 @@ teardown() {
   assert_file_exists "$AGENT47_HOME/templates/AGENTS.md"
   assert_file_exists "$AGENT47_HOME/templates/specs/spec.yml"
   assert_file_exists "$AGENT47_HOME/scripts/skill-utils.sh"
+  assert_file_exists "$AGENT47_HOME/scripts/add-prompt"
+  assert_file_exists "$AGENT47_HOME/scripts/add-snapshot-prompt"
 }
 
 @test "install creates a backup when overwriting templates" {
@@ -43,6 +45,7 @@ teardown() {
   assert_success
   [ ! -f "$HOME/bin/add-agent" ]
   [ ! -f "$HOME/bin/reload-skills" ]
-  [ ! -f "$HOME/bin/add-agent-prompt-base" ]
+  [ ! -f "$HOME/bin/add-prompt" ]
+  [ ! -f "$HOME/bin/add-snapshot-prompt" ]
   [ ! -L "$HOME/bin/a47" ]
 }

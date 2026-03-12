@@ -1,0 +1,10 @@
+rules:
+  - id: "SEC-py-001"
+    severity: "critical"
+    applies_to: "backend"
+    rule: "Avoid `eval`, `exec`, unsafe pickle loading, and shell execution with unsanitized input."
+
+  - id: "SEC-py-002"
+    severity: "critical"
+    applies_to: "backend"
+    rule: "Use parameterized queries or safe ORM APIs; never compose queries directly from user input."

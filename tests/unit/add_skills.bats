@@ -83,3 +83,20 @@ EOF
   rm -rf "$AGENT47_HOME/templates/skills"
   cp -R "$ROOT_DIR/templates/skills" "$AGENT47_HOME/templates/"
 }
+
+@test "add-skills fails when description is too long" {
+  mkdir -p "$AGENT47_HOME/templates/skills/analyze"
+  cat > "$AGENT47_HOME/templates/skills/analyze/SKILL.md" <<'EOF'
+---
+name: analyze
+description: This description is intentionally made far too long for the validator because it should exceed the supported length and force the command to fail cleanly.
+---
+EOF
+
+  run "$ROOT_DIR/scripts/add-skills" --force
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "Invalid skill template"
+
+  rm -rf "$AGENT47_HOME/templates/skills"
+  cp -R "$ROOT_DIR/templates/skills" "$AGENT47_HOME/templates/"
+}

@@ -17,28 +17,19 @@ teardown() {
   assert_file_exists "rules/rules-mobile.yaml"
   assert_file_exists "rules/rules-frontend.yaml"
   assert_file_exists "rules/rules-backend.yaml"
+  assert_file_exists "rules/security-global.yaml"
+  assert_file_exists "rules/security-js-ts.yaml"
+  assert_file_exists "rules/security-py.yaml"
+  assert_file_exists "rules/security-java-kotlin.yaml"
+  assert_file_exists "rules/security-swift.yaml"
+  assert_file_exists "rules/security-csharp.yaml"
   assert_file_exists "README.md"
 }
 
-@test "add-agent with prompt base adds prompt file" {
-  run "$ROOT_DIR/scripts/add-agent" --prompt base
+@test "add-agent with prompt adds prompt file" {
+  run "$ROOT_DIR/scripts/add-agent" --prompt
   assert_success
-  assert_file_exists "prompts/agent-prompt-base.txt"
-}
-
-@test "add-agent with skills copies skills and AVAILABLE_SKILLS.xml" {
-  run "$ROOT_DIR/scripts/add-agent" --with-skills
-  assert_success
-  assert_dir_exists "skills/analyze"
-  assert_file_exists "skills/AVAILABLE_SKILLS.xml"
-  run grep -q "<name>analyze</name>" "skills/AVAILABLE_SKILLS.xml"
-  assert_success
-}
-
-@test "add-agent warns on invalid prompt choice" {
-  run "$ROOT_DIR/scripts/add-agent" --prompt invalid
-  [ "$status" -ne 0 ]
-  assert_contains "$output" "Invalid prompt choice"
+  assert_file_exists "prompts/agent-prompt.txt"
 }
 
 @test "add-agent fails if a required template is missing" {
@@ -52,6 +43,7 @@ teardown() {
   [ ! -f "rules/rules-backend.yaml" ]
   [ ! -f "rules/rules-frontend.yaml" ]
   [ ! -f "rules/rules-mobile.yaml" ]
+  [ ! -f "rules/security-global.yaml" ]
 
   # Restaurar templates
   rm -rf "$AGENT47_HOME/templates"

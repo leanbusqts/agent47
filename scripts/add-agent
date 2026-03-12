@@ -8,11 +8,17 @@ FILES=(
   "rules-mobile.yaml"
   "rules-frontend.yaml"
   "rules-backend.yaml"
+  "security-global.yaml"
+  "security-js-ts.yaml"
+  "security-py.yaml"
+  "security-java-kotlin.yaml"
+  "security-swift.yaml"
+  "security-csharp.yaml"
 )
 
 RULES_DIR="rules"
 WITH_SKILLS=false
-PROMPT_CHOICE=""
+WITH_PROMPT=false
 
 run_helper() {
   local cmd="$1"
@@ -34,7 +40,7 @@ run_helper() {
 }
 
 usage() {
-  echo "Usage: add-agent [--with-skills] [--prompt base|skills|sdd]"
+  echo "Usage: add-agent [--with-skills] [--prompt]"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -44,12 +50,8 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --prompt)
-      if [[ -z "$2" ]]; then
-        usage
-        exit 1
-      fi
-      PROMPT_CHOICE="$2"
-      shift 2
+      WITH_PROMPT=true
+      shift
       ;;
     *)
       usage
@@ -87,7 +89,6 @@ if [ ! -d "$RULES_DIR" ]; then
   mkdir "$RULES_DIR"
   echo "[OK] Created directory: $RULES_DIR/"
 fi
-
 for file in "${FILES[@]}"; do
   if [ -f "$RULES_TEMPLATES_DIR/$file" ]; then
     target_path="$RULES_DIR/$file"
@@ -124,24 +125,8 @@ if [ "$WITH_SKILLS" = true ]; then
 fi
 
 # Optional: add prompt
-case "$PROMPT_CHOICE" in
-  "")
-    ;;
-  base)
-    run_helper add-agent-prompt-base "$AGENT47_HOME/scripts/add-agent-prompt-base"
-    ;;
-  skills)
-    run_helper add-agent-prompt-skills "$AGENT47_HOME/scripts/add-agent-prompt-skills"
-    run_helper reload-skills "$AGENT47_HOME/scripts/reload-skills"
-    ;;
-  sdd)
-    run_helper add-agent-prompt-sdd "$AGENT47_HOME/scripts/add-agent-prompt-sdd"
-    run_helper reload-skills "$AGENT47_HOME/scripts/reload-skills"
-    ;;
-  *)
-    echo "[ERR] Invalid prompt choice: $PROMPT_CHOICE (use base|skills|sdd)"
-    exit 1
-    ;;
-esac
+if [ "$WITH_PROMPT" = true ]; then
+  run_helper add-prompt "$AGENT47_HOME/scripts/add-prompt"
+fi
 
 echo "[OK] Agent environment ready"

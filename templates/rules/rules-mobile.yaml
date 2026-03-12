@@ -1,153 +1,46 @@
-# rules-mobile.yaml
-# Mobile rules are architectural and conceptual. They extend AGENTS.md and are loaded when the active stack is mobile (Android / iOS).
+# Mobile rules extend AGENTS.md and may reference security IDs from rules/.
 
 rules:
-
-  # --------------------------------------------------
-  # Testing – Structure & Style
-  # --------------------------------------------------
-
   - topic: "testing:structure"
     level: "high"
-    rule: "Use a clear behavior-driven structure in mobile tests (express scenario, action, and outcome consistently)."
-    fix:
-      dont: |
-        @Test fun testSomething() { val result = doWork(); assertTrue(result) }
-      do: |
-        @Test fun `when something happens - then expected result occurs`() {
-          // Given
-          // When
-          // Then
-        }
+    rule: "Use clear behavior-driven test structure that makes scenario, action, and outcome obvious."
 
   - topic: "testing:naming"
     level: "medium"
-    rule: "Name tests by behavior and expected outcome; prefer readable scenario-based names."
-    fix:
-      dont: |
-        fun testInit()
-        fun shouldWorkCorrectly()
-      do: |
-        fun `when permission is denied - then error state is shown`()
-
-  # --------------------------------------------------
-  # Architecture & Consistency
-  # --------------------------------------------------
+    rule: "Name tests by behavior and expected outcome."
 
   - topic: "mobile:encapsulation"
     level: "high"
     rule: "Preserve intended encapsulation; do not widen visibility to bypass design constraints."
-    fix:
-      dont: |
-        public var internalState: State
-      do: |
-        private var internalState: State
 
   - topic: "mobile:consistency"
     level: "medium"
-    rule: "Follow existing patterns and styles in the surrounding module; avoid introducing divergent patterns without justification."
-    fix:
-      dont: |
-        // Introduce a new pattern unrelated to nearby code
-      do: |
-        // Match the existing approach used in adjacent files
+    rule: "Follow existing patterns in the surrounding module and avoid introducing divergent patterns without justification."
 
-  # --------------------------------------------------
-  # Preferences (non-binding; enforce via tooling/review)
-  # --------------------------------------------------
+  - topic: "mobile:async-safety"
+    level: "high"
+    rule: "Keep IO and compute off the UI thread, use safe async coordination, and avoid unsafe force unwraps or equivalent shortcuts."
+    refs:
+      - "SEC-global-003"
+      - "SEC-java-kotlin-003"
+      - "SEC-swift-002"
 
-  - topic: "preference:android-testing-frameworks"
-    level: "low"
-    rule: "On Android, prefer the existing testing frameworks in the project; avoid adding new ones without approval."
+  - topic: "mobile:platform-security"
+    level: "high"
+    rule: "Apply the matching language security rules for the mobile stack: Java/Kotlin rules for Android, Swift rules for iOS, and C# rules for MAUI/Xamarin-style mobile apps."
+    refs:
+      - "SEC-java-kotlin-001"
+      - "SEC-java-kotlin-002"
+      - "SEC-java-kotlin-003"
+      - "SEC-swift-001"
+      - "SEC-swift-002"
+      - "SEC-csharp-001"
+      - "SEC-csharp-002"
 
-  - topic: "preference:android-mocking"
-    level: "low"
-    rule: "If the project uses MockK/Mockito conventions, stay consistent within a test/module; avoid mixing frameworks."
+  - topic: "mobile:dependencies"
+    level: "high"
+    rule: "Mobile dependency or config changes require approval and should reuse existing project libraries."
 
-  - topic: "preference:android-coroutines-testing"
-    level: "low"
-    rule: "Use the project's standard coroutine testing approach (e.g., runTest/TestDispatcher) for consistency."
-
-  - topic: "preference:android-viewmodel"
-    level: "low"
-    rule: "When testing ViewModels with DI/lazy patterns, follow the project's established setup strategy; avoid ad-hoc reflection."
-
-  - topic: "preference:ios-testing"
-    level: "low"
-    rule: "On iOS, align with the project's test base classes and structure; avoid introducing new test harnesses without approval."
-
-  - topic: "preference:dependencies"
-    level: "low"
-    rule: "Avoid adding or changing mobile dependencies/config without approval; follow project dependency governance."
-
-  - topic: "preference:comments"
-    level: "low"
-    rule: "Keep production code lean; prefer self-documenting code. In tests, limit comments to structure/intent where helpful."
-
-  - topic: "preference:performance-threading"
-    level: "low"
-    rule: "Avoid heavy work on UI/main threads; run IO/compute off-main and ensure UI updates happen on the main thread."
-
-  - topic: "preference:caching-ttl"
-    level: "low"
-    rule: "Cache expensive results with clear TTL/invalidations when it benefits performance and user experience."
-
-  - topic: "preference:testing-mocking"
-    level: "low"
-    rule: "Prefer the project's primary mocking framework (e.g., MockK) and avoid mixing frameworks within the same test."
-
-  - topic: "preference:testing-structure-style"
-    level: "low"
-    rule: "Keep behavior-driven test names (when…- then…) with Given/When/Then sections; place private helpers/companions at the end of the test class."
-
-  - topic: "preference:testing-async"
-    level: "low"
-    rule: "In async tests, use the standard test dispatcher/runTest and advance/idle the main looper to flush pending work."
-
-  - topic: "preference:activity-viewmodel"
-    level: "low"
-    rule: "Keep Activities light and delegate async/business flows to ViewModels (viewModelScope); inject/mocks via ViewModelLazy per project conventions."
-
-  - topic: "preference:dependencies-immutability"
-    level: "low"
-    rule: "Avoid adding or changing dependencies/config (Gradle, Podfile, Package.swift) without approval; verify and reuse existing libraries."
-
-  - topic: "preference:testing-ios-structure"
-    level: "low"
-    rule: "In iOS, tests inherit from XCTestCase, use names like test_when…_then…, and keep Given/When/Then labels only."
-
-  - topic: "preference:testing-ios-mocking"
-    level: "low"
-    rule: "Use a single mocking framework per suite (e.g., Cuckoo/Mockingbird) and avoid mixing frameworks; prefer concrete instances over broad matchers."
-
-  - topic: "preference:ios-architecture"
-    level: "low"
-    rule: "Favor ports-and-adapters (hexagonal) patterns: protocols in domain, adapters implementing them, DI for external services; keep view controllers lightweight."
-
-  - topic: "preference:ios-concurrency"
-    level: "low"
-    rule: "Use async/await or GCD appropriately; keep UI updates on the main queue and avoid blocking it."
-
-  - topic: "preference:android-constructor-tests"
-    level: "low"
-    rule: "When classes have default constructors using real implementations, include a test that covers the default construction path."
-
-  - topic: "preference:android-mock-cleanup"
-    level: "low"
-    rule: "Clean up mocks per the chosen framework (clearAllMocks/unmockkAll for MockK; openMocks/clearInlineMocks for Mockito) only when mocks are used."
-
-  - topic: "preference:ios-security"
-    level: "low"
-    rule: "Store sensitive data in Keychain and rely on ATS/HTTPS; avoid custom CORS/header tweaks at app level unless mandated."
-
-  - topic: "preference:ios-networking"
-    level: "low"
-    rule: "Use URLSession with proper error handling, status codes, caching/reachability as needed; keep UI thread unblocked."
-
-  - topic: "preference:ios-persistence"
-    level: "low"
-    rule: "Choose persistence per need (Core Data/SQLite/UserDefaults) and handle migrations; do not impose Core Data when not warranted."
-
-  - topic: "preference:ios-accessibility-hig"
-    level: "low"
-    rule: "Follow HIG and accessibility basics (labels, hints, dynamic type, contrast) as part of UI work."
+  - topic: "mobile:layering"
+    level: "medium"
+    rule: "Prefer clear separation between features, services, and core concerns when the project already uses that structure."

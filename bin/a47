@@ -360,13 +360,100 @@ print_help() {
   echo "  a47 templates --restore-latest|--list|--clear-backups"
   echo ""
   echo "Add commands:"
-  echo "  a47 add-agent [--with-skills] [--prompt base|skills|sdd]   # flags optional"
+  echo "  a47 add-agent [--with-skills] [--prompt]   # flags optional"
   echo "  a47 add-spec"
   echo "  a47 add-skills"
   echo "  a47 reload-skills"
-  echo "  a47 add-agent-prompt-base"
-  echo "  a47 add-agent-prompt-skills"
-  echo "  a47 add-agent-prompt-sdd"
+  echo "  a47 add-prompt"
+  echo "  a47 add-snapshot-prompt"
+}
+
+required_agents_sections() {
+  cat <<'EOF'
+## Purpose
+## Authority Order
+## Executable Commands
+## Filesystem And Approval Boundaries
+### Always
+### Ask
+### Never
+## Security Expectations
+EOF
+}
+
+check_agents_sections() {
+  local agents_file="$1"
+  local missing=0
+
+  if [ ! -f "$agents_file" ]; then
+    echo "[WARN] AGENTS.md missing"
+    return 1
+  fi
+
+  while IFS= read -r section; do
+    if [ -n "$section" ] && ! grep -Fq "$section" "$agents_file"; then
+      echo "[WARN] AGENTS missing section: $section"
+      missing=1
+    fi
+  done < <(required_agents_sections)
+
+  if [ "$missing" -eq 0 ]; then
+    echo "[OK] AGENTS required sections present"
+    return 0
+  fi
+
+  return 1
+}
+
+check_security_templates() {
+  local templates_dir="$1"
+  local missing=0
+
+  for file in security-global.yaml security-js-ts.yaml security-py.yaml security-java-kotlin.yaml security-swift.yaml security-csharp.yaml; do
+    if [ ! -f "$templates_dir/rules/$file" ]; then
+      echo "[WARN] Missing security template: rules/$file"
+      missing=1
+    fi
+  done
+
+  if [ "$missing" -eq 0 ]; then
+    echo "[OK] Security templates present"
+    return 0
+  fi
+
+  return 1
+}
+
+check_prompt_template() {
+  local templates_dir="$1"
+
+  if [ -f "$templates_dir/prompts/agent-prompt.txt" ]; then
+    echo "[OK] Prompt template present"
+  else
+    echo "[WARN] Prompt template missing"
+    return 1
+  fi
+}
+
+check_security_rule_ids() {
+  local templates_dir="$1"
+  local security_dir="$templates_dir/rules"
+  local dupes
+
+  if [ ! -d "$security_dir" ]; then
+    echo "[WARN] Security rules directory missing"
+    return 1
+  fi
+
+  dupes="$(grep -ho 'id:[[:space:]]*"SEC-[^"]*"' "$security_dir"/security-*.yaml 2>/dev/null | sed -E 's/.*"(SEC-[^"]*)"/\1/' | sort | uniq -d)"
+  if [ -n "$dupes" ]; then
+    echo "[WARN] Duplicate security rule IDs detected"
+    echo "$dupes"
+    return 1
+  fi
+
+  echo "[OK] Security rule IDs unique"
+  return 0
 }
 
 # ---------------------------
@@ -402,12 +489,15 @@ install_templates() {
 
   # Install helper scripts (for sourcing)
   mkdir -p "$AGENT47_HOME/scripts"
-  if [ -f "$SCRIPTS_DIR/skill-utils.sh" ]; then
-    cp "$SCRIPTS_DIR/skill-utils.sh" "$AGENT47_HOME/scripts/"
-    echo "[OK] Helper installed: skill-utils.sh"
-  else
-    echo "[WARN] Helper not found: skill-utils.sh"
-  fi
+  for helper in skill-utils.sh add-prompt add-snapshot-prompt; do
+    if [ -f "$SCRIPTS_DIR/$helper" ]; then
+      cp "$SCRIPTS_DIR/$helper" "$AGENT47_HOME/scripts/"
+      chmod +x "$AGENT47_HOME/scripts/$helper"
+      echo "[OK] Helper installed: $helper"
+    else
+      echo "[WARN] Helper not found: $helper"
+    fi
+  done
 
   if [ -f "$ROOT_DIR/VERSION" ]; then
     cp "$ROOT_DIR/VERSION" "$AGENT47_HOME/VERSION"
@@ -473,7 +563,7 @@ install_scripts() {
   mkdir -p "$USER_DIR"
   mkdir -p "$AGENT47_HOME/scripts"
 
-  for script in add-agent add-spec add-skills reload-skills add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd; do
+  for script in add-agent add-spec add-skills reload-skills add-prompt add-snapshot-prompt; do
     if [ -f "$SCRIPTS_DIR/$script" ]; then
       if [ -f "$USER_DIR/$script" ] && [ "$force" != "true" ]; then
         echo "[WARN] $script already exists in $USER_DIR (use --force to overwrite)"
@@ -495,10 +585,13 @@ install_scripts() {
   done
 
   # Clean legacy prompt scripts if present
-  for legacy in add-agent-prompt add-agent-prompt-ss; do
+  for legacy in add-agent-prompt add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd add-agent-prompt-ss; do
     if [ -f "$USER_DIR/$legacy" ]; then
       rm -f "$USER_DIR/$legacy"
       echo "[INFO] Removed legacy script: $legacy"
+    fi
+    if [ -f "$AGENT47_HOME/scripts/$legacy" ]; then
+      rm -f "$AGENT47_HOME/scripts/$legacy"
     fi
   done
 
@@ -522,7 +615,7 @@ upgrade() {
 uninstall() {
   echo "[*] Uninstalling a47 scripts..."
 
-  for script in add-agent add-spec add-skills reload-skills add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd add-agent-prompt add-agent-prompt-ss; do
+  for script in add-agent add-spec add-skills reload-skills add-prompt add-snapshot-prompt add-agent-prompt add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd copy-snapshot-prompt add-agent-prompt-ss; do
     if [ -f "$USER_DIR/$script" ]; then
       rm "$USER_DIR/$script"
       echo "[OK] Removed $script"
@@ -595,7 +688,7 @@ doctor() {
   # ---------------------------
   # Helper scripts
   # ---------------------------
-  for script in add-agent add-spec add-skills reload-skills add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd; do
+  for script in add-agent add-spec add-skills reload-skills add-prompt add-snapshot-prompt; do
     if command -v "$script" >/dev/null; then
       echo "[OK] $script available"
     else
@@ -605,9 +698,9 @@ doctor() {
   done
 
   # Legacy prompt scripts check
-  for legacy in add-agent-prompt add-agent-prompt-ss; do
+  for legacy in add-agent-prompt-base add-agent-prompt-skills add-agent-prompt-sdd add-agent-prompt-ss; do
     if command -v "$legacy" >/dev/null; then
-      echo "[INFO] Legacy script detected: $legacy (no longer used)"
+      echo "[INFO] Legacy script detected: $legacy (remove old install)"
       echo "[HINT] Run a47 install to clean legacy scripts"
     fi
   done
@@ -617,6 +710,10 @@ doctor() {
   # ---------------------------
   if [ -d "$AGENT47_HOME/templates" ]; then
     echo "[OK] Templates installed"
+    check_prompt_template "$AGENT47_HOME/templates" || true
+    check_security_templates "$AGENT47_HOME/templates" || true
+    check_security_rule_ids "$AGENT47_HOME/templates" || true
+    check_agents_sections "$AGENT47_HOME/templates/AGENTS.md" || true
   else
     echo "[WARN] Templates missing"
     echo "[HINT] Fix: a47 install"
@@ -632,6 +729,12 @@ doctor() {
     else
       echo "[OK] Skills templates (.md) present"
     fi
+  fi
+
+  if [ -x "$ROOT_DIR/tests/vendor/bats/bin/bats" ] || command -v bats >/dev/null 2>&1; then
+    echo "[OK] bats available"
+  else
+    echo "[WARN] bats missing"
   fi
 
   # ---------------------------
@@ -695,14 +798,11 @@ case "$1" in
   reload-skills)
     run_cmd reload-skills "${@:2}"
   ;;
-  add-agent-prompt-base)
-    run_cmd add-agent-prompt-base "${@:2}"
+  add-prompt)
+    run_cmd add-prompt "${@:2}"
   ;;
-  add-agent-prompt-skills)
-    run_cmd add-agent-prompt-skills "${@:2}"
-  ;;
-  add-agent-prompt-sdd)
-    run_cmd add-agent-prompt-sdd "${@:2}"
+  add-snapshot-prompt)
+    run_cmd add-snapshot-prompt "${@:2}"
   ;;
   init-agent)
     init_agent

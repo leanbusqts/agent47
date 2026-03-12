@@ -16,7 +16,7 @@
 - Skills-based agent execution
 - Reusable prompts
 - Consistent project initialization
-- Abstract handling of rules and memories (authoritative order: user > AGENTS > stack rules > specs > code/tests > memories/hints)
+- Security rules split into global, language, and stack layers
 - Templates inspired by agents.md (contracts), Anthropic/agentskills (skills format), a simplified Spec Kit pattern (spec.yml), and aligned with community resources (https://github.com/anthropics/skills, https://agents.md, https://github.com/github/spec-kit/blob/main/spec-driven.md, https://agentskills.io/home)
 
 It is designed to be **simple, explicit, and composable**, without hidden automation.
@@ -31,30 +31,11 @@ It is designed to be **simple, explicit, and composable**, without hidden automa
 
 ---
 
-## Context Access Policy (MCP-aligned)
-
-All templates and prompts enforce explicit context boundaries:
-- Use only files, resources, and data explicitly provided in the prompt/workspace/approved context.
-- Do not assume access to files not listed, undeclared APIs, or external services not explicitly enabled.
-- If required context is missing, stop and ask.
-
-This keeps agent runs auditable and prevents accidental access to unintended resources.
-Note: This is an alignment with the MCP principle of explicit contexts; agent47 does not implement Model Context Protocol servers/clients.
-
----
-
 ## Philosophy
 
 - **agent47 does not manage your project**
 - **agent47 provides templates and conventions**
 - You decide *when* and *how* to apply specs, skills, and prompts
-
-The goal is to make agent-driven workflows:
-- repeatable
-- inspectable
-- versionable
-
----
 
 ## Context Access Policy (MCP-aligned)
 
@@ -84,28 +65,31 @@ This keeps agent runs auditable and prevents accidental access to unintended res
 # In your project
 cd /path/to/project
 
-# Bootstrap agent scaffolding (copies AGENTS.md and rules-*.yaml)
-a47 add-agent --with-skills --prompt skills   # or --prompt base|sdd; drop flags to skip
+# Bootstrap agent scaffolding
+a47 add-agent --with-skills --prompt
 
 # Optional: add spec or refresh skills/prompts later
 a47 add-spec                    # creates specs/spec.yml if missing
 a47 add-skills                  # rerun to refresh skills/AVAILABLE_SKILLS.xml after edits
-a47 add-agent-prompt-base       # base prompt (no skills)
-a47 add-agent-prompt-skills     # skills prompt
-a47 add-agent-prompt-sdd        # spec + skills prompt (SDD)
+a47 add-prompt                  # single general prompt
+a47 add-snapshot-prompt         # copies/prints a prompt to manually refresh SNAPSHOT.md
 ```
 
 ### What you get
 - `AGENTS.md` in the project root
 - `rules-*.yaml` under `rules/`
+- `rules/security-*.yaml` for shared security policy
+  - `security-java-kotlin.yaml` now applies to backend and Android/mobile work
+  - `security-swift.yaml` applies to iOS/mobile work
+  - `security-csharp.yaml` applies to backend and MAUI/Xamarin-style mobile work
 - `specs/spec.yml` (fill it in; includes optional plan/tasks/log scaffold)
 - `skills/<name>/SKILL.md` (behavior contracts) and `skills/AVAILABLE_SKILLS.xml`
-- `prompts/agent-prompt-*.txt` (edit before running your agent)
+- `prompts/agent-prompt.txt`
 
-### Prompt workflows (how to use each prompt)
-- `templates/prompts/agent-prompt-base.txt`: fill TASKS (Context/Resources/Description); agent reads AGENTS/rules/spec.yml, clarifies gaps, then executes with confirmation if needed.
-- `templates/prompts/agent-prompt-skills.txt`: fill TASKS and choose the skill (analyze/implement/review/refactor/optimize/plan/spec-clarify/troubleshoot); agent loads the skill’s SKILL.md + AGENTS/rules/spec.yml; for multi-phase, list phases with skill+objective, run one at a time, summarize, then ask to proceed.
-- `templates/prompts/agent-prompt-sdd.txt`: fill TASKS; agent uses AGENTS/rules/specs/spec.yml to propose/update spec/plan/tasks inside spec.yml before coding, shows changes for approval, follows the checklist, updates tasks/log, and implements only what’s confirmed, respecting the active skill per phase.
+### Prompt workflows
+- The CLI ships one general prompt at `templates/prompts/agent-prompt.txt`.
+- That prompt references `AGENTS.md`, rules, skills metadata, and `specs/spec.yml` without duplicating policy.
+- `snapshot-prompt.txt` is separate and only meant to help manually refresh `SNAPSHOT.md`.
 
 ### Spec template (plan before code)
 - `specs/spec.yml` follows the Spec Kit format and accepts optional nodes `plan`, `tasks`, `log`.
@@ -164,11 +148,12 @@ Manual steps are provided only for troubleshooting or advanced usage.
 All examples below use `a47`. Use flags to include skills and prompts in one step if desired.
 
 ## Command cheatsheet (common)
-- `a47 add-agent [--with-skills] [--prompt base|skills|sdd]`
+- `a47 add-agent [--with-skills] [--prompt]`
 - `a47 add-spec`
 - `a47 add-skills [--force]` / `a47 reload-skills`
 - `a47 install [--force]` / `a47 upgrade [--force]` / `a47 uninstall`
-- `a47 add-agent-prompt-base` / `a47 add-agent-prompt-skills` / `a47 add-agent-prompt-sdd`
+- `a47 add-prompt`
+- `a47 add-snapshot-prompt`
 
 ### Show help
 
@@ -200,17 +185,20 @@ This verifies:
 
 * `a47` availability
 * installed helper commands
+* prompt and security templates
+* required `AGENTS.md` sections
 * current version
 * update check (shows warnings if git/curl or network are unavailable; does not block)
 
 ### Initialize agent (AGENTS + rules) with optional skills and prompt
 
 ```bash
-a47 add-agent --with-skills --prompt skills   # or --prompt base | --prompt sdd
+a47 add-agent --with-skills --prompt
 ```
 
 - `--with-skills` copies the curated skills and generates `skills/AVAILABLE_SKILLS.xml`.
-- `--prompt` chooses which prompt to add: base (no skills), skills, or sdd (spec + skills). Omit to skip prompts.
+- `--prompt` copies the single general prompt. Omit it to skip prompts.
+- Security templates are copied into `rules/` together with stack rules.
 
 ### Check for updates (manual, cached)
 
@@ -226,9 +214,7 @@ a47 doctor
 
 a47 add-spec
 
-a47 add-agent-prompt-base
-a47 add-agent-prompt-skills
-a47 add-agent-prompt-sdd
+a47 add-prompt
 ```
 
 Note: `a47` is a real executable installed by the CLI.
@@ -306,59 +292,22 @@ skills/
 
 ---
 
-### Add a base prompt (no skills)
+### Add the agent prompt
 
 ```bash
-a47 add-agent-prompt-base
+a47 add-prompt
 ```
 
 Creates:
 
 ```text
-prompts/agent-prompt-base.txt
+prompts/agent-prompt.txt
 ```
 
 Usage notes:
-- No skills or spec template embedded; uses only provided context.
-- Sections: role, tasks (context/resources/description), constraints, outputs.
-
----
-
-### Add a skills prompt
-
-```bash
-a47 add-agent-prompt-skills
-```
-
-Creates:
-
-```text
-prompts/agent-prompt-skills.txt
-```
-
-Usage notes:
-- Uses skills if present; the prompt instructs the agent to read `skills/AVAILABLE_SKILLS.xml` directly from the filesystem (no manual pasting).
-- Intended for general work with skills; no spec template embedded (specs are optional context if provided).
-- Sections: role, skills (active + available), tasks (context/resources/description), constraints, outputs.
-
----
-
-### Add a spec + skills prompt (SDD flow)
-
-```bash
-a47 add-agent-prompt-sdd
-```
-
-Creates:
-
-```text
-prompts/agent-prompt-sdd.txt
-```
-
-Usage notes:
-- Uses skills if present; the prompt instructs the agent to read `skills/AVAILABLE_SKILLS.xml` directly from the filesystem (no manual pasting).
-- Intended for structured, multi-phase work; includes a spec notes section and expects `specs/spec.yml` when a spec is in scope.
-- Sections: role, skills (active + available), phase objective, phase guardrails, spec notes (optional), constraints, outputs.
+- Uses skills if present through `skills/AVAILABLE_SKILLS.xml`.
+- Uses `specs/spec.yml` for non-trivial work.
+- Keeps policy out of the prompt and points back to `AGENTS.md`.
 
 ---
 
@@ -432,11 +381,10 @@ agent47/
 │   └── a47
 ├── scripts/
 │   ├── add-agent
+│   ├── add-prompt
 │   ├── add-skills
 │   ├── add-spec
-│   ├── add-agent-prompt-base
-│   ├── add-agent-prompt-skills
-│   └── add-agent-prompt-sdd
+│   └── add-snapshot-prompt
 ├── templates/
 │   ├── AGENTS.md
 │   ├── rules/
@@ -469,7 +417,7 @@ agent47/
 ↓
 cd project
 ↓
-a47 add-agent --with-skills --prompt skills   # or --prompt base|sdd; drop flags to skip
+a47 add-agent --with-skills --prompt
 ↓
 a47 add-spec (optional)
 ↓
@@ -477,7 +425,7 @@ a47 add-skills (optional, to refresh skills/templates)
 ↓
 a47 reload-skills (optional, regenerate skills/AVAILABLE_SKILLS.xml only)
 ↓
-a47 add-agent-prompt-base / a47 add-agent-prompt-skills / a47 add-agent-prompt-sdd (optional, if not added via flags)
+a47 add-prompt (optional, if not added via flags)
 ↓
 Use your AI tool of choice
 ```
