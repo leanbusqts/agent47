@@ -25,7 +25,6 @@ teardown() {
   assert_file_exists "rules/security-csharp.yaml"
   assert_file_exists "skills/analyze/SKILL.md"
   assert_file_exists "skills/AVAILABLE_SKILLS.xml"
-  assert_file_exists "prompts/agent-prompt.txt"
   assert_file_exists "README.md"
 }
 
@@ -46,7 +45,7 @@ teardown() {
   assert_success
   run grep -F "Controllers and transport adapters handle transport concerns only" rules/rules-backend.yaml
   assert_success
-  run grep -F 'Use `AGENTS.md` as the single source of policy.' prompts/agent-prompt.txt
+  run grep -F "old prompt" prompts/agent-prompt.txt
   assert_success
   run grep -F "custom spec" specs/spec.yml
   assert_success

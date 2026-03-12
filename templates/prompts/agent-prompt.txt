@@ -54,7 +54,6 @@ Task:
 - Verify the requested behavior.
 - Run the smallest relevant checks.
 - Prefer tests in this order: happy path, error handling, edge cases.
-- If `SNAPSHOT.md` exists and the task made it stale, explicitly suggest updating it.
 - Report changes, verification, risks, and assumptions.
 
 ## Output

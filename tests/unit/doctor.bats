@@ -31,16 +31,16 @@ teardown() {
   assert_contains "$output" "[OK] bats available"
 }
 
-@test "doctor detects legacy add-agent-prompt script" {
+@test "doctor detects legacy add-agent-prompt-base script" {
   mkdir -p "$HOME/bin"
-  cat > "$HOME/bin/add-agent-prompt" <<'EOF'
+  cat > "$HOME/bin/add-agent-prompt-base" <<'EOF'
 #!/bin/bash
 exit 0
 EOF
-  chmod +x "$HOME/bin/add-agent-prompt"
+  chmod +x "$HOME/bin/add-agent-prompt-base"
   export PATH="$HOME/bin:$ROOT_DIR/bin:$ROOT_DIR/scripts:$PATH"
 
   run "$ROOT_DIR/bin/a47" doctor
   assert_success
-  assert_contains "$output" "Legacy script detected: add-agent-prompt"
+  assert_contains "$output" "Legacy script detected: add-agent-prompt-base"
 }

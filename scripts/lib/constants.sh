@@ -5,12 +5,12 @@ INSTALLABLE_SCRIPTS=(
   add-spec
   add-skills
   reload-skills
-  add-prompt
+  add-cli-prompt
+  add-agent-prompt
   add-snapshot-prompt
 )
 
 LEGACY_SCRIPTS=(
-  add-agent-prompt
   add-agent-prompt-base
   add-agent-prompt-skills
   add-agent-prompt-sdd

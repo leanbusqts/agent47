@@ -6,7 +6,7 @@
 - `rules/*.yaml` for stack and security guidance
 - `skills/*` plus `AVAILABLE_SKILLS.xml`
 - `specs/spec.yml` for non-trivial work
-- one general `agent-prompt.txt`
+- optional prompts for full-agent and terminal-first workflows
 
 It is intentionally simple: copy templates into a project, keep them versioned, and refresh them explicitly when needed.
 
@@ -25,7 +25,6 @@ That bootstraps:
 - `rules/*.yaml`
 - `skills/*`
 - `skills/AVAILABLE_SKILLS.xml`
-- `prompts/agent-prompt.txt`
 - `README.md` if missing
 
 To refresh an older project copy:
@@ -45,7 +44,8 @@ a47 add-agent [--force]
 a47 add-spec
 a47 add-skills [--force]
 a47 reload-skills
-a47 add-prompt [--force]
+a47 add-cli-prompt
+a47 add-agent-prompt [--force]
 a47 add-snapshot-prompt
 ```
 
@@ -59,5 +59,6 @@ a47 add-snapshot-prompt
 ## Notes
 
 - `a47 add-agent` is the default bootstrap path.
-- `a47 add-prompt` and `a47 add-snapshot-prompt` are focused helpers.
+- `a47 add-cli-prompt` copies a one-line terminal prompt to the clipboard when possible.
+- `a47 add-agent-prompt` and `a47 add-snapshot-prompt` are focused helpers.
 - Core scripts use strict shell mode and fail fast on copy/bootstrap errors.

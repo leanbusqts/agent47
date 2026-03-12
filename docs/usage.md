@@ -34,7 +34,6 @@ This copies:
 - all `rules/*.yaml`
 - all curated `skills/*`
 - `skills/AVAILABLE_SKILLS.xml`
-- `prompts/agent-prompt.txt`
 - `README.md` if missing
 
 ## Update an older project
@@ -51,7 +50,6 @@ This refreshes managed files:
 - `rules/*.yaml`
 - `skills/*`
 - `skills/AVAILABLE_SKILLS.xml`
-- `prompts/agent-prompt.txt`
 
 This preserves project-owned files:
 
@@ -75,11 +73,17 @@ a47 add-skills --force
 a47 reload-skills
 ```
 
+Copy a minimal terminal prompt to the clipboard:
+
+```bash
+a47 add-cli-prompt
+```
+
 Refresh only the general prompt:
 
 ```bash
-a47 add-prompt
-a47 add-prompt --force
+a47 add-agent-prompt
+a47 add-agent-prompt --force
 ```
 
 Get the helper prompt for manually updating `SNAPSHOT.md`:

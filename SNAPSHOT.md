@@ -8,7 +8,7 @@
 - **Implemented:** CLI in `bin/a47` with install/upgrade/uninstall, doctor, update checks, template backup/restore, and project bootstrap commands; curated templates for `AGENTS.md`, stack rules, security rules, skills, prompts, and `specs/spec.yml`; Bats-based unit test suite and Make targets.
 - **Architecture:** `bin/a47` is now mostly a router and sources shared logic from `scripts/lib/` (`constants`, `update`, `templates`, `install`, `doctor`, `common`).
 - **Documentation:** `README.md` is now intentionally short; usage and structure details live in `docs/usage.md` and `docs/architecture.md`.
-- **Stable workflow:** `a47 add-agent` bootstraps `AGENTS.md`, all `rules/*.yaml`, skills, and the general prompt; `a47 add-prompt` and `a47 add-snapshot-prompt` are available as focused helpers.
+- **Stable workflow:** `a47 add-agent` bootstraps `AGENTS.md` and all `rules/*.yaml` plus skills; `a47 add-cli-prompt`, `a47 add-agent-prompt`, and `a47 add-snapshot-prompt` are available as focused helpers.
 - **Operational hardening:** core helper scripts now run with strict shell mode to reduce silent partial failures during bootstrap/update flows.
 - **Not automated by CLI:** `SNAPSHOT.md` creation/update, vendor-specific configs, Windows/PowerShell support, dependency enforcement against concrete package manifests.
 
@@ -23,7 +23,8 @@
 - `a47 add-spec`
 - `a47 add-skills`
 - `a47 reload-skills`
-- `a47 add-prompt`
+- `a47 add-cli-prompt`
+- `a47 add-agent-prompt`
 - `a47 add-snapshot-prompt`
 
 ## 4. Key Repository Structure
@@ -34,7 +35,8 @@
 - `install.sh` – installer that links `a47` into `~/bin`.
 - `scripts/`
   - `add-agent`
-  - `add-prompt`
+  - `add-cli-prompt`
+  - `add-agent-prompt`
   - `add-snapshot-prompt`
   - `add-skills`
   - `add-spec`
@@ -44,6 +46,7 @@
   - `lib/*.sh`
 - `templates/`
   - `AGENTS.md`
+  - `prompts/cli-prompt.txt`
   - `prompts/agent-prompt.txt`
   - `prompts/snapshot-prompt.txt`
   - `rules/rules-frontend.yaml`
@@ -59,7 +62,7 @@
 - `AGENTS.md` is the single source of policy; prompts and README should reference it rather than duplicating policy.
 - Security rules live directly under `templates/rules/` as `security-*.yaml`.
 - Java/Kotlin rules apply to backend and mobile; Swift applies to mobile; C# applies to backend and MAUI/Xamarin-style mobile work.
-- If `SNAPSHOT.md` exists, agents should read it as descriptive context and suggest updating it when work makes it stale.
+- `SNAPSHOT.md` remains a manual project note, outside the public agent contract and default prompt flow.
 
 ## 6. Testing And Validation
 - `make test` and `./scripts/test` pass.

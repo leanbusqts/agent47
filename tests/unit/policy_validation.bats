@@ -24,16 +24,13 @@ teardown() {
   assert_success
   run grep -F "### Never" "$ROOT_DIR/templates/AGENTS.md"
   assert_success
-  run grep -F 'When `SNAPSHOT.md` exists, review it as part of task context' "$ROOT_DIR/templates/AGENTS.md"
-  assert_success
-  run grep -F 'If `SNAPSHOT.md` exists and the task changed project structure, workflows, commands, or status, explicitly note that it should be updated.' "$ROOT_DIR/templates/AGENTS.md"
-  assert_success
   run grep -F "## Dependency Policy" "$ROOT_DIR/templates/AGENTS.md"
   assert_success
 }
 
 @test "single prompt template exists" {
   assert_file_exists "$ROOT_DIR/templates/prompts/agent-prompt.txt"
+  assert_file_exists "$ROOT_DIR/templates/prompts/cli-prompt.txt"
   [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-base.txt" ]
   [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-skills.txt" ]
   [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-sdd.txt" ]

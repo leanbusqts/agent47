@@ -158,11 +158,4 @@ else
   run_helper add-skills "$AGENT47_HOME/scripts/add-skills"
 fi
 
-# Add prompt
-if [ "$FORCE" = true ]; then
-  run_helper add-prompt "$AGENT47_HOME/scripts/add-prompt" --force
-else
-  run_helper add-prompt "$AGENT47_HOME/scripts/add-prompt"
-fi
-
 echo "[OK] Agent environment ready"

@@ -31,9 +31,6 @@ Read what applies before acting:
 - Relevant code and tests
 - `skills/AVAILABLE_SKILLS.xml` and the selected `skills/*/SKILL.md` when skills are in use
 
-`SNAPSHOT.md` is optional. When present, treat it as descriptive context only. Code, tests, specs, and this file remain authoritative.
-When `SNAPSHOT.md` exists, review it as part of task context and, at the end of the task, suggest updating it if the completed work made it stale.
-
 ## Executable Commands
 
 Project-maintained commands:
@@ -103,7 +100,6 @@ Actions that are forbidden:
 Examples:
 - Committing `.env` secrets
 - Running destructive cleanup outside the requested scope
-- Generating `SNAPSHOT.md` automatically as part of normal CLI flows
 
 ## Security Expectations
 
@@ -149,7 +145,5 @@ Responses should include:
 - what changed or what was found
 - tests/verification performed, or why not
 - residual risks or assumptions
-
-If `SNAPSHOT.md` exists and the task changed project structure, workflows, commands, or status, explicitly note that it should be updated.
 
 Keep reports concise and factual.

@@ -17,7 +17,8 @@ agent47/
 |
 +-- scripts/
 |   +-- add-agent
-|   +-- add-prompt
+|   +-- add-cli-prompt
+|   +-- add-agent-prompt
 |   +-- add-skills
 |   +-- add-spec
 |   +-- add-snapshot-prompt
@@ -36,6 +37,7 @@ agent47/
 |   +-- AGENTS.md
 |   +-- prompts/
 |   |   +-- agent-prompt.txt
+|   |   +-- cli-prompt.txt
 |   |   `-- snapshot-prompt.txt
 |   +-- rules/
 |   |   +-- rules-backend.yaml
