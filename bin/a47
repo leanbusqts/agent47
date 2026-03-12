@@ -69,7 +69,7 @@ print_help() {
   echo "  a47 templates --restore-latest|--list|--clear-backups"
   echo ""
   echo "Add commands:"
-  echo "  a47 add-agent [--with-skills] [--prompt]   # flags optional"
+  echo "  a47 add-agent [--with-skills] [--prompt] [--force]   # flags optional"
   echo "  a47 add-spec"
   echo "  a47 add-skills"
   echo "  a47 reload-skills"

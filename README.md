@@ -148,7 +148,7 @@ Manual steps are provided only for troubleshooting or advanced usage.
 All examples below use `a47`. Use flags to include skills and prompts in one step if desired.
 
 ## Command cheatsheet (common)
-- `a47 add-agent [--with-skills] [--prompt]`
+- `a47 add-agent [--with-skills] [--prompt] [--force]`
 - `a47 add-spec`
 - `a47 add-skills [--force]` / `a47 reload-skills`
 - `a47 install [--force]` / `a47 upgrade [--force]` / `a47 uninstall`
@@ -196,10 +196,14 @@ This verifies:
 
 ```bash
 a47 add-agent --with-skills --prompt
+
+# Refresh a project initialized with an older agent47 version
+a47 add-agent --with-skills --prompt --force
 ```
 
 - `--with-skills` copies the curated skills and generates `skills/AVAILABLE_SKILLS.xml`.
 - `--prompt` copies the single general prompt. Omit it to skip prompts.
+- `--force` refreshes managed agent47 files in an existing project (`AGENTS.md`, `rules/*.yaml`, prompt, skills) while preserving `README.md`, `specs/spec.yml`, and `SNAPSHOT.md`.
 - Security templates are copied into `rules/` together with stack rules.
 
 ### Check for updates (manual, cached)

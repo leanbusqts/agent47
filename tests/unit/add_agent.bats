@@ -32,6 +32,35 @@ teardown() {
   assert_file_exists "prompts/agent-prompt.txt"
 }
 
+@test "add-agent --force updates managed files and preserves user project files" {
+  mkdir -p rules prompts specs skills/analyze
+  echo "old agents" > AGENTS.md
+  echo "old rule" > rules/rules-backend.yaml
+  echo "old prompt" > prompts/agent-prompt.txt
+  echo "custom spec" > specs/spec.yml
+  echo "custom readme" > README.md
+  echo "custom snapshot" > SNAPSHOT.md
+  echo "custom skill" > skills/analyze/SKILL.md
+
+  run "$ROOT_DIR/scripts/add-agent" --with-skills --prompt --force
+  assert_success
+
+  run grep -F "single source of operating policy" AGENTS.md
+  assert_success
+  run grep -F "Controllers and transport adapters handle transport concerns only" rules/rules-backend.yaml
+  assert_success
+  run grep -F 'Use `AGENTS.md` as the single source of policy.' prompts/agent-prompt.txt
+  assert_success
+  run grep -F "custom spec" specs/spec.yml
+  assert_success
+  run grep -F "custom readme" README.md
+  assert_success
+  run grep -F "custom snapshot" SNAPSHOT.md
+  assert_success
+  run grep -F "name: analyze" skills/analyze/SKILL.md
+  assert_success
+}
+
 @test "add-agent fails if a required template is missing" {
   rm "$AGENT47_HOME/templates/AGENTS.md"
 

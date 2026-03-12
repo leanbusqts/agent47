@@ -5,6 +5,12 @@ AGENT47_HOME="${AGENT47_HOME:-$HOME/.agent47}"
 TEMPLATE_FILE="$AGENT47_HOME/templates/prompts/agent-prompt.txt"
 PROMPTS_DIR="prompts"
 TARGET_FILE="$PROMPTS_DIR/agent-prompt.txt"
+FORCE=false
+
+if [ "${1:-}" = "--force" ]; then
+  FORCE=true
+  shift
+fi
 
 echo "[INFO] Initializing agent prompt..."
 
@@ -14,6 +20,12 @@ if [ ! -d "$PROMPTS_DIR" ]; then
 fi
 
 if [ -f "$TARGET_FILE" ]; then
+  if [ "$FORCE" = true ]; then
+    cp "$TEMPLATE_FILE" "$TARGET_FILE"
+    echo "[OK] Updated prompt: $TARGET_FILE"
+    echo "[OK] Agent prompt setup complete."
+    exit 0
+  fi
   echo "[WARN] $TARGET_FILE already exists, skipping"
   exit 0
 fi

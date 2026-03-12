@@ -9,6 +9,7 @@ CONSTANTS_FILE="$AGENT47_HOME/scripts/lib/constants.sh"
 RULES_DIR="rules"
 WITH_SKILLS=false
 WITH_PROMPT=false
+FORCE=false
 
 if [ -f "$CONSTANTS_FILE" ]; then
   # shellcheck disable=SC1090
@@ -56,7 +57,7 @@ run_helper() {
 }
 
 usage() {
-  echo "Usage: add-agent [--with-skills] [--prompt]"
+  echo "Usage: add-agent [--with-skills] [--prompt] [--force]"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -67,6 +68,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --prompt)
       WITH_PROMPT=true
+      shift
+      ;;
+    --force)
+      FORCE=true
       shift
       ;;
     *)
@@ -109,7 +114,12 @@ for file in "${FILES[@]}"; do
   if [ -f "$RULES_TEMPLATES_DIR/$file" ]; then
     target_path="$RULES_DIR/$file"
     if [ -f "$target_path" ]; then
-      echo "[WARN] $target_path already exists, skipping"
+      if [ "$FORCE" = true ]; then
+        cp "$RULES_TEMPLATES_DIR/$file" "$target_path"
+        echo "[OK] Updated: $target_path"
+      else
+        echo "[WARN] $target_path already exists, skipping"
+      fi
     else
       cp "$RULES_TEMPLATES_DIR/$file" "$target_path"
       echo "[OK] Copied: $target_path"
@@ -122,7 +132,12 @@ done
 # Copy AGENTS.md
 if [ -f "$TEMPLATES_DIR/AGENTS.md" ]; then
   if [ -f "./AGENTS.md" ]; then
-    echo "[WARN] AGENTS.md already exists, skipping"
+    if [ "$FORCE" = true ]; then
+      cp "$TEMPLATES_DIR/AGENTS.md" ./AGENTS.md
+      echo "[OK] Updated: AGENTS.md"
+    else
+      echo "[WARN] AGENTS.md already exists, skipping"
+    fi
   else
     cp "$TEMPLATES_DIR/AGENTS.md" ./AGENTS.md
     echo "[OK] Copied: AGENTS.md"
@@ -137,12 +152,20 @@ fi
 
 # Optional: add skills
 if [ "$WITH_SKILLS" = true ]; then
-  run_helper add-skills "$AGENT47_HOME/scripts/add-skills"
+  if [ "$FORCE" = true ]; then
+    run_helper add-skills "$AGENT47_HOME/scripts/add-skills" --force
+  else
+    run_helper add-skills "$AGENT47_HOME/scripts/add-skills"
+  fi
 fi
 
 # Optional: add prompt
 if [ "$WITH_PROMPT" = true ]; then
-  run_helper add-prompt "$AGENT47_HOME/scripts/add-prompt"
+  if [ "$FORCE" = true ]; then
+    run_helper add-prompt "$AGENT47_HOME/scripts/add-prompt" --force
+  else
+    run_helper add-prompt "$AGENT47_HOME/scripts/add-prompt"
+  fi
 fi
 
 echo "[OK] Agent environment ready"

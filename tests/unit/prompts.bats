@@ -22,3 +22,13 @@ teardown() {
   assert_contains "$output" 'If `SNAPSHOT.md` exists and the task made it stale, explicitly suggest updating it.'
   assert_not_contains "$output" "Authoritative order:"
 }
+
+@test "add-prompt --force overwrites existing prompt" {
+  mkdir -p prompts
+  echo "custom prompt" > prompts/agent-prompt.txt
+
+  run "$ROOT_DIR/scripts/add-prompt" --force
+  assert_success
+  run grep -F 'Use `AGENTS.md` as the single source of policy.' prompts/agent-prompt.txt
+  assert_success
+}
