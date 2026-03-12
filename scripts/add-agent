@@ -2,13 +2,12 @@
 set -euo pipefail
 
 AGENT47_HOME="${AGENT47_HOME:-$HOME/.agent47}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATES_DIR="$AGENT47_HOME/templates"
 RULES_TEMPLATES_DIR="$TEMPLATES_DIR/rules"
 CONSTANTS_FILE="$AGENT47_HOME/scripts/lib/constants.sh"
 
 RULES_DIR="rules"
-WITH_SKILLS=false
-WITH_PROMPT=false
 FORCE=false
 
 if [ -f "$CONSTANTS_FILE" ]; then
@@ -43,6 +42,16 @@ run_helper() {
     return $?
   fi
 
+  local local_fallback="$SCRIPT_DIR/$cmd"
+  if [ -x "$local_fallback" ]; then
+    if [ "${#args[@]}" -gt 0 ]; then
+      "$local_fallback" "${args[@]}"
+    else
+      "$local_fallback"
+    fi
+    return $?
+  fi
+
   if [ -n "$fallback" ] && [ -x "$fallback" ]; then
     if [ "${#args[@]}" -gt 0 ]; then
       "$fallback" "${args[@]}"
@@ -52,24 +61,16 @@ run_helper() {
     return $?
   fi
 
-  echo "[ERR] $cmd not found (checked PATH${fallback:+ and $fallback})"
+  echo "[ERR] $cmd not found (checked PATH, $local_fallback${fallback:+, and $fallback})"
   return 1
 }
 
 usage() {
-  echo "Usage: add-agent [--with-skills] [--prompt] [--force]"
+  echo "Usage: add-agent [--force]"
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --with-skills)
-      WITH_SKILLS=true
-      shift
-      ;;
-    --prompt)
-      WITH_PROMPT=true
-      shift
-      ;;
     --force)
       FORCE=true
       shift
@@ -150,22 +151,18 @@ if [ ! -f "README.md" ]; then
   echo "[OK] README.md created"
 fi
 
-# Optional: add skills
-if [ "$WITH_SKILLS" = true ]; then
-  if [ "$FORCE" = true ]; then
-    run_helper add-skills "$AGENT47_HOME/scripts/add-skills" --force
-  else
-    run_helper add-skills "$AGENT47_HOME/scripts/add-skills"
-  fi
+# Add skills
+if [ "$FORCE" = true ]; then
+  run_helper add-skills "$AGENT47_HOME/scripts/add-skills" --force
+else
+  run_helper add-skills "$AGENT47_HOME/scripts/add-skills"
 fi
 
-# Optional: add prompt
-if [ "$WITH_PROMPT" = true ]; then
-  if [ "$FORCE" = true ]; then
-    run_helper add-prompt "$AGENT47_HOME/scripts/add-prompt" --force
-  else
-    run_helper add-prompt "$AGENT47_HOME/scripts/add-prompt"
-  fi
+# Add prompt
+if [ "$FORCE" = true ]; then
+  run_helper add-prompt "$AGENT47_HOME/scripts/add-prompt" --force
+else
+  run_helper add-prompt "$AGENT47_HOME/scripts/add-prompt"
 fi
 
 echo "[OK] Agent environment ready"

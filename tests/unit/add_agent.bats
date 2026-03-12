@@ -23,13 +23,10 @@ teardown() {
   assert_file_exists "rules/security-java-kotlin.yaml"
   assert_file_exists "rules/security-swift.yaml"
   assert_file_exists "rules/security-csharp.yaml"
-  assert_file_exists "README.md"
-}
-
-@test "add-agent with prompt adds prompt file" {
-  run "$ROOT_DIR/scripts/add-agent" --prompt
-  assert_success
+  assert_file_exists "skills/analyze/SKILL.md"
+  assert_file_exists "skills/AVAILABLE_SKILLS.xml"
   assert_file_exists "prompts/agent-prompt.txt"
+  assert_file_exists "README.md"
 }
 
 @test "add-agent --force updates managed files and preserves user project files" {
@@ -42,7 +39,7 @@ teardown() {
   echo "custom snapshot" > SNAPSHOT.md
   echo "custom skill" > skills/analyze/SKILL.md
 
-  run "$ROOT_DIR/scripts/add-agent" --with-skills --prompt --force
+  run "$ROOT_DIR/scripts/add-agent" --force
   assert_success
 
   run grep -F "single source of operating policy" AGENTS.md

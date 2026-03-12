@@ -40,7 +40,7 @@ Project-maintained commands:
 - Test: `make test` or `./scripts/test`
 - Install CLI locally: `./install.sh`
 - Health check: `a47 doctor`
-- Bootstrap project scaffolding: `a47 add-agent --with-skills --prompt`
+- Bootstrap project scaffolding: `a47 add-agent`
 - Create spec scaffold: `a47 add-spec`
 - Refresh skills metadata: `a47 reload-skills`
 

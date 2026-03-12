@@ -7,7 +7,8 @@
 ## 2. Current Status
 - **Implemented:** CLI in `bin/a47` with install/upgrade/uninstall, doctor, update checks, template backup/restore, and project bootstrap commands; curated templates for `AGENTS.md`, stack rules, security rules, skills, prompts, and `specs/spec.yml`; Bats-based unit test suite and Make targets.
 - **Architecture:** `bin/a47` is now mostly a router and sources shared logic from `scripts/lib/` (`constants`, `update`, `templates`, `install`, `doctor`, `common`).
-- **Stable workflow:** `a47 add-agent --with-skills --prompt` bootstraps `AGENTS.md`, all `rules/*.yaml`, skills, and the general prompt; `a47 add-prompt` and `a47 add-snapshot-prompt` are available as focused helpers.
+- **Documentation:** `README.md` is now intentionally short; usage and structure details live in `docs/usage.md` and `docs/architecture.md`.
+- **Stable workflow:** `a47 add-agent` bootstraps `AGENTS.md`, all `rules/*.yaml`, skills, and the general prompt; `a47 add-prompt` and `a47 add-snapshot-prompt` are available as focused helpers.
 - **Operational hardening:** core helper scripts now run with strict shell mode to reduce silent partial failures during bootstrap/update flows.
 - **Not automated by CLI:** `SNAPSHOT.md` creation/update, vendor-specific configs, Windows/PowerShell support, dependency enforcement against concrete package manifests.
 
@@ -18,7 +19,7 @@
 - `a47 doctor`
 - `a47 check-update [--force]`
 - `a47 templates --restore-latest|--list|--clear-backups`
-- `a47 add-agent [--with-skills] [--prompt]`
+- `a47 add-agent [--force]`
 - `a47 add-spec`
 - `a47 add-skills`
 - `a47 reload-skills`
@@ -27,6 +28,8 @@
 
 ## 4. Key Repository Structure
 - `AGENTS.md` – live root policy file for this repo.
+- `docs/usage.md` – operational guide for install, bootstrap, and refresh.
+- `docs/architecture.md` – architecture notes and ASCII project map.
 - `bin/a47` – main CLI router and maintenance logic.
 - `install.sh` – installer that links `a47` into `~/bin`.
 - `scripts/`
