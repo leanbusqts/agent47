@@ -1,8 +1,10 @@
 #!/bin/bash
+set -euo pipefail
 
 SKILLS_DIR="skills"
 AVAILABLE_SKILLS_FILE="$SKILLS_DIR/AVAILABLE_SKILLS.xml"
-HELPERS_FILE="$HOME/.agent47/scripts/skill-utils.sh"
+AGENT47_HOME="${AGENT47_HOME:-$HOME/.agent47}"
+HELPERS_FILE="$AGENT47_HOME/scripts/skill-utils.sh"
 
 echo "[INFO] Regenerating skills metadata..."
 

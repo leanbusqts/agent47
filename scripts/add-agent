@@ -1,24 +1,32 @@
 #!/bin/bash
+set -euo pipefail
 
-AGENT47_HOME="$HOME/.agent47"
+AGENT47_HOME="${AGENT47_HOME:-$HOME/.agent47}"
 TEMPLATES_DIR="$AGENT47_HOME/templates"
 RULES_TEMPLATES_DIR="$TEMPLATES_DIR/rules"
-
-FILES=(
-  "rules-mobile.yaml"
-  "rules-frontend.yaml"
-  "rules-backend.yaml"
-  "security-global.yaml"
-  "security-js-ts.yaml"
-  "security-py.yaml"
-  "security-java-kotlin.yaml"
-  "security-swift.yaml"
-  "security-csharp.yaml"
-)
+CONSTANTS_FILE="$AGENT47_HOME/scripts/lib/constants.sh"
 
 RULES_DIR="rules"
 WITH_SKILLS=false
 WITH_PROMPT=false
+
+if [ -f "$CONSTANTS_FILE" ]; then
+  # shellcheck disable=SC1090
+  source "$CONSTANTS_FILE"
+  FILES=("${ALL_RULE_TEMPLATE_FILES[@]}")
+else
+  FILES=(
+    "rules-mobile.yaml"
+    "rules-frontend.yaml"
+    "rules-backend.yaml"
+    "security-global.yaml"
+    "security-js-ts.yaml"
+    "security-py.yaml"
+    "security-java-kotlin.yaml"
+    "security-swift.yaml"
+    "security-csharp.yaml"
+  )
+fi
 
 run_helper() {
   local cmd="$1"
@@ -26,12 +34,20 @@ run_helper() {
   local args=("${@:3}")
 
   if command -v "$cmd" >/dev/null 2>&1; then
-    "$cmd" "${args[@]}"
+    if [ "${#args[@]}" -gt 0 ]; then
+      "$cmd" "${args[@]}"
+    else
+      "$cmd"
+    fi
     return $?
   fi
 
   if [ -n "$fallback" ] && [ -x "$fallback" ]; then
-    "$fallback" "${args[@]}"
+    if [ "${#args[@]}" -gt 0 ]; then
+      "$fallback" "${args[@]}"
+    else
+      "$fallback"
+    fi
     return $?
   fi
 

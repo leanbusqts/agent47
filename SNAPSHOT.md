@@ -6,7 +6,9 @@
 
 ## 2. Current Status
 - **Implemented:** CLI in `bin/a47` with install/upgrade/uninstall, doctor, update checks, template backup/restore, and project bootstrap commands; curated templates for `AGENTS.md`, stack rules, security rules, skills, prompts, and `specs/spec.yml`; Bats-based unit test suite and Make targets.
+- **Architecture:** `bin/a47` is now mostly a router and sources shared logic from `scripts/lib/` (`constants`, `update`, `templates`, `install`, `doctor`, `common`).
 - **Stable workflow:** `a47 add-agent --with-skills --prompt` bootstraps `AGENTS.md`, all `rules/*.yaml`, skills, and the general prompt; `a47 add-prompt` and `a47 add-snapshot-prompt` are available as focused helpers.
+- **Operational hardening:** core helper scripts now run with strict shell mode to reduce silent partial failures during bootstrap/update flows.
 - **Not automated by CLI:** `SNAPSHOT.md` creation/update, vendor-specific configs, Windows/PowerShell support, dependency enforcement against concrete package manifests.
 
 ## 3. Current Commands
@@ -36,6 +38,7 @@
   - `reload-skills`
   - `test`
   - `skill-utils.sh`
+  - `lib/*.sh`
 - `templates/`
   - `AGENTS.md`
   - `prompts/agent-prompt.txt`
@@ -65,6 +68,7 @@
   - security rule IDs and required fields
   - install/upgrade/uninstall and template backup flows
   - snapshot helper behavior
+  - legacy prompt-script detection in `doctor`
 
 ## 7. Constraints And Risks
 - Bash-centric and Unix-focused; no Windows support.

@@ -174,6 +174,8 @@ Backups live in `~/.agent47/templates.bak.<timestamp>`, created automatically by
 Notes:
 - `a47 install/upgrade` require write access to `$HOME/.agent47`.
 - `add-*` commands require write access to the current directory and fail-fast if required templates are missing.
+- Core helper scripts use strict shell mode to reduce partial-state failures on copy/bootstrap paths.
+- CLI internals are split between `bin/a47` as router and `scripts/lib/` as sourceable implementation modules.
 
 ### Check installation
 
@@ -384,6 +386,7 @@ agent47/
 │   ├── add-prompt
 │   ├── add-skills
 │   ├── add-spec
+│   ├── lib/
 │   └── add-snapshot-prompt
 ├── templates/
 │   ├── AGENTS.md

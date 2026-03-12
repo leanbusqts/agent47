@@ -28,6 +28,9 @@ cp "$ROOT_DIR/VERSION" "$AGENT47_HOME/VERSION"
 cp "$ROOT_DIR/scripts/skill-utils.sh" "$AGENT47_HOME/scripts/"
 cp "$ROOT_DIR/scripts/add-prompt" "$AGENT47_HOME/scripts/"
 cp "$ROOT_DIR/scripts/add-snapshot-prompt" "$AGENT47_HOME/scripts/"
+mkdir -p "$AGENT47_HOME/scripts/lib"
+cp -R "$ROOT_DIR/scripts/lib/." "$AGENT47_HOME/scripts/lib/"
+find "$AGENT47_HOME/scripts/lib" -type f -exec chmod +x {} +
 chmod +x "$AGENT47_HOME/scripts/skill-utils.sh" "$AGENT47_HOME/scripts/add-snapshot-prompt" "$AGENT47_HOME/scripts/add-prompt"
 
 # Resolve bats binary (vendored preferred, fallback to system)
