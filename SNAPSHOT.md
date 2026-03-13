@@ -61,6 +61,7 @@
 ## 5. Policy And Rules Model
 - Authority order: user > nearest `AGENTS.md` > security rules > stack rules > spec > code/tests > memories.
 - `AGENTS.md` is the single source of policy; prompts and README should reference it rather than duplicating policy.
+- `AGENTS.md` now encourages an implement-then-review flow for non-trivial work and recommends multi-agent or sub-agent execution for complex or multi-domain tasks when supported by the runtime.
 - Vendor-specific agent config files such as `claude.md`, `.cursorrules`, and `/.codex/config.toml` require explicit prior user authorization before creation or modification.
 - Security rules live directly under `templates/rules/` as `security-*.yaml`.
 - Java/Kotlin rules apply to backend and mobile; Swift applies to mobile; C# applies to backend and MAUI/Xamarin-style mobile work.
@@ -86,4 +87,4 @@
 - On macOS, downloaded files may still inherit host OS restrictions outside `com.apple.quarantine`; the installer mitigates common quarantine cases but cannot override system-level execution policy.
 
 ## 8. Last Updated
-- March 13, 2026 (v1.0.17)
+- March 13, 2026 (v1.0.18)

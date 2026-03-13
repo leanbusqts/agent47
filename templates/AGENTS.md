@@ -54,8 +54,21 @@ There is no build, lint, or deploy command managed by this repository.
 
 - Use `specs/spec.yml` as the optional plan/tasks/log location for non-trivial work.
 - Trivial tasks do not require a spec or written plan.
+- Prefer an implement-then-review flow for non-trivial changes.
 - Prefer tests in this order: happy path, error handling, edge cases.
 - Finish scoped work end-to-end: implementation, tests, and verification.
+
+## Execution Strategy
+
+- Prefer a single-agent flow for trivial, low-risk, or narrowly scoped tasks.
+- For non-trivial work, prefer a split between implementation and review when the runtime or tool supports multi-agent or sub-agent execution.
+- Escalate to a multi-agent workflow when the task is complex, high-impact, multi-file, ambiguous, or spans multiple domains such as backend, frontend, security, documentation, tests, Android, or iOS.
+- Use specialized roles when helpful, such as implementer, reviewer, tester, security reviewer, or documentation editor.
+- Keep one agent responsible for final synthesis so the result is coherent, conflicts are resolved, and the user receives one clear outcome.
+- Treat review as an independent quality check, not as a restatement of the implementation step.
+- If the runtime does not support multi-agent execution, emulate the same separation of responsibilities within a single session.
+- Balance depth against cost and latency; do not use multi-agent orchestration when it adds overhead without improving outcome quality.
+- Do not delegate secrets or sensitive data more broadly than necessary for the task.
 
 ## Filesystem And Approval Boundaries
 

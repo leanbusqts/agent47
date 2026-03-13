@@ -1,4 +1,9 @@
 # CHANGELOG
+## [1.0.18] - 2026-03-13
+### Changed
+- Added `Execution Strategy` guidance to the root and template `AGENTS.md` files to encourage multi-agent or sub-agent workflows for non-trivial work, including an implement-then-review default for higher-risk changes.
+- Expanded the escalation guidance to explicitly call out multi-domain tasks across backend, frontend, security, documentation, tests, Android, and iOS.
+
 ## [1.0.17] - 2026-03-13
 ### Changed
 - Updated the root and template `AGENTS.md` policy so vendor-specific agent config files such as `claude.md`, `.cursorrules`, `/.codex/config.toml`, and similar files for tools like Codex, Claude Code, Cursor, or Windsurf require explicit prior user authorization instead of being categorically forbidden.
