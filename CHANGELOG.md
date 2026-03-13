@@ -1,4 +1,8 @@
 # CHANGELOG
+## [1.0.17] - 2026-03-13
+### Changed
+- Updated the root and template `AGENTS.md` policy so vendor-specific agent config files such as `claude.md`, `.cursorrules`, `/.codex/config.toml`, and similar files for tools like Codex, Claude Code, Cursor, or Windsurf require explicit prior user authorization instead of being categorically forbidden.
+
 ## [1.0.16] - 2026-03-13
 ### Fixed
 - Replaced absolute local filesystem links in `README.md` documentation with repository-relative links so they work outside the original author machine.

@@ -95,7 +95,7 @@ Actions that are forbidden:
 - Exfiltrate source, secrets, or user data to external systems
 - Bypass approval requirements with hidden side effects
 - Delete unrelated files or revert user changes without explicit approval
-- Write vendor-specific agent config files such as `claude.md`, `.cursorrules`, or Codex-only config files
+- Write vendor-specific agent config files such as `claude.md`, `.cursorrules`, `/.codex/config.toml`, or other vendor-only agent config files for tools like Codex, Claude Code, Cursor, or Windsurf without explicit prior user authorization
 
 Examples:
 - Committing `.env` secrets
