@@ -13,6 +13,7 @@ teardown() {
 @test "install copies templates and skill-utils into AGENT47_HOME" {
   run "$ROOT_DIR/bin/a47" install --force
   assert_success
+  assert_file_exists "$AGENT47_HOME/bin/a47"
   assert_file_exists "$AGENT47_HOME/templates/AGENTS.md"
   assert_file_exists "$AGENT47_HOME/templates/specs/spec.yml"
   assert_file_exists "$AGENT47_HOME/scripts/skill-utils.sh"
@@ -41,6 +42,8 @@ teardown() {
 @test "uninstall removes scripts from ~/bin" {
   run "$ROOT_DIR/bin/a47" install
   assert_success
+
+  ln -s "$AGENT47_HOME/bin/a47" "$HOME/bin/a47"
 
   run "$ROOT_DIR/bin/a47" uninstall
   assert_success

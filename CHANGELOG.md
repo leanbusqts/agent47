@@ -1,4 +1,13 @@
 # CHANGELOG
+## [1.0.16] - 2026-03-13
+### Fixed
+- Replaced absolute local filesystem links in `README.md` documentation with repository-relative links so they work outside the original author machine.
+- Changed `./install.sh` to link `~/bin/a47` to an installed launcher in `~/.agent47/bin/a47` instead of symlinking directly into the git checkout.
+- Cleared macOS quarantine attributes from installed launchers and helper scripts when possible to reduce `Operation not permitted` failures after downloading the repo on another Mac.
+
+### Changed
+- Updated install/doctor test coverage to validate the installed launcher layout and `~/bin/a47` symlink behavior.
+
 ## [1.0.15] - 2026-03-11
 ### Added
 - `a47 add-cli-prompt`, a terminal-first helper that copies a one-line prompt to the clipboard when available.

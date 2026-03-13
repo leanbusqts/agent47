@@ -51,14 +51,15 @@ a47 add-snapshot-prompt
 
 ## Documentation
 
-- [Usage Guide](/Users/leanbusqts/Develops/agent47/docs/usage.md)
-- [Architecture](/Users/leanbusqts/Develops/agent47/docs/architecture.md)
-- [AGENTS.md](/Users/leanbusqts/Develops/agent47/AGENTS.md)
-- [SNAPSHOT.md](/Users/leanbusqts/Develops/agent47/SNAPSHOT.md)
+- [Usage Guide](docs/usage.md)
+- [Architecture](docs/architecture.md)
+- [AGENTS.md](AGENTS.md)
+- [SNAPSHOT.md](SNAPSHOT.md)
 
 ## Notes
 
 - `a47 add-agent` is the default bootstrap path.
+- `./install.sh` now installs a stable launcher at `~/.agent47/bin/a47` and links `~/bin/a47` to that copy.
 - `a47 add-cli-prompt` copies a one-line terminal prompt to the clipboard when possible.
 - `a47 add-agent-prompt` and `a47 add-snapshot-prompt` are focused helpers.
 - Core scripts use strict shell mode and fail fast on copy/bootstrap errors.

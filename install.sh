@@ -4,6 +4,8 @@ set -e
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 BIN="$REPO_DIR/bin/a47"
 USER_BIN="$HOME/bin"
+INSTALLED_BIN_DIR="$HOME/.agent47/bin"
+INSTALLED_BIN="$INSTALLED_BIN_DIR/a47"
 VERSION="$(cat "$REPO_DIR/VERSION" 2>/dev/null || echo "unknown")"
 
 detect_rc_file() {
@@ -65,8 +67,8 @@ mkdir -p "$USER_BIN"
 
 # 4) Create/refresh symlink (primary entrypoint: a47)
 rm -f "$USER_BIN/a47"
-ln -s "$BIN" "$USER_BIN/a47"
-echo "[OK] Linked a47 into ~/bin -> $BIN"
+ln -s "$INSTALLED_BIN" "$USER_BIN/a47"
+echo "[OK] Linked a47 into ~/bin -> $INSTALLED_BIN"
 
 # 5) PATH check
 if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then

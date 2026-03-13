@@ -10,6 +10,7 @@
 - **Documentation:** `README.md` is now intentionally short; usage and structure details live in `docs/usage.md` and `docs/architecture.md`.
 - **Stable workflow:** `a47 add-agent` bootstraps `AGENTS.md` and all `rules/*.yaml` plus skills; `a47 add-cli-prompt`, `a47 add-agent-prompt`, and `a47 add-snapshot-prompt` are available as focused helpers.
 - **Operational hardening:** core helper scripts now run with strict shell mode to reduce silent partial failures during bootstrap/update flows.
+- **Install hardening:** `./install.sh` now installs the `a47` launcher under `~/.agent47/bin/` and links `~/bin/a47` to that managed copy, avoiding dependence on the original repo checkout path.
 - **Not automated by CLI:** `SNAPSHOT.md` creation/update, vendor-specific configs, Windows/PowerShell support, dependency enforcement against concrete package manifests.
 
 ## 3. Current Commands
@@ -32,7 +33,7 @@
 - `docs/usage.md` – operational guide for install, bootstrap, and refresh.
 - `docs/architecture.md` – architecture notes and ASCII project map.
 - `bin/a47` – main CLI router and maintenance logic.
-- `install.sh` – installer that links `a47` into `~/bin`.
+- `install.sh` – installer that writes the managed launcher to `~/.agent47/bin/a47` and links `~/bin/a47`.
 - `scripts/`
   - `add-agent`
   - `add-cli-prompt`
@@ -81,6 +82,7 @@
 - Dependency governance is expressed as policy and tests, not as hard CLI enforcement on package files.
 - Update checks depend on git/curl/network availability, but failures degrade to warnings.
 - Templates are copied into projects; existing files are skipped unless force/restore paths are used.
+- On macOS, downloaded files may still inherit host OS restrictions outside `com.apple.quarantine`; the installer mitigates common quarantine cases but cannot override system-level execution policy.
 
 ## 8. Last Updated
-- March 11, 2026
+- March 13, 2026

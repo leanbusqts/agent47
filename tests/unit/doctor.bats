@@ -20,6 +20,8 @@ teardown() {
 @test "doctor reports ok when tools are on PATH" {
   export PATH="$ROOT_DIR/bin:$ROOT_DIR/scripts:$PATH"
   export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
+  mkdir -p "$HOME/bin"
+  ln -s "$ROOT_DIR/bin/a47" "$HOME/bin/a47"
   run "$ROOT_DIR/bin/a47" doctor
   assert_success
   assert_contains "$output" "[OK] a47 in PATH"
@@ -29,6 +31,7 @@ teardown() {
   assert_contains "$output" "[OK] Security rule IDs unique"
   assert_contains "$output" "[OK] AGENTS required sections present"
   assert_contains "$output" "[OK] bats available"
+  assert_contains "$output" "[OK] a47 symlink present in ~/bin"
 }
 
 @test "doctor detects legacy add-agent-prompt-base script" {
