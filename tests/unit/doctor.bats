@@ -19,10 +19,18 @@ teardown() {
 }
 
 @test "doctor reports ok when tools are on PATH" {
-  export PATH="$ROOT_DIR/bin:$ROOT_DIR/scripts:$PATH"
+  export PATH="$HOME/bin:$PATH"
   export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
-  mkdir -p "$HOME/bin"
-  ln -s "$ROOT_DIR/bin/a47" "$HOME/bin/a47"
+  mkdir -p "$HOME/bin" "$AGENT47_HOME/bin"
+  rm -f "$HOME/bin/a47" "$HOME/bin/add-agent" "$HOME/bin/add-agent-prompt" "$HOME/bin/add-snapshot-prompt"
+  cp "$ROOT_DIR/bin/a47" "$AGENT47_HOME/bin/a47"
+  chmod +x "$AGENT47_HOME/bin/a47"
+  cp "$ROOT_DIR/scripts/add-agent" "$AGENT47_HOME/scripts/add-agent"
+  chmod +x "$AGENT47_HOME/scripts/add-agent"
+  ln -s "$AGENT47_HOME/bin/a47" "$HOME/bin/a47"
+  ln -s "$AGENT47_HOME/scripts/add-agent" "$HOME/bin/add-agent"
+  ln -s "$AGENT47_HOME/scripts/add-agent-prompt" "$HOME/bin/add-agent-prompt"
+  ln -s "$AGENT47_HOME/scripts/add-snapshot-prompt" "$HOME/bin/add-snapshot-prompt"
   run "$ROOT_DIR/bin/a47" doctor
   assert_success
   assert_contains "$output" "[OK] a47 in PATH"
@@ -57,4 +65,51 @@ EOF
   run "$ROOT_DIR/bin/a47" doctor --check-update
   assert_success
   assert_contains "$output" "Up to date"
+}
+
+@test "doctor warns when PATH contains non-managed a47 or helper scripts" {
+  mkdir -p "$TEST_WORKDIR/fake-bin"
+  cat > "$TEST_WORKDIR/fake-bin/a47" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+  cat > "$TEST_WORKDIR/fake-bin/add-agent" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+  chmod +x "$TEST_WORKDIR/fake-bin/a47" "$TEST_WORKDIR/fake-bin/add-agent"
+  export PATH="$TEST_WORKDIR/fake-bin:/usr/bin:/bin"
+
+  run "$ROOT_DIR/bin/a47" doctor
+  assert_success
+  assert_contains "$output" "a47 in PATH, but not the managed launcher from ~/bin"
+  assert_contains "$output" "add-agent in PATH, but not the managed copy from ~/bin"
+}
+
+@test "doctor warns when ~/bin a47 symlink is broken" {
+  mkdir -p "$HOME/bin"
+  rm -f "$HOME/bin/a47"
+  ln -s "$TEST_WORKDIR/missing-a47" "$HOME/bin/a47"
+  export PATH="$HOME/bin:/usr/bin:/bin"
+
+  run "$ROOT_DIR/bin/a47" doctor
+  assert_success
+  assert_contains "$output" "a47 symlink in ~/bin is broken or points to a non-executable target"
+}
+
+@test "doctor warns when ~/bin a47 points to the wrong executable" {
+  mkdir -p "$HOME/bin" "$TEST_WORKDIR/wrong"
+  cat > "$TEST_WORKDIR/wrong/a47" <<'EOF'
+#!/bin/bash
+exit 0
+EOF
+  chmod +x "$TEST_WORKDIR/wrong/a47"
+  rm -f "$HOME/bin/a47"
+  ln -s "$TEST_WORKDIR/wrong/a47" "$HOME/bin/a47"
+  export PATH="$HOME/bin:/usr/bin:/bin"
+
+  run "$ROOT_DIR/bin/a47" doctor
+  assert_success
+  assert_contains "$output" "a47 in PATH, but not the managed launcher from ~/bin"
+  assert_contains "$output" "a47 symlink in ~/bin is broken or points to a non-executable target"
 }

@@ -15,6 +15,13 @@ teardown() {
   assert_success
   assert_contains "$output" "Core commands:"
   assert_contains "$output" "a47 help"
-  assert_contains "$output" "a47 add-skills [--force]"
+  assert_not_contains "$output" "a47 install [--force]"
+  assert_not_contains "$output" "a47 upgrade [--force]"
+  assert_not_contains "$output" "a47 add-spec"
+  assert_not_contains "$output" "a47 check-update"
+  assert_not_contains "$output" "a47 templates"
+  assert_not_contains "$output" "a47 add-default-skills"
+  assert_contains "$output" "a47 add-agent                 bootstrap completo"
+  assert_contains "$output" "a47 add-agent --only-skills   instalar solo skills"
   assert_contains "$output" "a47 add-agent-prompt [--force]"
 }

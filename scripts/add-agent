@@ -9,6 +9,15 @@ CONSTANTS_FILE="$AGENT47_HOME/scripts/lib/constants.sh"
 
 RULES_DIR="rules"
 FORCE=false
+ONLY_SKILLS=false
+TXN_WORK_DIR=""
+TXN_STAGE_DIR=""
+TXN_BACKUP_DIR=""
+TXN_SUCCESS=false
+TXN_CREATED_README=false
+TXN_REPLACED_AGENTS=false
+TXN_REPLACED_SKILLS=false
+TXN_RULES_WRITTEN=()
 
 if [ -f "$CONSTANTS_FILE" ]; then
   # shellcheck disable=SC1090
@@ -28,71 +37,223 @@ else
   )
 fi
 
-run_helper() {
-  local cmd="$1"
-  local fallback="$2"
-  local args=("${@:3}")
-
-  if command -v "$cmd" >/dev/null 2>&1; then
-    if [ "${#args[@]}" -gt 0 ]; then
-      "$cmd" "${args[@]}"
-    else
-      "$cmd"
-    fi
-    return $?
+cleanup_transaction() {
+  if [ -n "$TXN_WORK_DIR" ] && [ -d "$TXN_WORK_DIR" ]; then
+    rm -rf "$TXN_WORK_DIR"
   fi
-
-  local local_fallback="$SCRIPT_DIR/$cmd"
-  if [ -x "$local_fallback" ]; then
-    if [ "${#args[@]}" -gt 0 ]; then
-      "$local_fallback" "${args[@]}"
-    else
-      "$local_fallback"
-    fi
-    return $?
-  fi
-
-  if [ -n "$fallback" ] && [ -x "$fallback" ]; then
-    if [ "${#args[@]}" -gt 0 ]; then
-      "$fallback" "${args[@]}"
-    else
-      "$fallback"
-    fi
-    return $?
-  fi
-
-  echo "[ERR] $cmd not found (checked PATH, $local_fallback${fallback:+, and $fallback})"
-  return 1
 }
 
-helper_available() {
-  local cmd="$1"
-  local fallback="$2"
+rollback_transaction() {
+  local file
 
-  if command -v "$cmd" >/dev/null 2>&1; then
+  if [ "$TXN_SUCCESS" = true ]; then
     return 0
   fi
 
-  local local_fallback="$SCRIPT_DIR/$cmd"
-  if [ -x "$local_fallback" ]; then
+  if [ "$TXN_CREATED_README" = true ]; then
+    rm -f "README.md"
+  fi
+
+  if [ "$TXN_REPLACED_AGENTS" = true ]; then
+    if [ -f "$TXN_BACKUP_DIR/AGENTS.md" ]; then
+      mv "$TXN_BACKUP_DIR/AGENTS.md" "./AGENTS.md"
+    else
+      rm -f "./AGENTS.md"
+    fi
+  fi
+
+  if [ "$TXN_REPLACED_SKILLS" = true ]; then
+    rm -rf "skills"
+    if [ -d "$TXN_BACKUP_DIR/skills" ]; then
+      mv "$TXN_BACKUP_DIR/skills" "skills"
+    fi
+  fi
+
+  for file in "${TXN_RULES_WRITTEN[@]}"; do
+    if [ -f "$TXN_BACKUP_DIR/rules/$file" ]; then
+      mv "$TXN_BACKUP_DIR/rules/$file" "$RULES_DIR/$file"
+    else
+      rm -f "$RULES_DIR/$file"
+    fi
+  done
+
+  if [ -d "$RULES_DIR" ]; then
+    rmdir "$RULES_DIR" >/dev/null 2>&1 || true
+  fi
+}
+
+finish_transaction() {
+  TXN_SUCCESS=true
+  trap - EXIT INT TERM
+  cleanup_transaction
+}
+
+setup_skills_stage() {
+  local skills_dir="$1"
+  local templates_dir="$AGENT47_HOME/templates/skills"
+  local src dest_tmp dest_existing skill
+  local skill_list=()
+
+  echo "[INFO] Initializing agent skills..."
+  mkdir -p "$skills_dir"
+
+  while IFS= read -r skill; do
+    [ -n "$skill" ] || continue
+    skill_list+=("$skill")
+  done < <(
+    find "$templates_dir" -mindepth 2 -maxdepth 2 -type f -name 'SKILL.md' -print |
+      while IFS= read -r path; do
+        path="${path%/SKILL.md}"
+        printf '%s\n' "${path##*/}"
+      done | sort
+  )
+
+  if [ "$FORCE" != "true" ] && [ -d "skills" ]; then
+    cp -R "skills/." "$skills_dir/"
+  fi
+
+  if [ "${#skill_list[@]}" -eq 0 ]; then
+    echo "[ERR] No valid skill templates found in $templates_dir"
+    return 1
+  fi
+
+  for skill in "${skill_list[@]}"; do
+    src="$templates_dir/$skill"
+    dest_tmp="$skills_dir/$skill"
+    dest_existing="skills/$skill"
+
+    if [ ! -d "$src" ]; then
+      echo "[WARN] Template not found: $skill (skipping)"
+      continue
+    fi
+
+    rm -rf "$dest_tmp"
+    mkdir -p "$dest_tmp"
+
+    if [ -d "$dest_existing" ] && [ "$FORCE" != "true" ]; then
+      cp -R "$dest_existing/." "$dest_tmp/"
+    else
+      cp -R "$src/." "$dest_tmp/"
+    fi
+
+    if [ ! -f "$dest_tmp/SKILL.md" ]; then
+      cp "$src/SKILL.md" "$dest_tmp/SKILL.md"
+    fi
+
+    if ! validate_skill "$dest_tmp/SKILL.md"; then
+      if [ "$FORCE" = "true" ]; then
+        echo "[ERR] Invalid skill template: $skill"
+        return 1
+      else
+        echo "[WARN] Invalid SKILL.md for $skill; preserving existing content"
+      fi
+    fi
+  done
+
+  write_available_skills "$skills_dir" "$skills_dir/AVAILABLE_SKILLS.xml"
+  echo "[OK] Skills setup complete."
+}
+
+prepare_transaction() {
+  TXN_WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/a47-stage-XXXXXX")"
+  TXN_STAGE_DIR="$TXN_WORK_DIR/stage"
+  TXN_BACKUP_DIR="$TXN_WORK_DIR/backup"
+  mkdir -p "$TXN_STAGE_DIR" "$TXN_BACKUP_DIR"
+  trap 'rollback_transaction; cleanup_transaction' EXIT INT TERM
+}
+
+stage_managed_files() {
+  local file
+
+  setup_skills_stage "$TXN_STAGE_DIR/skills"
+
+  if [ "$ONLY_SKILLS" = "true" ]; then
     return 0
   fi
 
-  if [ -n "$fallback" ] && [ -x "$fallback" ]; then
-    return 0
+  mkdir -p "$TXN_STAGE_DIR/$RULES_DIR"
+  for file in "${FILES[@]}"; do
+    cp "$RULES_TEMPLATES_DIR/$file" "$TXN_STAGE_DIR/$RULES_DIR/$file"
+  done
+
+  cp "$TEMPLATES_DIR/AGENTS.md" "$TXN_STAGE_DIR/AGENTS.md"
+}
+
+commit_skills() {
+  if [ -d "skills" ]; then
+    mv "skills" "$TXN_BACKUP_DIR/skills"
+  fi
+  mv "$TXN_STAGE_DIR/skills" "skills"
+  TXN_REPLACED_SKILLS=true
+}
+
+commit_rules() {
+  local file target_path
+
+  if [ ! -d "$RULES_DIR" ]; then
+    mkdir "$RULES_DIR"
+    echo "[OK] Created directory: $RULES_DIR/"
   fi
 
-  return 1
+  mkdir -p "$TXN_BACKUP_DIR/rules"
+  for file in "${FILES[@]}"; do
+    target_path="$RULES_DIR/$file"
+    if [ -f "$target_path" ]; then
+      if [ "$FORCE" = true ]; then
+        cp "$target_path" "$TXN_BACKUP_DIR/rules/$file"
+        mv "$TXN_STAGE_DIR/$RULES_DIR/$file" "$target_path"
+        TXN_RULES_WRITTEN+=("$file")
+        echo "[OK] Updated: $target_path"
+      else
+        rm -f "$TXN_STAGE_DIR/$RULES_DIR/$file"
+        echo "[WARN] $target_path already exists, skipping"
+      fi
+    else
+      mv "$TXN_STAGE_DIR/$RULES_DIR/$file" "$target_path"
+      TXN_RULES_WRITTEN+=("$file")
+      echo "[OK] Copied: $target_path"
+    fi
+  done
+}
+
+commit_agents_file() {
+  if [ -f "./AGENTS.md" ]; then
+    if [ "$FORCE" = true ]; then
+      mv "./AGENTS.md" "$TXN_BACKUP_DIR/AGENTS.md"
+      mv "$TXN_STAGE_DIR/AGENTS.md" "./AGENTS.md"
+      TXN_REPLACED_AGENTS=true
+      echo "[OK] Updated: AGENTS.md"
+    else
+      rm -f "$TXN_STAGE_DIR/AGENTS.md"
+      echo "[WARN] AGENTS.md already exists, skipping"
+    fi
+  else
+    mv "$TXN_STAGE_DIR/AGENTS.md" "./AGENTS.md"
+    TXN_REPLACED_AGENTS=true
+    echo "[OK] Copied: AGENTS.md"
+  fi
+}
+
+commit_readme() {
+  if [ ! -f "README.md" ]; then
+    touch "README.md"
+    TXN_CREATED_README=true
+    echo "[OK] README.md created"
+  fi
 }
 
 usage() {
-  echo "Usage: add-agent [--force]"
+  echo "Usage: add-agent [--force] [--only-skills]"
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force)
       FORCE=true
+      shift
+      ;;
+    --only-skills)
+      ONLY_SKILLS=true
       shift
       ;;
     *)
@@ -109,25 +270,21 @@ if [ ! -w "." ]; then
   exit 1
 fi
 
-# Preflight: ensure all templates exist
 missing=0
-if [ ! -f "$TEMPLATES_DIR/AGENTS.md" ]; then
+if [ "$ONLY_SKILLS" != "true" ] && [ ! -f "$TEMPLATES_DIR/AGENTS.md" ]; then
   echo "[ERR] Template not found: AGENTS.md"
   missing=1
 fi
-for file in "${FILES[@]}"; do
-  if [ ! -f "$RULES_TEMPLATES_DIR/$file" ]; then
-    echo "[ERR] Template not found: $file"
-    missing=1
-  fi
-done
+if [ "$ONLY_SKILLS" != "true" ]; then
+  for file in "${FILES[@]}"; do
+    if [ ! -f "$RULES_TEMPLATES_DIR/$file" ]; then
+      echo "[ERR] Template not found: $file"
+      missing=1
+    fi
+  done
+fi
 if [ "$missing" -ne 0 ]; then
   echo "[ERR] Aborting: required templates missing."
-  exit 1
-fi
-
-if ! helper_available add-skills "$AGENT47_HOME/scripts/add-skills"; then
-  echo "[ERR] Aborting: add-skills helper not available."
   exit 1
 fi
 
@@ -141,56 +298,23 @@ if [ ! -d "$AGENT47_HOME/templates/skills" ]; then
   exit 1
 fi
 
-# Ensure root directory exists
-if [ ! -d "$RULES_DIR" ]; then
-  mkdir "$RULES_DIR"
-  echo "[OK] Created directory: $RULES_DIR/"
-fi
-for file in "${FILES[@]}"; do
-  if [ -f "$RULES_TEMPLATES_DIR/$file" ]; then
-    target_path="$RULES_DIR/$file"
-    if [ -f "$target_path" ]; then
-      if [ "$FORCE" = true ]; then
-        cp "$RULES_TEMPLATES_DIR/$file" "$target_path"
-        echo "[OK] Updated: $target_path"
-      else
-        echo "[WARN] $target_path already exists, skipping"
-      fi
-    else
-      cp "$RULES_TEMPLATES_DIR/$file" "$target_path"
-      echo "[OK] Copied: $target_path"
-    fi
-  else
-    echo "[ERR] Template not found: $file"  # unreachable due to preflight
-  fi
-done
+# shellcheck disable=SC1090
+source "$AGENT47_HOME/scripts/skill-utils.sh"
 
-# Copy AGENTS.md
-if [ -f "$TEMPLATES_DIR/AGENTS.md" ]; then
-  if [ -f "./AGENTS.md" ]; then
-    if [ "$FORCE" = true ]; then
-      cp "$TEMPLATES_DIR/AGENTS.md" ./AGENTS.md
-      echo "[OK] Updated: AGENTS.md"
-    else
-      echo "[WARN] AGENTS.md already exists, skipping"
-    fi
-  else
-    cp "$TEMPLATES_DIR/AGENTS.md" ./AGENTS.md
-    echo "[OK] Copied: AGENTS.md"
-  fi
+prepare_transaction
+stage_managed_files
+
+if [ "$ONLY_SKILLS" = "true" ]; then
+  commit_skills
+  finish_transaction
+  echo "[OK] Agent skills ready"
+  exit 0
 fi
 
-# Create README.md if not present
-if [ ! -f "README.md" ]; then
-  touch README.md
-  echo "[OK] README.md created"
-fi
-
-# Add skills
-if [ "$FORCE" = true ]; then
-  run_helper add-skills "$AGENT47_HOME/scripts/add-skills" --force
-else
-  run_helper add-skills "$AGENT47_HOME/scripts/add-skills"
-fi
+commit_rules
+commit_agents_file
+commit_readme
+commit_skills
+finish_transaction
 
 echo "[OK] Agent environment ready"

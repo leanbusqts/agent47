@@ -21,6 +21,11 @@ done
 
 echo "[INFO] Initializing agent prompt..."
 
+if [ ! -f "$TEMPLATE_FILE" ]; then
+  echo "[ERR] Template not found: agent-prompt.txt"
+  exit 1
+fi
+
 if [ ! -d "$PROMPTS_DIR" ]; then
   mkdir "$PROMPTS_DIR"
   echo "[OK] Created directory: $PROMPTS_DIR/"
@@ -28,7 +33,9 @@ fi
 
 if [ -f "$TARGET_FILE" ]; then
   if [ "$FORCE" = true ]; then
-    cp "$TEMPLATE_FILE" "$TARGET_FILE"
+    tmp_file="$(mktemp "$PROMPTS_DIR/.agent-prompt.tmp.XXXXXX")"
+    cp "$TEMPLATE_FILE" "$tmp_file"
+    mv -f "$tmp_file" "$TARGET_FILE"
     echo "[OK] Updated prompt: $TARGET_FILE"
     echo "[OK] Agent prompt setup complete."
     exit 0
@@ -37,11 +44,8 @@ if [ -f "$TARGET_FILE" ]; then
   exit 0
 fi
 
-if [ ! -f "$TEMPLATE_FILE" ]; then
-  echo "[ERR] Template not found: agent-prompt.txt"
-  exit 1
-fi
-
-cp "$TEMPLATE_FILE" "$TARGET_FILE"
+tmp_file="$(mktemp "$PROMPTS_DIR/.agent-prompt.tmp.XXXXXX")"
+cp "$TEMPLATE_FILE" "$tmp_file"
+mv -f "$tmp_file" "$TARGET_FILE"
 echo "[OK] Created prompt: $TARGET_FILE"
 echo "[OK] Agent prompt setup complete."

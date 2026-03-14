@@ -1,4 +1,162 @@
 #!/bin/bash
+set -euo pipefail
+
+install_file_atomically() {
+  local source_path="$1"
+  local target_path="$2"
+  local target_dir tmp_file
+
+  target_dir="$(dirname "$target_path")"
+  mkdir -p "$target_dir"
+  tmp_file="$(mktemp "$target_dir/.a47-tmp.XXXXXX")"
+  cp "$source_path" "$tmp_file"
+  mv -f "$tmp_file" "$target_path"
+}
+
+install_dir_atomically() {
+  local source_dir="$1"
+  local target_dir="$2"
+  local force="${3:-false}"
+  local parent_dir target_name stage_dir bak_dir ts
+
+  parent_dir="$(dirname "$target_dir")"
+  target_name="$(basename "$target_dir")"
+  mkdir -p "$parent_dir"
+  stage_dir="$(mktemp -d "$parent_dir/.${target_name}.tmp.XXXXXX")"
+  cp -R "$source_dir/." "$stage_dir/"
+
+  if [ -d "$target_dir" ]; then
+    if [ "$force" != "true" ]; then
+      rm -rf "$stage_dir"
+      echo "[WARN] Templates already exist at $target_dir (use --force to overwrite)"
+      return 1
+    fi
+
+    echo "[WARN] Overwriting existing templates at $target_dir"
+    ts="$(date +%Y%m%d%H%M%S)"
+    bak_dir="$parent_dir/${target_name}.bak.$ts"
+    rm -rf "$parent_dir"/"${target_name}.bak."*
+    mv "$target_dir" "$bak_dir"
+    echo "[INFO] Backup created: $bak_dir"
+  fi
+
+  if [ "${AGENT47_ENABLE_TEST_HOOKS:-false}" = "true" ] && [ -n "${AGENT47_FAIL_DIR_SWAP_TARGET:-}" ] && [ "$target_dir" = "$AGENT47_FAIL_DIR_SWAP_TARGET" ]; then
+    if [ -z "${AGENT47_FAIL_DIR_SWAP_MARKER:-}" ] || [ ! -f "$AGENT47_FAIL_DIR_SWAP_MARKER" ]; then
+      if [ -n "${AGENT47_FAIL_DIR_SWAP_MARKER:-}" ]; then
+        : > "$AGENT47_FAIL_DIR_SWAP_MARKER"
+      fi
+      if [ -n "${bak_dir:-}" ] && [ -d "$bak_dir" ] && [ ! -e "$target_dir" ]; then
+        mv "$bak_dir" "$target_dir" || true
+      fi
+      rm -rf "$stage_dir"
+      return 1
+    fi
+  fi
+
+  if mv "$stage_dir" "$target_dir"; then
+    return 0
+  fi
+
+  if [ -n "${bak_dir:-}" ] && [ -d "$bak_dir" ] && [ ! -e "$target_dir" ]; then
+    mv "$bak_dir" "$target_dir" || true
+  fi
+
+  rm -rf "$stage_dir"
+  return 1
+}
+
+prepare_user_script_stage() {
+  local force="$1"
+  local stage_root="$2"
+  local stage_dir="$stage_root/stage"
+  local script
+
+  mkdir -p "$stage_dir"
+
+  for script in "${INSTALLABLE_SCRIPTS[@]}"; do
+    if [ -f "$USER_DIR/$script" ] && [ "$force" != "true" ]; then
+      echo "[WARN] $script already exists in $USER_DIR (use --force to overwrite)"
+      continue
+    fi
+
+    cp "$SCRIPTS_DIR/$script" "$stage_dir/$script"
+  done
+}
+
+publish_user_scripts() {
+  local stage_root="$1"
+  local stage_dir="$stage_root/stage"
+  local backup_dir="$stage_root/backup"
+  local promoted_dir="$stage_root/promoted"
+  local script target_path
+
+  mkdir -p "$backup_dir" "$promoted_dir"
+
+  for script in "${INSTALLABLE_SCRIPTS[@]}"; do
+    target_path="$USER_DIR/$script"
+    if [ ! -f "$stage_dir/$script" ]; then
+      continue
+    fi
+
+    if [ -f "$target_path" ]; then
+      cp "$target_path" "$backup_dir/$script"
+    fi
+
+    if mv "$stage_dir/$script" "$target_path"; then
+      chmod +x "$target_path"
+      clear_quarantine_attrs "$target_path"
+      touch "$promoted_dir/$script"
+      echo "[OK] Installed $script"
+      continue
+    fi
+
+    rm -f "$target_path"
+    if [ -f "$backup_dir/$script" ]; then
+      mv "$backup_dir/$script" "$target_path"
+    fi
+
+    local promoted backup
+    for promoted in "$promoted_dir"/*; do
+      [ -e "$promoted" ] || continue
+      script="$(basename "$promoted")"
+      target_path="$USER_DIR/$script"
+      if [ -f "$backup_dir/$script" ]; then
+        cp "$backup_dir/$script" "$target_path"
+      else
+        rm -f "$target_path"
+      fi
+    done
+
+    for backup in "$backup_dir"/*; do
+      [ -e "$backup" ] || continue
+      script="$(basename "$backup")"
+      cp "$backup" "$USER_DIR/$script"
+    done
+    return 1
+  done
+}
+
+install_symlink_atomically() {
+  local target_path="$1"
+  local link_path="$2"
+  local link_dir link_name tmp_link
+
+  link_dir="$(dirname "$link_path")"
+  link_name="$(basename "$link_path")"
+  mkdir -p "$link_dir"
+
+  tmp_link="$link_dir/.${link_name}.tmp.$$"
+  rm -f "$tmp_link"
+
+  ln -s "$target_path" "$tmp_link"
+
+  if mv "$tmp_link" "$link_path"; then
+    return 0
+  fi
+
+  rm -f "$tmp_link"
+  return 1
+}
 
 require_install_asset() {
   local kind="$1"
@@ -57,23 +215,13 @@ install_templates() {
 
   local force="${1:-false}"
 
-  if [ -d "$AGENT47_HOME/templates" ]; then
-    if [ "$force" != "true" ]; then
-      echo "[WARN] Templates already exist at $AGENT47_HOME/templates (use --force to overwrite)"
-      return
-    fi
-    echo "[WARN] Overwriting existing templates at $AGENT47_HOME/templates"
-    ts="$(date +%Y%m%d%H%M%S)"
-    bak_dir="$AGENT47_HOME/templates.bak.$ts"
-    rm -rf "$AGENT47_HOME"/templates.bak.*
-    cp -R "$AGENT47_HOME/templates" "$bak_dir"
-    echo "[INFO] Backup created: $bak_dir"
-  fi
-
   if [ -d "$ROOT_DIR/templates" ]; then
-    rm -rf "$AGENT47_HOME/templates"
-    cp -R "$ROOT_DIR/templates" "$AGENT47_HOME/"
-    echo "[OK] Templates installed"
+    if [ -d "$AGENT47_HOME/templates" ] && [ "$force" != "true" ]; then
+      echo "[WARN] Templates already exist at $AGENT47_HOME/templates (use --force to overwrite)"
+    else
+      install_dir_atomically "$ROOT_DIR/templates" "$AGENT47_HOME/templates" "$force" || return 1
+      echo "[OK] Templates installed"
+    fi
   else
     echo "[WARN] Templates directory not found in repo"
   fi
@@ -81,7 +229,7 @@ install_templates() {
   mkdir -p "$AGENT47_HOME/scripts" "$AGENT47_HOME/scripts/lib"
   for helper in skill-utils.sh "${INSTALLABLE_SCRIPTS[@]}"; do
     if [ -f "$SCRIPTS_DIR/$helper" ]; then
-      cp "$SCRIPTS_DIR/$helper" "$AGENT47_HOME/scripts/"
+      install_file_atomically "$SCRIPTS_DIR/$helper" "$AGENT47_HOME/scripts/$helper" || return 1
       chmod +x "$AGENT47_HOME/scripts/$helper"
       clear_quarantine_attrs "$AGENT47_HOME/scripts/$helper"
       echo "[OK] Helper installed: $helper"
@@ -91,8 +239,7 @@ install_templates() {
   done
 
   if [ -d "$SCRIPTS_DIR/lib" ]; then
-    rm -rf "$AGENT47_HOME/scripts/lib"
-    cp -R "$SCRIPTS_DIR/lib" "$AGENT47_HOME/scripts/"
+    install_dir_atomically "$SCRIPTS_DIR/lib" "$AGENT47_HOME/scripts/lib" true || return 1
     find "$AGENT47_HOME/scripts/lib" -type f -exec chmod +x {} +
     clear_quarantine_attrs "$AGENT47_HOME/scripts/lib"
     echo "[OK] Helper library installed"
@@ -101,7 +248,7 @@ install_templates() {
   fi
 
   if [ -f "$ROOT_DIR/VERSION" ]; then
-    cp "$ROOT_DIR/VERSION" "$AGENT47_HOME/VERSION"
+    install_file_atomically "$ROOT_DIR/VERSION" "$AGENT47_HOME/VERSION" || return 1
     echo "[OK] VERSION installed"
   else
     echo "[WARN] VERSION file not found in repo"
@@ -112,6 +259,7 @@ install_scripts() {
   echo "[*] Installing agent47 scripts..."
 
   local force=false
+  local user_stage_root
   if [ "${1:-}" = "--force" ]; then
     force=true
     shift
@@ -121,26 +269,20 @@ install_scripts() {
 
   mkdir -p "$USER_DIR"
   mkdir -p "$AGENT47_HOME/bin" "$AGENT47_HOME/scripts"
+  user_stage_root="$(mktemp -d "${TMPDIR:-/tmp}/a47-user-install-XXXXXX")"
 
-  cp "$ROOT_DIR/bin/a47" "$AGENT47_HOME/bin/a47"
+  prepare_user_script_stage "$force" "$user_stage_root"
+
+  install_file_atomically "$ROOT_DIR/bin/a47" "$AGENT47_HOME/bin/a47"
   chmod +x "$AGENT47_HOME/bin/a47"
   clear_quarantine_attrs "$AGENT47_HOME/bin/a47"
   echo "[OK] Installed a47 launcher"
 
   for script in "${INSTALLABLE_SCRIPTS[@]}"; do
-    if [ -f "$USER_DIR/$script" ] && [ "$force" != "true" ]; then
-      echo "[WARN] $script already exists in $USER_DIR (use --force to overwrite)"
-    else
-      cp "$SCRIPTS_DIR/$script" "$USER_DIR/$script"
-      chmod +x "$USER_DIR/$script"
-      clear_quarantine_attrs "$USER_DIR/$script"
-      echo "[OK] Installed $script"
-    fi
-
     if [ -f "$AGENT47_HOME/scripts/$script" ] && [ "$force" != "true" ]; then
       echo "[WARN] $script already exists in $AGENT47_HOME/scripts (use --force to overwrite)"
     else
-      cp "$SCRIPTS_DIR/$script" "$AGENT47_HOME/scripts/$script"
+      install_file_atomically "$SCRIPTS_DIR/$script" "$AGENT47_HOME/scripts/$script"
       chmod +x "$AGENT47_HOME/scripts/$script"
       clear_quarantine_attrs "$AGENT47_HOME/scripts/$script"
     fi
@@ -156,15 +298,19 @@ install_scripts() {
     fi
   done
 
-  install_templates "$force"
+  if ! install_templates "$force"; then
+    rm -rf "$user_stage_root"
+    return 1
+  fi
+
+  if ! publish_user_scripts "$user_stage_root"; then
+    rm -rf "$user_stage_root"
+    return 1
+  fi
+
+  rm -rf "$user_stage_root"
 
   echo "[OK] a47 installation complete"
-}
-
-upgrade() {
-  echo "[*] Upgrading a47 scripts..."
-  install_scripts "${@:1}"
-  echo "[OK] Upgrade completed"
 }
 
 uninstall() {

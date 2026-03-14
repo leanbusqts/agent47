@@ -62,19 +62,15 @@ print_help() {
   echo ""
   echo "Core commands:"
   echo "  a47 help"
-  echo "  a47 install [--force]"
-  echo "  a47 upgrade [--force]"
   echo "  a47 uninstall"
   echo "  a47 doctor [--check-update|--check-update-force]"
-  echo "  a47 check-update"
-  echo "  a47 templates --restore-latest|--list|--clear-backups"
   echo ""
-  echo "Add commands:"
-  echo "  a47 add-agent [--force]"
-  echo "  a47 add-spec"
-  echo "  a47 add-skills [--force]"
-  echo "  a47 reload-skills"
-  echo "  a47 add-cli-prompt"
+  echo "Project commands:"
+  echo "  a47 add-agent                 bootstrap completo"
+  echo "  a47 add-agent --force         refresh completo"
+  echo "  a47 add-agent --only-skills   instalar solo skills"
+  echo "  a47 add-agent --only-skills --force"
+  echo "                               refrescar solo skills"
   echo "  a47 add-agent-prompt [--force]"
   echo "  a47 add-snapshot-prompt"
 }
@@ -102,35 +98,14 @@ case "${1:-}" in
   help|"")
     print_help
     ;;
-  install)
-    install_scripts "${@:2}"
-    ;;
-  upgrade)
-    upgrade
-    ;;
   uninstall)
     uninstall
     ;;
   doctor)
     doctor "${@:2}"
     ;;
-  check-update)
-    check_update "${2:-}"
-    ;;
   add-agent)
     run_cmd add-agent "${@:2}"
-  ;;
-  add-spec)
-    run_cmd add-spec "${@:2}"
-  ;;
-  add-skills)
-    run_cmd add-skills "${@:2}"
-  ;;
-  reload-skills)
-    run_cmd reload-skills "${@:2}"
-  ;;
-  add-cli-prompt)
-    run_cmd add-cli-prompt "${@:2}"
   ;;
   add-agent-prompt)
     run_cmd add-agent-prompt "${@:2}"
@@ -140,9 +115,6 @@ case "${1:-}" in
   ;;
   init-agent)
     init_agent
-  ;;
-  templates)
-    templates_cmd "${@:2}"
   ;;
   *)
     echo "Unknown command: ${1:-}"

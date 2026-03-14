@@ -27,6 +27,7 @@ If two items at the same level conflict, stop and ask.
 Read what applies before acting:
 - `AGENTS.md`
 - Relevant security and stack rules under `rules/`
+  - In template-source repositories such as `agent47` itself, read the equivalent files under `templates/rules/`
 - `specs/spec.yml` when the task is non-trivial or spec-driven
 - Relevant code and tests
 - `skills/AVAILABLE_SKILLS.xml` and the selected `skills/*/SKILL.md` when skills are in use
@@ -52,6 +53,8 @@ If a command is not defined by the current project, do not assume an `agent47` C
 ## Execution Model
 
 - Use `specs/spec.yml` as the optional plan/tasks/log location for non-trivial work.
+- If the user asks for a spec and `specs/spec.yml` does not exist, create or update it through normal agent interaction instead of relying on a dedicated CLI scaffold.
+- When drafting or updating a spec through conversation, ask follow-up questions when needed, then suggest that the user review the resulting spec before implementation starts.
 - Trivial tasks do not require a spec or written plan.
 - Prefer an implement-then-review flow for non-trivial changes.
 - Prefer tests in this order: happy path, error handling, edge cases.
@@ -61,6 +64,7 @@ If a command is not defined by the current project, do not assume an `agent47` C
 
 - Prefer a single-agent flow for trivial, low-risk, or narrowly scoped tasks.
 - For non-trivial work, prefer a split between implementation and review when the runtime or tool supports multi-agent or sub-agent execution.
+- When a spec is important or high-impact, prefer an independent review of the spec itself by another agent or sub-agent when the runtime supports it.
 - Escalate to a multi-agent workflow when the task is complex, high-impact, multi-file, ambiguous, or spans multiple domains such as backend, frontend, security, documentation, tests, Android, or iOS.
 - Use specialized roles when helpful, such as implementer, reviewer, tester, security reviewer, or documentation editor.
 - Keep one agent responsible for final synthesis so the result is coherent, conflicts are resolved, and the user receives one clear outcome.

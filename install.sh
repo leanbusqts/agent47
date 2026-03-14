@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 BIN="$REPO_DIR/bin/a47"
@@ -7,6 +7,27 @@ USER_BIN="$HOME/bin"
 INSTALLED_BIN_DIR="$HOME/.agent47/bin"
 INSTALLED_BIN="$INSTALLED_BIN_DIR/a47"
 VERSION="$(cat "$REPO_DIR/VERSION" 2>/dev/null || echo "unknown")"
+ROOT_DIR="$REPO_DIR"
+USER_DIR="$HOME/bin"
+AGENT47_HOME="${AGENT47_HOME:-$HOME/.agent47}"
+SCRIPTS_DIR="$ROOT_DIR/scripts"
+LIB_DIR="$ROOT_DIR/scripts/lib"
+
+require_lib() {
+  local path="$1"
+  if [ ! -f "$path" ]; then
+    echo "[ERR] Missing library: $path"
+    exit 1
+  fi
+}
+
+require_lib "$LIB_DIR/constants.sh"
+require_lib "$LIB_DIR/install.sh"
+
+# shellcheck disable=SC1090
+source "$LIB_DIR/constants.sh"
+# shellcheck disable=SC1090
+source "$LIB_DIR/install.sh"
 
 detect_rc_file() {
   shell_name="$(basename "${SHELL:-}")"
@@ -27,6 +48,11 @@ ensure_path_persistent() {
   fi
 
   echo "[HINT] Add \"$export_line\" to $rc_file to persist PATH"
+  if [ "$NO_PROMPT" = true ] || [ ! -t 0 ] || [ ! -t 1 ]; then
+    echo "[WARN] Non-interactive install; skipping shell rc update"
+    return 0
+  fi
+
   read -r -p "Add it now? [y/N]: " add_path_reply
   case "$add_path_reply" in
     y|Y|yes|YES)
@@ -44,14 +70,19 @@ ensure_path_persistent() {
 }
 
 usage() {
-  echo "Usage: ./install.sh [--force]"
+  echo "Usage: ./install.sh [--force] [--no-prompt]"
 }
 
 FORCE=false
+NO_PROMPT=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --force)
       FORCE=true
+      shift
+      ;;
+    --no-prompt)
+      NO_PROMPT=true
       shift
       ;;
     *)
@@ -61,11 +92,6 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ "$#" -gt 0 ]; then
-  usage
-  exit 1
-fi
-
 echo "[ AGENT47 v$VERSION ]"
 echo "[*] Installing agent47..."
 
@@ -74,17 +100,16 @@ chmod +x "$BIN"
 
 # 2) Install scripts + templates
 if [ "$FORCE" = true ]; then
-  "$BIN" install --force
+  install_scripts --force
 else
-  "$BIN" install
+  install_scripts
 fi
 
 # 3) Ensure ~/bin exists
 mkdir -p "$USER_BIN"
 
 # 4) Create/refresh symlink (primary entrypoint: a47)
-rm -f "$USER_BIN/a47"
-ln -s "$INSTALLED_BIN" "$USER_BIN/a47"
+install_symlink_atomically "$INSTALLED_BIN" "$USER_BIN/a47"
 echo "[OK] Linked a47 into ~/bin -> $INSTALLED_BIN"
 
 # 5) PATH check

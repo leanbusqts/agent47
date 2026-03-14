@@ -10,7 +10,7 @@ teardown() {
   teardown_workdir
 }
 
-@test "check-update cache round-trips special characters safely" {
+@test "doctor update check cache round-trips special characters safely" {
   export CACHE_DIR="$AGENT47_HOME/cache"
   export UPDATE_CACHE_FILE="$CACHE_DIR/update.cache"
   export UPDATE_CACHE_TTL_SECONDS=86400
@@ -43,28 +43,46 @@ teardown() {
   [ "$UPDATE_MESSAGE" = 'problem with "quotes" and \ slashes' ]
 }
 
-@test "check-update warns when curl unavailable" {
+@test "doctor update check warns when curl unavailable" {
   PATH="/usr/sbin:/sbin:/bin"
-  AGENT47_VERSION_URL=""
+  export AGENT47_VERSION_URL=""
   rm -f "$AGENT47_HOME/cache/update.cache"
-  run "$ROOT_DIR/bin/a47" check-update --force
+  run "$ROOT_DIR/bin/a47" doctor --check-update-force
   assert_success
   assert_contains "$output" "Cannot check for updates"
 }
 
-@test "check-update succeeds when remote VERSION is readable" {
+@test "doctor update check succeeds when remote VERSION is readable" {
   export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
   rm -f "$AGENT47_HOME/cache/update.cache"
-  run "$ROOT_DIR/bin/a47" check-update
+  run "$ROOT_DIR/bin/a47" doctor --check-update
   assert_success
   assert_contains "$output" "Up to date"
 }
 
-@test "check-update warns when git and remote both fail" {
+@test "doctor update check warns when git and remote both fail" {
   PATH="/usr/sbin:/sbin:/bin"
   unset AGENT47_VERSION_URL
   rm -f "$AGENT47_HOME/cache/update.cache"
-  run "$ROOT_DIR/bin/a47" check-update --force
+  run "$ROOT_DIR/bin/a47" doctor --check-update-force
   assert_success
   assert_contains "$output" "Cannot check for updates"
+}
+
+@test "doctor update check ignores corrupted cache and falls back cleanly" {
+  mkdir -p "$AGENT47_HOME/cache"
+  cat > "$AGENT47_HOME/cache/update.cache" <<'EOF'
+checked_at=123
+status_b64=%%%
+method_b64=%%%
+local_b64=%%%
+latest_b64=%%%
+message_b64=%%%
+EOF
+  export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
+
+  run "$ROOT_DIR/bin/a47" doctor --check-update
+  assert_success
+  assert_contains "$output" "Up to date"
+  assert_not_contains "$output" "Using cached update check"
 }

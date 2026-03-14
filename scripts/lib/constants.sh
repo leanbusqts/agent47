@@ -2,10 +2,6 @@
 
 INSTALLABLE_SCRIPTS=(
   add-agent
-  add-spec
-  add-skills
-  reload-skills
-  add-cli-prompt
   add-agent-prompt
   add-snapshot-prompt
 )

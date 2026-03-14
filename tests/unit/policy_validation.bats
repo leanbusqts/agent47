@@ -30,7 +30,6 @@ teardown() {
 
 @test "single prompt template exists" {
   assert_file_exists "$ROOT_DIR/templates/prompts/agent-prompt.txt"
-  assert_file_exists "$ROOT_DIR/templates/prompts/cli-prompt.txt"
   [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-base.txt" ]
   [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-skills.txt" ]
   [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-sdd.txt" ]

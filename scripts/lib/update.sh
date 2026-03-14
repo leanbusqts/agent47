@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 json_escape() {
   echo "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
@@ -14,6 +15,14 @@ base64_decode() {
   else
     printf "%s" "$1" | base64 -d
   fi
+}
+
+safe_base64_decode() {
+  local encoded_value="$1"
+  local decoded_value
+
+  decoded_value="$(base64_decode "$encoded_value" 2>/dev/null)" || return 1
+  printf "%s" "$decoded_value"
 }
 
 get_file_mtime() {
@@ -62,11 +71,11 @@ load_update_cache() {
     return 1
   fi
 
-  cached_status="$(base64_decode "$cached_status")"
-  cached_method="$(base64_decode "$cached_method")"
-  cached_local="$(base64_decode "$cached_local")"
-  cached_latest="$(base64_decode "$cached_latest")"
-  cached_message="$(base64_decode "$cached_message")"
+  cached_status="$(safe_base64_decode "$cached_status")" || return 1
+  cached_method="$(safe_base64_decode "$cached_method")" || return 1
+  cached_local="$(safe_base64_decode "$cached_local")" || return 1
+  cached_latest="$(safe_base64_decode "$cached_latest")" || return 1
+  cached_message="$(safe_base64_decode "$cached_message")" || return 1
 
   if [ -n "$cached_local" ] && [ "$cached_local" != "$AGENT47_VERSION" ]; then
     return 1
@@ -114,6 +123,9 @@ print_update_result() {
       else
         echo "[HINT] Update via: re-download agent47 and rerun install.sh"
       fi
+      ;;
+    version-differs)
+      echo "[INFO] Remote VERSION differs from local: ${UPDATE_LOCAL_VERSION} vs ${UPDATE_LATEST_VERSION}"
       ;;
     local-ahead)
       echo "[INFO] Local copy is ahead of ${UPDATE_METHOD}; no update needed"
@@ -271,7 +283,7 @@ remote_update_check() {
     UPDATE_STATUS="up-to-date"
     UPDATE_MESSAGE="remote VERSION matches local"
   else
-    UPDATE_STATUS="update-available"
+    UPDATE_STATUS="version-differs"
     UPDATE_MESSAGE="remote VERSION differs"
   fi
   return 0

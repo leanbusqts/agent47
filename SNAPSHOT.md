@@ -5,26 +5,21 @@
 - **Purpose:** Bash CLI plus templates for setting up agent-driven development workflows with explicit policy, rules, skills, prompts, and optional specs.
 
 ## 2. Current Status
-- **Implemented:** CLI in `bin/a47` with install/upgrade/uninstall, doctor, opt-in update checks, template backup/restore, and project bootstrap commands; curated templates for `AGENTS.md`, stack rules, security rules, skills, prompts, and `specs/spec.yml`; Bats-based unit test suite and Make targets.
+- **Implemented:** CLI in `bin/a47` with uninstall, doctor, opt-in update checks, and project bootstrap commands, plus `./install.sh` as the public installation entrypoint; curated templates for `AGENTS.md`, stack rules, security rules, skills, prompts, and `specs/spec.yml`; Bats-based unit test suite and Make targets.
 - **Architecture:** `bin/a47` is now mostly a router and sources shared logic from `scripts/lib/` (`constants`, `update`, `templates`, `install`, `doctor`, `common`).
 - **Documentation:** `README.md` is now intentionally short; usage and structure details live in `docs/usage.md` and `docs/architecture.md`.
-- **Stable workflow:** `a47 add-agent` bootstraps `AGENTS.md` and all `rules/*.yaml` plus skills; `a47 add-cli-prompt`, `a47 add-agent-prompt`, and `a47 add-snapshot-prompt` are available as focused helpers.
+- **Stable workflow:** `a47 add-agent` bootstraps `AGENTS.md` and all `rules/*.yaml` plus skills; `a47 add-agent-prompt` and `a47 add-snapshot-prompt` are available as focused helpers.
+- **Dynamic skills:** the curated skill set is discovered from installed `templates/skills/*/SKILL.md` entries instead of a hardcoded list, so template additions flow into bootstrap automatically.
 - **Operational hardening:** core helper scripts now run with strict shell mode, install preflights core assets, and bootstrap commands reject unexpected arguments to reduce silent partial failures.
 - **Install hardening:** `./install.sh` now installs the `a47` launcher under `~/.agent47/bin/` and links `~/bin/a47` to that managed copy, avoiding dependence on the original repo checkout path.
 - **Not automated by CLI:** `SNAPSHOT.md` creation/update, vendor-specific configs, Windows/PowerShell support, dependency enforcement against concrete package manifests.
 
 ## 3. Current Commands
-- `a47 install [--force]`
-- `a47 upgrade [--force]`
+- `./install.sh [--force]`
 - `a47 uninstall`
 - `a47 doctor [--check-update|--check-update-force]`
-- `a47 check-update [--force]`
-- `a47 templates --restore-latest|--list|--clear-backups`
 - `a47 add-agent [--force]`
-- `a47 add-spec`
-- `a47 add-skills`
-- `a47 reload-skills`
-- `a47 add-cli-prompt`
+- `a47 add-agent --only-skills [--force]`
 - `a47 add-agent-prompt`
 - `a47 add-snapshot-prompt`
 
@@ -36,18 +31,13 @@
 - `install.sh` – installer that writes the managed launcher to `~/.agent47/bin/a47` and links `~/bin/a47`.
 - `scripts/`
   - `add-agent`
-  - `add-cli-prompt`
   - `add-agent-prompt`
   - `add-snapshot-prompt`
-  - `add-skills`
-  - `add-spec`
-  - `reload-skills`
   - `test`
   - `skill-utils.sh`
   - `lib/*.sh`
 - `templates/`
   - `AGENTS.md`
-  - `prompts/cli-prompt.txt`
   - `prompts/agent-prompt.txt`
   - `prompts/snapshot-prompt.txt`
   - `rules/rules-frontend.yaml`
@@ -61,6 +51,7 @@
 ## 5. Policy And Rules Model
 - Authority order: user > nearest `AGENTS.md` > security rules > stack rules > spec > code/tests > memories.
 - `AGENTS.md` is the single source of policy; prompts and README should reference it rather than duplicating policy.
+- In template-source repositories such as `agent47` itself, policy reads that normally point to `rules/` should use `templates/rules/`.
 - `AGENTS.md` now encourages an implement-then-review flow for non-trivial work and recommends multi-agent or sub-agent execution for complex or multi-domain tasks when supported by the runtime.
 - Vendor-specific agent config files such as `claude.md`, `.cursorrules`, and `/.codex/config.toml` require explicit prior user authorization before creation or modification.
 - Security rules live directly under `templates/rules/` as `security-*.yaml`.
@@ -75,7 +66,7 @@
   - skills validation and `AVAILABLE_SKILLS.xml`
   - prompt generation without policy duplication
   - security rule IDs and required fields
-  - install/upgrade/uninstall and template backup flows
+  - install/uninstall flows
   - snapshot helper behavior
   - legacy prompt-script detection in `doctor`
 
@@ -87,4 +78,4 @@
 - On macOS, downloaded files may still inherit host OS restrictions outside `com.apple.quarantine`; the installer mitigates common quarantine cases but cannot override system-level execution policy.
 
 ## 8. Last Updated
-- March 13, 2026 (v1.0.19)
+- March 14, 2026 (release v1.0.20)

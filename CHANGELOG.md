@@ -1,17 +1,29 @@
 # CHANGELOG
-## [1.0.19] - 2026-03-13
+## [Unreleased]
+
+## [1.0.20] - 2026-03-14
 ### Fixed
-- Hardened `a47 install` so it now fails fast on permission errors and on missing core install assets from the source checkout instead of reporting a false success.
+- Hardened installation so it now fails fast on permission errors and on missing core install assets from the source checkout instead of reporting a false success.
 - Made `add-agent` abort before writing any project files when required skills helper dependencies are missing, preventing partial bootstrap state.
-- Rejected unexpected arguments across scaffolding scripts such as `add-spec`, `add-skills`, `add-agent-prompt`, `add-cli-prompt`, and `add-snapshot-prompt`.
+- Rejected unexpected arguments across scaffolding scripts such as `add-agent`, `add-agent-prompt`, and `add-snapshot-prompt`.
 - Ensured unknown `a47` commands return a non-zero exit code.
 - Fixed template restore behavior under strict shell mode so `templates --restore-latest` now reports missing backups correctly and restore tests are isolated.
+- Made skill installation derive from the actual template tree instead of a hardcoded list, so new curated skills are picked up automatically.
+- Prevented `add-agent-prompt` from creating `prompts/` when the source template is missing.
+- Hardened update-cache decoding so corrupted cache entries now fall back cleanly instead of poisoning later checks.
 
 ### Changed
+- Simplified the public install surface so `./install.sh` is now the only supported installation entrypoint; `a47 install` and `a47 upgrade` are no longer exposed.
+- Removed `a47 add-spec` from the public CLI; spec creation is now an agent-driven workflow around `specs/spec.yml`, with an explicit user review step and optional multi-agent review when supported.
+- Removed `a47 add-cli-prompt`; the minimal bootstrap text for CLIs and IDEs now lives in documentation instead of the public CLI.
+- Removed `a47 templates` from the public CLI; template backups remain automatic and recovery is now documented as a manual maintenance step.
+- Removed `a47 check-update` from the public CLI; update checks now live only under `a47 doctor --check-update`.
+- Folded `add-default-skills` into `a47 add-agent --only-skills [--force]` and updated help text to explain each `add-agent` variant inline.
 - Updated `doctor` usage to make update checks opt-in via `--check-update` and `--check-update-force`.
 - Switched the update cache filename from `update.json` to `update.cache` to reflect the on-disk format.
 - Improved the test runner to install a temporary `bats` copy automatically when needed.
-- Expanded unit coverage for CLI error handling, install preflight, argument parsing, update cache round-tripping, and restore flows.
+- Expanded unit coverage for CLI error handling, install preflight, argument parsing, dynamic skill discovery, update cache round-tripping, and restore flows.
+- Clarified the root and template `AGENTS.md` policy for template-source repositories so `agent47` can point to `templates/rules/` without contradicting its own contract.
 
 ## [1.0.18] - 2026-03-13
 ### Changed
@@ -32,9 +44,6 @@
 - Updated install/doctor test coverage to validate the installed launcher layout and `~/bin/a47` symlink behavior.
 
 ## [1.0.15] - 2026-03-11
-### Added
-- `a47 add-cli-prompt`, a terminal-first helper that copies a one-line prompt to the clipboard when available.
-
 ### Changed
 - Renamed `add-prompt` to `add-agent-prompt` to keep prompt-related commands under a consistent `add-*-prompt` naming scheme.
 - Stopped `a47 add-agent` from copying the general agent prompt by default; prompt files are now opt-in helpers.
