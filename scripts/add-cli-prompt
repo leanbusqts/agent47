@@ -4,6 +4,11 @@ set -euo pipefail
 AGENT47_HOME="${AGENT47_HOME:-$HOME/.agent47}"
 PROMPT_FILE="$AGENT47_HOME/templates/prompts/cli-prompt.txt"
 
+if [ "$#" -gt 0 ]; then
+  echo "Usage: add-cli-prompt"
+  exit 1
+fi
+
 if [ ! -f "$PROMPT_FILE" ]; then
   echo "[ERR] Template not found: cli-prompt.txt"
   exit 1

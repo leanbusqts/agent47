@@ -39,3 +39,15 @@ teardown() {
   assert_success
   [ "$output" = "Read AGENTS.md first and follow the applicable rules before making changes." ]
 }
+
+@test "add-agent-prompt rejects unexpected arguments" {
+  run "$ROOT_DIR/scripts/add-agent-prompt" unexpected
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "Usage: add-agent-prompt [--force]"
+}
+
+@test "add-cli-prompt rejects unexpected arguments" {
+  run "$ROOT_DIR/scripts/add-cli-prompt" unexpected
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "Usage: add-cli-prompt"
+}

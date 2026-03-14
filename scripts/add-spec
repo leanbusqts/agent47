@@ -7,6 +7,11 @@ TEMPLATES_DIR="$AGENT47_HOME/templates/specs"
 SPEC_DIR="specs"
 SPEC_FILE="$SPEC_DIR/spec.yml"
 
+if [ "$#" -gt 0 ]; then
+  echo "Usage: add-spec"
+  exit 1
+fi
+
 echo "[INFO] Initializing spec..."
 
 if [ ! -w "." ]; then

@@ -1,6 +1,25 @@
 #!/bin/bash
 
 doctor() {
+  local check_updates=false
+  local force_update=false
+
+  case "${1:-}" in
+    --check-update)
+      check_updates=true
+      ;;
+    --check-update-force)
+      check_updates=true
+      force_update=true
+      ;;
+    "")
+      ;;
+    *)
+      echo "Usage: a47 doctor [--check-update|--check-update-force]"
+      return 1
+      ;;
+  esac
+
   echo "[*] a47 doctor"
   echo "[INFO] Version: $AGENT47_VERSION"
 
@@ -68,5 +87,14 @@ doctor() {
     echo '       export PATH="$HOME/bin:$PATH"'
   fi
 
-  check_update
+  if [ "$check_updates" = true ]; then
+    if [ "$force_update" = true ]; then
+      check_update --force
+    else
+      check_update
+    fi
+  else
+    echo "[INFO] Skipping update check by default"
+    echo "[HINT] Run: a47 doctor --check-update"
+  fi
 }

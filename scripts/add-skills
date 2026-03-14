@@ -33,10 +33,18 @@ if [ ! -w "." ]; then
 fi
 
 FORCE=false
-if [ "${1:-}" = "--force" ]; then
-  FORCE=true
-  shift
-fi
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --force)
+      FORCE=true
+      shift
+      ;;
+    *)
+      echo "Usage: add-skills [--force]"
+      exit 1
+      ;;
+  esac
+done
 
 if [ ! -d "$SKILLS_DIR" ]; then
   mkdir "$SKILLS_DIR"
@@ -47,7 +55,14 @@ fi
 
 # Validate in temp to keep atomic
 tmp_skills="$(mktemp -d "${TMPDIR:-/tmp}/a47-skills-XXXXXX")"
-cp -R "$SKILLS_DIR/." "$tmp_skills/" 2>/dev/null || true
+cleanup() {
+  rm -rf "$tmp_skills"
+}
+trap cleanup EXIT INT TERM
+
+if [ "$FORCE" != "true" ]; then
+  cp -R "$SKILLS_DIR/." "$tmp_skills/" 2>/dev/null || true
+fi
 
 for skill in "${SKILL_LIST[@]}"; do
   src="$TEMPLATES_DIR/$skill"
@@ -84,9 +99,15 @@ for skill in "${SKILL_LIST[@]}"; do
   fi
 done
 
-# Replace real skills with validated temp copy
-rm -rf "$SKILLS_DIR"
-mv "$tmp_skills" "$SKILLS_DIR"
+# Replace real skills with validated temp copy only on --force.
+# Otherwise merge updates into the existing directory to preserve non-agent files.
+if [ "$FORCE" = "true" ]; then
+  rm -rf "$SKILLS_DIR"
+  mv "$tmp_skills" "$SKILLS_DIR"
+  tmp_skills=""
+else
+  cp -R "$tmp_skills/." "$SKILLS_DIR/"
+fi
 
 write_available_skills "$SKILLS_DIR" "$SKILLS_DIR/AVAILABLE_SKILLS.xml"
 

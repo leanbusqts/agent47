@@ -89,7 +89,7 @@ templates_cmd() {
 
   case "$action" in
     --restore-latest|"")
-      latest_bak="$(ls -1dt "$AGENT47_HOME"/templates.bak.* 2>/dev/null | head -n 1)"
+      latest_bak="$(ls -1dt "$AGENT47_HOME"/templates.bak.* 2>/dev/null | head -n 1 || true)"
       if [ -z "$latest_bak" ] || [ ! -d "$latest_bak" ]; then
         echo "[ERR] No template backups found in $AGENT47_HOME"
         return 1

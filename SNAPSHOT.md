@@ -5,11 +5,11 @@
 - **Purpose:** Bash CLI plus templates for setting up agent-driven development workflows with explicit policy, rules, skills, prompts, and optional specs.
 
 ## 2. Current Status
-- **Implemented:** CLI in `bin/a47` with install/upgrade/uninstall, doctor, update checks, template backup/restore, and project bootstrap commands; curated templates for `AGENTS.md`, stack rules, security rules, skills, prompts, and `specs/spec.yml`; Bats-based unit test suite and Make targets.
+- **Implemented:** CLI in `bin/a47` with install/upgrade/uninstall, doctor, opt-in update checks, template backup/restore, and project bootstrap commands; curated templates for `AGENTS.md`, stack rules, security rules, skills, prompts, and `specs/spec.yml`; Bats-based unit test suite and Make targets.
 - **Architecture:** `bin/a47` is now mostly a router and sources shared logic from `scripts/lib/` (`constants`, `update`, `templates`, `install`, `doctor`, `common`).
 - **Documentation:** `README.md` is now intentionally short; usage and structure details live in `docs/usage.md` and `docs/architecture.md`.
 - **Stable workflow:** `a47 add-agent` bootstraps `AGENTS.md` and all `rules/*.yaml` plus skills; `a47 add-cli-prompt`, `a47 add-agent-prompt`, and `a47 add-snapshot-prompt` are available as focused helpers.
-- **Operational hardening:** core helper scripts now run with strict shell mode to reduce silent partial failures during bootstrap/update flows.
+- **Operational hardening:** core helper scripts now run with strict shell mode, install preflights core assets, and bootstrap commands reject unexpected arguments to reduce silent partial failures.
 - **Install hardening:** `./install.sh` now installs the `a47` launcher under `~/.agent47/bin/` and links `~/bin/a47` to that managed copy, avoiding dependence on the original repo checkout path.
 - **Not automated by CLI:** `SNAPSHOT.md` creation/update, vendor-specific configs, Windows/PowerShell support, dependency enforcement against concrete package manifests.
 
@@ -17,7 +17,7 @@
 - `a47 install [--force]`
 - `a47 upgrade [--force]`
 - `a47 uninstall`
-- `a47 doctor`
+- `a47 doctor [--check-update|--check-update-force]`
 - `a47 check-update [--force]`
 - `a47 templates --restore-latest|--list|--clear-backups`
 - `a47 add-agent [--force]`
@@ -87,4 +87,4 @@
 - On macOS, downloaded files may still inherit host OS restrictions outside `com.apple.quarantine`; the installer mitigates common quarantine cases but cannot override system-level execution policy.
 
 ## 8. Last Updated
-- March 13, 2026 (v1.0.18)
+- March 13, 2026 (v1.0.19)

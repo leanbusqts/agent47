@@ -33,13 +33,14 @@ To refresh an older project copy:
 a47 add-agent --force
 ```
 
-`--force` updates agent47-managed files while preserving `README.md`, `specs/spec.yml`, and `SNAPSHOT.md`.
+`--force` updates agent47-managed files while preserving `README.md`, `specs/spec.yml`, and any existing project snapshot or summary file such as `SNAPSHOT.md`.
 
 ## Common commands
 
 ```bash
 a47 help
 a47 doctor
+a47 doctor --check-update
 a47 add-agent [--force]
 a47 add-spec
 a47 add-skills [--force]
@@ -62,4 +63,6 @@ a47 add-snapshot-prompt
 - `./install.sh` now installs a stable launcher at `~/.agent47/bin/a47` and links `~/bin/a47` to that copy.
 - `a47 add-cli-prompt` copies a one-line terminal prompt to the clipboard when possible.
 - `a47 add-agent-prompt` and `a47 add-snapshot-prompt` are focused helpers.
+- `./scripts/test` auto-installs a temporary `bats` copy from `tests/vendor/bats` when needed and cleans it up after the run.
+- Template backups keep only the latest backup when reinstalling with `--force`.
 - Core scripts use strict shell mode and fail fast on copy/bootstrap errors.

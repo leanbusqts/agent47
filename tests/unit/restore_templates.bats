@@ -11,9 +11,9 @@ teardown() {
 }
 
 @test "templates --restore-latest restores from latest backup" {
-  run "$ROOT_DIR/bin/a47" install
+  run "$ROOT_DIR/bin/a47" install --force
   assert_success
-  run "$ROOT_DIR/bin/a47" install
+  run "$ROOT_DIR/bin/a47" install --force
   assert_success
 
   rm -rf "$AGENT47_HOME/templates"
@@ -27,16 +27,16 @@ teardown() {
 }
 
 @test "templates --list shows backups" {
-  run "$ROOT_DIR/bin/a47" install
-  run "$ROOT_DIR/bin/a47" install
+  run "$ROOT_DIR/bin/a47" install --force
+  run "$ROOT_DIR/bin/a47" install --force
   run "$ROOT_DIR/bin/a47" templates --list
   assert_success
   assert_contains "$output" "templates.bak."
 }
 
 @test "templates --clear-backups removes backups" {
-  run "$ROOT_DIR/bin/a47" install
-  run "$ROOT_DIR/bin/a47" install
+  run "$ROOT_DIR/bin/a47" install --force
+  run "$ROOT_DIR/bin/a47" install --force
   run "$ROOT_DIR/bin/a47" templates --clear-backups
   assert_success
   run "$ROOT_DIR/bin/a47" templates --list

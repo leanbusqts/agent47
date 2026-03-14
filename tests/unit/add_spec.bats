@@ -41,3 +41,9 @@ teardown() {
   rm -rf "$AGENT47_HOME/templates"
   cp -R "$ROOT_DIR/templates" "$AGENT47_HOME/"
 }
+
+@test "add-spec rejects unexpected arguments" {
+  run "$ROOT_DIR/scripts/add-spec" unexpected
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "Usage: add-spec"
+}

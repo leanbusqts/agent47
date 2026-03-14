@@ -15,4 +15,6 @@ teardown() {
   assert_success
   assert_contains "$output" "Core commands:"
   assert_contains "$output" "a47 help"
+  assert_contains "$output" "a47 add-skills [--force]"
+  assert_contains "$output" "a47 add-agent-prompt [--force]"
 }

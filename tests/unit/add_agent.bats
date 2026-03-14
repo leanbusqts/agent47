@@ -74,3 +74,16 @@ teardown() {
   rm -rf "$AGENT47_HOME/templates"
   cp -R "$ROOT_DIR/templates" "$AGENT47_HOME/"
 }
+
+@test "add-agent aborts before writing when skills helper dependencies are missing" {
+  rm -f "$AGENT47_HOME/scripts/skill-utils.sh"
+
+  run "$ROOT_DIR/scripts/add-agent"
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "missing helper dependency"
+  [ ! -f "AGENTS.md" ]
+  [ ! -f "README.md" ]
+  [ ! -d "rules" ]
+
+  cp "$ROOT_DIR/scripts/skill-utils.sh" "$AGENT47_HOME/scripts/skill-utils.sh"
+}

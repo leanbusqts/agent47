@@ -18,6 +18,7 @@ Verify:
 
 ```bash
 a47 doctor
+a47 doctor --check-update
 ```
 
 ## Bootstrap a project
@@ -55,7 +56,7 @@ This preserves project-owned files:
 
 - `README.md`
 - `specs/spec.yml`
-- `SNAPSHOT.md`
+- any existing project snapshot or summary file such as `SNAPSHOT.md`
 
 ## Other commands
 
@@ -82,11 +83,10 @@ a47 add-cli-prompt
 Refresh only the general prompt:
 
 ```bash
-a47 add-agent-prompt
-a47 add-agent-prompt --force
+a47 add-agent-prompt [--force]
 ```
 
-Get the helper prompt for manually updating `SNAPSHOT.md`:
+Get the helper prompt for manually updating a project snapshot or summary file, such as `SNAPSHOT.md`:
 
 ```bash
 a47 add-snapshot-prompt
@@ -97,6 +97,9 @@ a47 add-snapshot-prompt
 - `a47 install/upgrade` write to `~/.agent47` and `~/bin`
 - `add-*` commands write to the current project directory
 - `doctor` checks installed commands, templates, prompt layout, and policy structure
+- `doctor` skips update checks by default; use `a47 doctor --check-update` to include them
+- `./scripts/test` auto-installs a temporary `bats` copy from `tests/vendor/bats` when needed
+- template backups keep only the latest backup when reinstalling with `--force`
 - templates backups are managed through:
 
 ```bash

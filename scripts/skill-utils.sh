@@ -41,6 +41,10 @@ validate_skill() {
   return 0
 }
 
+xml_escape() {
+  printf "%s" "$1" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'
+}
+
 write_available_skills() {
   local skills_dir="$1"
   local output_file="$2"
@@ -57,9 +61,9 @@ write_available_skills() {
       name="$(printf "%s\n" "$fm" | sed -n 's/^name:[[:space:]]*//p' | head -n 1)"
       desc="$(printf "%s\n" "$fm" | sed -n 's/^description:[[:space:]]*//p' | head -n 1)"
       echo "  <skill>"
-      echo "    <name>$name</name>"
-      echo "    <description>$desc</description>"
-      echo "    <location>$(dirname "$skill_path")/SKILL.md</location>"
+      echo "    <name>$(xml_escape "$name")</name>"
+      echo "    <description>$(xml_escape "$desc")</description>"
+      echo "    <location>$(xml_escape "$(dirname "$skill_path")/SKILL.md")</location>"
       echo "  </skill>"
     done < <(find "$skills_dir" -maxdepth 2 -name "SKILL.md" | sort)
     echo "</available_skills>"

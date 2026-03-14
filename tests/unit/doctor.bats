@@ -15,6 +15,7 @@ teardown() {
   run "$ROOT_DIR/bin/a47" doctor
   assert_success
   assert_contains "$output" "a47 not in PATH"
+  assert_contains "$output" "Skipping update check by default"
 }
 
 @test "doctor reports ok when tools are on PATH" {
@@ -32,6 +33,7 @@ teardown() {
   assert_contains "$output" "[OK] AGENTS required sections present"
   assert_contains "$output" "[OK] bats available"
   assert_contains "$output" "[OK] a47 symlink present in ~/bin"
+  assert_contains "$output" "Skipping update check by default"
 }
 
 @test "doctor detects legacy add-agent-prompt-base script" {
@@ -46,4 +48,13 @@ EOF
   run "$ROOT_DIR/bin/a47" doctor
   assert_success
   assert_contains "$output" "Legacy script detected: add-agent-prompt-base"
+}
+
+@test "doctor runs update check only when requested" {
+  export PATH="$ROOT_DIR/bin:$ROOT_DIR/scripts:$PATH"
+  export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
+
+  run "$ROOT_DIR/bin/a47" doctor --check-update
+  assert_success
+  assert_contains "$output" "Up to date"
 }

@@ -1,5 +1,43 @@
 #!/bin/bash
 
+require_install_asset() {
+  local kind="$1"
+  local path="$2"
+
+  case "$kind" in
+    file)
+      [ -f "$path" ] || {
+        echo "[ERR] Required install asset missing: $path"
+        return 1
+      }
+      ;;
+    dir)
+      [ -d "$path" ] || {
+        echo "[ERR] Required install asset missing: $path"
+        return 1
+      }
+      ;;
+    *)
+      echo "[ERR] Unknown asset kind: $kind"
+      return 1
+      ;;
+  esac
+}
+
+preflight_install_assets() {
+  require_install_asset file "$ROOT_DIR/bin/a47" || return 1
+  require_install_asset dir "$ROOT_DIR/templates" || return 1
+  require_install_asset file "$ROOT_DIR/templates/AGENTS.md" || return 1
+  require_install_asset dir "$ROOT_DIR/scripts/lib" || return 1
+  require_install_asset file "$ROOT_DIR/VERSION" || return 1
+  require_install_asset file "$SCRIPTS_DIR/skill-utils.sh" || return 1
+
+  local helper
+  for helper in "${INSTALLABLE_SCRIPTS[@]}"; do
+    require_install_asset file "$SCRIPTS_DIR/$helper" || return 1
+  done
+}
+
 clear_quarantine_attrs() {
   if ! command -v xattr >/dev/null 2>&1; then
     return
@@ -79,38 +117,32 @@ install_scripts() {
     shift
   fi
 
+  preflight_install_assets || return 1
+
   mkdir -p "$USER_DIR"
   mkdir -p "$AGENT47_HOME/bin" "$AGENT47_HOME/scripts"
 
-  if [ -f "$ROOT_DIR/bin/a47" ]; then
-    cp "$ROOT_DIR/bin/a47" "$AGENT47_HOME/bin/a47"
-    chmod +x "$AGENT47_HOME/bin/a47"
-    clear_quarantine_attrs "$AGENT47_HOME/bin/a47"
-    echo "[OK] Installed a47 launcher"
-  else
-    echo "[WARN] a47 launcher not found in repo"
-  fi
+  cp "$ROOT_DIR/bin/a47" "$AGENT47_HOME/bin/a47"
+  chmod +x "$AGENT47_HOME/bin/a47"
+  clear_quarantine_attrs "$AGENT47_HOME/bin/a47"
+  echo "[OK] Installed a47 launcher"
 
   for script in "${INSTALLABLE_SCRIPTS[@]}"; do
-    if [ -f "$SCRIPTS_DIR/$script" ]; then
-      if [ -f "$USER_DIR/$script" ] && [ "$force" != "true" ]; then
-        echo "[WARN] $script already exists in $USER_DIR (use --force to overwrite)"
-      else
-        cp "$SCRIPTS_DIR/$script" "$USER_DIR/$script"
-        chmod +x "$USER_DIR/$script"
-        clear_quarantine_attrs "$USER_DIR/$script"
-        echo "[OK] Installed $script"
-      fi
-
-      if [ -f "$AGENT47_HOME/scripts/$script" ] && [ "$force" != "true" ]; then
-        echo "[WARN] $script already exists in $AGENT47_HOME/scripts (use --force to overwrite)"
-      else
-        cp "$SCRIPTS_DIR/$script" "$AGENT47_HOME/scripts/$script"
-        chmod +x "$AGENT47_HOME/scripts/$script"
-        clear_quarantine_attrs "$AGENT47_HOME/scripts/$script"
-      fi
+    if [ -f "$USER_DIR/$script" ] && [ "$force" != "true" ]; then
+      echo "[WARN] $script already exists in $USER_DIR (use --force to overwrite)"
     else
-      echo "[WARN] Script not found: $script"
+      cp "$SCRIPTS_DIR/$script" "$USER_DIR/$script"
+      chmod +x "$USER_DIR/$script"
+      clear_quarantine_attrs "$USER_DIR/$script"
+      echo "[OK] Installed $script"
+    fi
+
+    if [ -f "$AGENT47_HOME/scripts/$script" ] && [ "$force" != "true" ]; then
+      echo "[WARN] $script already exists in $AGENT47_HOME/scripts (use --force to overwrite)"
+    else
+      cp "$SCRIPTS_DIR/$script" "$AGENT47_HOME/scripts/$script"
+      chmod +x "$AGENT47_HOME/scripts/$script"
+      clear_quarantine_attrs "$AGENT47_HOME/scripts/$script"
     fi
   done
 

@@ -32,3 +32,9 @@ teardown() {
   [ ! -f "$HOME/bin/reload-skills" ]
   [ ! -L "$HOME/bin/a47" ]
 }
+
+@test "bin/a47 exits non-zero for unknown commands" {
+  run "$ROOT_DIR/bin/a47" does-not-exist
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "Unknown command: does-not-exist"
+}

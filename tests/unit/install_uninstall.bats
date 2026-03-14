@@ -43,7 +43,7 @@ teardown() {
   run "$ROOT_DIR/bin/a47" install
   assert_success
 
-  ln -s "$AGENT47_HOME/bin/a47" "$HOME/bin/a47"
+  ln -sf "$AGENT47_HOME/bin/a47" "$HOME/bin/a47"
 
   run "$ROOT_DIR/bin/a47" uninstall
   assert_success
@@ -53,4 +53,31 @@ teardown() {
   [ ! -f "$HOME/bin/add-agent-prompt" ]
   [ ! -f "$HOME/bin/add-snapshot-prompt" ]
   [ ! -L "$HOME/bin/a47" ]
+}
+
+@test "install.sh rejects unexpected arguments" {
+  run "$ROOT_DIR/install.sh" unexpected-arg
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "Usage: ./install.sh [--force]"
+}
+
+@test "install fails fast when launcher cannot be written" {
+  mkdir -p "$AGENT47_HOME/bin"
+  chmod 500 "$AGENT47_HOME/bin"
+
+  run "$ROOT_DIR/bin/a47" install
+  [ "$status" -ne 0 ]
+  assert_not_contains "$output" "[OK] Installed a47 launcher"
+
+  chmod 700 "$AGENT47_HOME/bin"
+}
+
+@test "install fails fast when a core install asset is missing" {
+  mv "$ROOT_DIR/templates/AGENTS.md" "$ROOT_DIR/templates/AGENTS.md.bak"
+
+  run "$ROOT_DIR/bin/a47" install
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "Required install asset missing"
+
+  mv "$ROOT_DIR/templates/AGENTS.md.bak" "$ROOT_DIR/templates/AGENTS.md"
 }

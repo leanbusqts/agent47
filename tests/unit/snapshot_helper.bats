@@ -15,5 +15,11 @@ teardown() {
   PATH="/usr/bin:/bin"
   run "$ROOT_DIR/scripts/add-snapshot-prompt"
   assert_success
-  assert_contains "$output" 'update `SNAPSHOT.md`'
+  assert_contains "$output" 'snapshot or summary file'
+}
+
+@test "add-snapshot-prompt rejects unexpected arguments" {
+  run "$ROOT_DIR/scripts/add-snapshot-prompt" unexpected
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "Usage: add-snapshot-prompt"
 }

@@ -43,10 +43,27 @@ ensure_path_persistent() {
   esac
 }
 
+usage() {
+  echo "Usage: ./install.sh [--force]"
+}
+
 FORCE=false
-if [ "$1" = "--force" ]; then
-  FORCE=true
-  shift
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --force)
+      FORCE=true
+      shift
+      ;;
+    *)
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$#" -gt 0 ]; then
+  usage
+  exit 1
 fi
 
 echo "[ AGENT47 v$VERSION ]"

@@ -1,4 +1,18 @@
 # CHANGELOG
+## [1.0.19] - 2026-03-13
+### Fixed
+- Hardened `a47 install` so it now fails fast on permission errors and on missing core install assets from the source checkout instead of reporting a false success.
+- Made `add-agent` abort before writing any project files when required skills helper dependencies are missing, preventing partial bootstrap state.
+- Rejected unexpected arguments across scaffolding scripts such as `add-spec`, `add-skills`, `add-agent-prompt`, `add-cli-prompt`, and `add-snapshot-prompt`.
+- Ensured unknown `a47` commands return a non-zero exit code.
+- Fixed template restore behavior under strict shell mode so `templates --restore-latest` now reports missing backups correctly and restore tests are isolated.
+
+### Changed
+- Updated `doctor` usage to make update checks opt-in via `--check-update` and `--check-update-force`.
+- Switched the update cache filename from `update.json` to `update.cache` to reflect the on-disk format.
+- Improved the test runner to install a temporary `bats` copy automatically when needed.
+- Expanded unit coverage for CLI error handling, install preflight, argument parsing, update cache round-tripping, and restore flows.
+
 ## [1.0.18] - 2026-03-13
 ### Changed
 - Added `Execution Strategy` guidance to the root and template `AGENTS.md` files to encourage multi-agent or sub-agent workflows for non-trivial work, including an implement-then-review default for higher-risk changes.

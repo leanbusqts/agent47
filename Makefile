@@ -1,12 +1,12 @@
 .PHONY: test clean-test vendor-clean
 
-# Run the CLI test suite (requires bats-core, vendored or on PATH)
+# Run the CLI test suite (auto-installs a temporary bats copy from tests/vendor when needed)
 test:
 	./scripts/test
 
 # Remove any leftover temp dirs from failed/terminated test runs
 clean-test:
-	find /tmp -maxdepth 1 -type d -name 'a47-test-*' -print -exec rm -rf {} +
+	find "${TMPDIR:-/tmp}" -maxdepth 1 \( -type d -name 'a47-test-*' -o -type d -name 'a47-skills-*' \) -print -exec rm -rf {} +
 
 # Remove embedded git metadata from vendored deps (e.g., bats)
 vendor-clean:

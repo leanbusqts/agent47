@@ -6,11 +6,18 @@ TEMPLATE_FILE="$AGENT47_HOME/templates/prompts/agent-prompt.txt"
 PROMPTS_DIR="prompts"
 TARGET_FILE="$PROMPTS_DIR/agent-prompt.txt"
 FORCE=false
-
-if [ "${1:-}" = "--force" ]; then
-  FORCE=true
-  shift
-fi
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --force)
+      FORCE=true
+      shift
+      ;;
+    *)
+      echo "Usage: add-agent-prompt [--force]"
+      exit 1
+      ;;
+  esac
+done
 
 echo "[INFO] Initializing agent prompt..."
 

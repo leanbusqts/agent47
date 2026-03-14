@@ -33,15 +33,14 @@ Read what applies before acting:
 
 ## Executable Commands
 
-Project-maintained commands:
-- Test: `make test` or `./scripts/test`
-- Install CLI locally: `./install.sh`
-- Health check: `a47 doctor`
-- Bootstrap project scaffolding: `a47 add-agent`
-- Create spec scaffold: `a47 add-spec`
-- Refresh skills metadata: `a47 reload-skills`
+This file does not define universal commands for every project that uses `AGENTS.md`.
 
-There is no build, lint, or deploy command managed by this repository.
+Use only commands that are documented or clearly discoverable in the current project, such as:
+- test commands exposed by the repo
+- local bootstrap or setup scripts owned by the repo
+- documented health checks, generators, or maintenance tasks
+
+If a command is not defined by the current project, do not assume an `agent47` CLI command exists.
 
 ## Context Efficiency
 
@@ -79,12 +78,12 @@ Actions that are safe to do without asking:
 - Edit existing files already in scope
 - Add or update tests that support the requested change
 - Create small supporting files clearly required by the task inside the repo
-- Run local project commands such as `make test` or `./scripts/test`
+- Run documented local project commands for the current repo, such as its test or verification scripts
 
 Examples:
-- Updating `templates/AGENTS.md`
-- Adding a missing unit test under `tests/unit/`
-- Regenerating `skills/AVAILABLE_SKILLS.xml`
+- Updating an existing policy or rule file already in scope
+- Adding a missing unit test under the project's test directory
+- Running the project's documented test command
 
 ### Ask
 
@@ -145,6 +144,8 @@ Backend:
 Mobile:
 - Keep UI/main thread work light.
 - Use safe async patterns; avoid force unwraps and unsafe state sharing.
+- Unless the user requests another architecture, prefer a layered mobile architecture with explicit UI, domain, and data layers.
+- Use unidirectional data flow, screen-level state holders, repositories as the data boundary, and dependency injection; map these patterns to platform-native equivalents on Android and iOS.
 
 ## Skills
 

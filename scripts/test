@@ -3,13 +3,45 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-BATS_BIN="${BATS_BIN:-$ROOT_DIR/tests/vendor/bats/bin/bats}"
 TEST_TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/a47-test-XXXXXX")"
+BATS_BIN="${BATS_BIN:-}"
 
 cleanup() {
   rm -rf "$TEST_TMP_ROOT"
 }
 trap cleanup EXIT INT TERM
+
+resolve_bats_bin() {
+  local vendor_bin="$ROOT_DIR/tests/vendor/bats/bin/bats"
+  local vendor_install="$ROOT_DIR/tests/vendor/bats/install.sh"
+  local temp_bats_root="$TEST_TMP_ROOT/tools/bats"
+
+  if [ -n "$BATS_BIN" ] && [ -x "$BATS_BIN" ]; then
+    return
+  fi
+
+  if [ -x "$vendor_bin" ]; then
+    BATS_BIN="$vendor_bin"
+    return
+  fi
+
+  if command -v bats >/dev/null 2>&1; then
+    BATS_BIN="$(command -v bats)"
+    return
+  fi
+
+  if [ -x "$vendor_install" ]; then
+    echo "[INFO] bats not found; installing a temporary copy from tests/vendor/bats"
+    mkdir -p "$temp_bats_root"
+    bash "$vendor_install" "$temp_bats_root" >/dev/null
+    BATS_BIN="$temp_bats_root/bin/bats"
+    return
+  fi
+
+  echo "[ERR] bats not found."
+  echo "      Set BATS_BIN, install bats on PATH, or restore tests/vendor/bats."
+  exit 1
+}
 
 # Isolate HOME/AGENT47_HOME so tests never touch the user's environment
 export HOME="$TEST_TMP_ROOT/home"
@@ -34,16 +66,8 @@ cp -R "$ROOT_DIR/scripts/lib/." "$AGENT47_HOME/scripts/lib/"
 find "$AGENT47_HOME/scripts/lib" -type f -exec chmod +x {} +
 chmod +x "$AGENT47_HOME/scripts/skill-utils.sh" "$AGENT47_HOME/scripts/add-cli-prompt" "$AGENT47_HOME/scripts/add-snapshot-prompt" "$AGENT47_HOME/scripts/add-agent-prompt"
 
-# Resolve bats binary (vendored preferred, fallback to system)
-if [ ! -x "$BATS_BIN" ]; then
-  if command -v bats >/dev/null 2>&1; then
-    BATS_BIN="$(command -v bats)"
-  else
-    echo "[ERR] bats not found."
-    echo "      Install via vendor (tests/vendor/bats) or system package, or set BATS_BIN."
-    exit 1
-  fi
-fi
+# Resolve bats binary (explicit override, vendored, system, then temporary install)
+resolve_bats_bin
 
 if [ "$#" -gt 0 ]; then
   TEST_PATHS=("$@")
@@ -60,4 +84,5 @@ if [ "${#TEST_PATHS[@]}" -eq 0 ]; then
 fi
 
 echo "[INFO] Running tests with HOME=$HOME and AGENT47_HOME=$AGENT47_HOME"
+echo "[INFO] Using bats binary: $BATS_BIN"
 "$BATS_BIN" "${TEST_PATHS[@]}"

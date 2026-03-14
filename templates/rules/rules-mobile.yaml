@@ -41,6 +41,22 @@ rules:
     level: "high"
     rule: "Mobile dependency or config changes require approval and should reuse existing project libraries."
 
+  - topic: "mobile:architecture-default"
+    level: "high"
+    rule: "Unless the user explicitly requests another architecture, implement mobile features with explicit UI, domain, and data layers."
+
+  - topic: "mobile:architecture-patterns"
+    level: "high"
+    rule: "Use unidirectional data flow, a single source of truth per state owner, repositories as the boundary to data sources, and dependency injection. Keep platform details at the edges and business rules in the domain layer."
+
+  - topic: "mobile:android-architecture"
+    level: "high"
+    rule: "On Android, use the recommended app architecture patterns: screen-level ViewModels in the UI layer, repositories in the data layer, use cases or interactors in the domain layer, and observable UI state exposed from the state holder."
+
+  - topic: "mobile:ios-architecture"
+    level: "high"
+    rule: "On iOS, apply the same layered architecture using platform-native patterns: SwiftUI views in the UI layer, observable screen-level state holders or view models, repositories in the data layer, domain use cases or services in the domain layer, and a single source of truth for UI state."
+
   - topic: "mobile:layering"
-    level: "medium"
-    rule: "Prefer clear separation between features, services, and core concerns when the project already uses that structure."
+    level: "high"
+    rule: "Keep mobile modules clearly separated by feature and by layer. Domain is required in the recommended architecture, not optional."

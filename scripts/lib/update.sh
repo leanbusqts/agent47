@@ -4,6 +4,18 @@ json_escape() {
   echo "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
+base64_encode() {
+  printf "%s" "$1" | base64 | tr -d '\n'
+}
+
+base64_decode() {
+  if base64 -D >/dev/null 2>&1 <<<''; then
+    printf "%s" "$1" | base64 -D
+  else
+    printf "%s" "$1" | base64 -d
+  fi
+}
+
 get_file_mtime() {
   local target="$1"
 
@@ -40,15 +52,21 @@ load_update_cache() {
   fi
 
   local cached_status cached_method cached_local cached_latest cached_message
-  cached_status="$(sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$UPDATE_CACHE_FILE" | head -n 1)"
-  cached_method="$(sed -n 's/.*"method"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$UPDATE_CACHE_FILE" | head -n 1)"
-  cached_local="$(sed -n 's/.*"local"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$UPDATE_CACHE_FILE" | head -n 1)"
-  cached_latest="$(sed -n 's/.*"latest"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$UPDATE_CACHE_FILE" | head -n 1)"
-  cached_message="$(sed -n 's/.*"message"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$UPDATE_CACHE_FILE" | head -n 1)"
+  cached_status="$(sed -n 's/^status_b64=//p' "$UPDATE_CACHE_FILE" | head -n 1)"
+  cached_method="$(sed -n 's/^method_b64=//p' "$UPDATE_CACHE_FILE" | head -n 1)"
+  cached_local="$(sed -n 's/^local_b64=//p' "$UPDATE_CACHE_FILE" | head -n 1)"
+  cached_latest="$(sed -n 's/^latest_b64=//p' "$UPDATE_CACHE_FILE" | head -n 1)"
+  cached_message="$(sed -n 's/^message_b64=//p' "$UPDATE_CACHE_FILE" | head -n 1)"
 
   if [ -z "$cached_status" ]; then
     return 1
   fi
+
+  cached_status="$(base64_decode "$cached_status")"
+  cached_method="$(base64_decode "$cached_method")"
+  cached_local="$(base64_decode "$cached_local")"
+  cached_latest="$(base64_decode "$cached_latest")"
+  cached_message="$(base64_decode "$cached_message")"
 
   if [ -n "$cached_local" ] && [ "$cached_local" != "$AGENT47_VERSION" ]; then
     return 1
@@ -70,14 +88,12 @@ save_update_cache() {
   local now_ts
   now_ts="$(date +%s)"
   cat >"$UPDATE_CACHE_FILE" <<EOF
-{
-  "checked_at": $now_ts,
-  "status": "$(json_escape "$UPDATE_STATUS")",
-  "method": "$(json_escape "$UPDATE_METHOD")",
-  "local": "$(json_escape "$UPDATE_LOCAL_VERSION")",
-  "latest": "$(json_escape "$UPDATE_LATEST_VERSION")",
-  "message": "$(json_escape "$UPDATE_MESSAGE")"
-}
+checked_at=$now_ts
+status_b64=$(base64_encode "$UPDATE_STATUS")
+method_b64=$(base64_encode "$UPDATE_METHOD")
+local_b64=$(base64_encode "$UPDATE_LOCAL_VERSION")
+latest_b64=$(base64_encode "$UPDATE_LATEST_VERSION")
+message_b64=$(base64_encode "$UPDATE_MESSAGE")
 EOF
 }
 
@@ -281,7 +297,7 @@ check_update() {
   now_ts="$(date +%s)"
 
   if [ "$force_refresh" = false ] && load_update_cache "$now_ts"; then
-    print_update_result
+    print_update_result || true
     return 0
   fi
 
@@ -301,6 +317,6 @@ check_update() {
   if [ -z "$UPDATE_MESSAGE" ]; then
     UPDATE_MESSAGE="all update methods failed"
   fi
-  print_update_result
+  print_update_result || true
   return 0
 }

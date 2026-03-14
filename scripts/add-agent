@@ -65,6 +65,26 @@ run_helper() {
   return 1
 }
 
+helper_available() {
+  local cmd="$1"
+  local fallback="$2"
+
+  if command -v "$cmd" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local local_fallback="$SCRIPT_DIR/$cmd"
+  if [ -x "$local_fallback" ]; then
+    return 0
+  fi
+
+  if [ -n "$fallback" ] && [ -x "$fallback" ]; then
+    return 0
+  fi
+
+  return 1
+}
+
 usage() {
   echo "Usage: add-agent [--force]"
 }
@@ -103,6 +123,21 @@ for file in "${FILES[@]}"; do
 done
 if [ "$missing" -ne 0 ]; then
   echo "[ERR] Aborting: required templates missing."
+  exit 1
+fi
+
+if ! helper_available add-skills "$AGENT47_HOME/scripts/add-skills"; then
+  echo "[ERR] Aborting: add-skills helper not available."
+  exit 1
+fi
+
+if [ ! -f "$AGENT47_HOME/scripts/skill-utils.sh" ]; then
+  echo "[ERR] Aborting: missing helper dependency: $AGENT47_HOME/scripts/skill-utils.sh"
+  exit 1
+fi
+
+if [ ! -d "$AGENT47_HOME/templates/skills" ]; then
+  echo "[ERR] Aborting: missing skills templates: $AGENT47_HOME/templates/skills"
   exit 1
 fi
 
