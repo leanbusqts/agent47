@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Shared arrays are sourced and consumed by other shell modules.
+# shellcheck disable=SC2034
+
 INSTALLABLE_SCRIPTS=(
   add-agent
   add-agent-prompt
@@ -22,6 +25,7 @@ CORE_RULE_TEMPLATE_FILES=(
 
 SECURITY_TEMPLATE_FILES=(
   security-global.yaml
+  security-shell.yaml
   security-js-ts.yaml
   security-py.yaml
   security-java-kotlin.yaml

@@ -27,13 +27,23 @@ teardown() {
   chmod +x "$AGENT47_HOME/bin/a47"
   cp "$ROOT_DIR/scripts/add-agent" "$AGENT47_HOME/scripts/add-agent"
   chmod +x "$AGENT47_HOME/scripts/add-agent"
+  cp "$ROOT_DIR/scripts/add-agent-prompt" "$AGENT47_HOME/scripts/add-agent-prompt"
+  chmod +x "$AGENT47_HOME/scripts/add-agent-prompt"
+  cp "$ROOT_DIR/scripts/add-snapshot-prompt" "$AGENT47_HOME/scripts/add-snapshot-prompt"
+  chmod +x "$AGENT47_HOME/scripts/add-snapshot-prompt"
   ln -s "$AGENT47_HOME/bin/a47" "$HOME/bin/a47"
-  ln -s "$AGENT47_HOME/scripts/add-agent" "$HOME/bin/add-agent"
-  ln -s "$AGENT47_HOME/scripts/add-agent-prompt" "$HOME/bin/add-agent-prompt"
-  ln -s "$AGENT47_HOME/scripts/add-snapshot-prompt" "$HOME/bin/add-snapshot-prompt"
+  cp "$AGENT47_HOME/scripts/add-agent" "$HOME/bin/add-agent"
+  chmod +x "$HOME/bin/add-agent"
+  cp "$AGENT47_HOME/scripts/add-agent-prompt" "$HOME/bin/add-agent-prompt"
+  chmod +x "$HOME/bin/add-agent-prompt"
+  cp "$AGENT47_HOME/scripts/add-snapshot-prompt" "$HOME/bin/add-snapshot-prompt"
+  chmod +x "$HOME/bin/add-snapshot-prompt"
   run "$ROOT_DIR/bin/a47" doctor
   assert_success
   assert_contains "$output" "[OK] a47 in PATH"
+  assert_contains "$output" "[OK] add-agent available"
+  assert_contains "$output" "[OK] add-agent-prompt available"
+  assert_contains "$output" "[OK] add-snapshot-prompt available"
   assert_contains "$output" "[OK] Templates installed"
   assert_contains "$output" "[OK] Prompt template present"
   assert_contains "$output" "[OK] Security templates present"
@@ -82,8 +92,8 @@ EOF
 
   run "$ROOT_DIR/bin/a47" doctor
   assert_success
-  assert_contains "$output" "a47 in PATH, but not the managed launcher from ~/bin"
-  assert_contains "$output" "add-agent in PATH, but not the managed copy from ~/bin"
+  assert_contains "$output" "a47 in PATH, but not the managed launcher"
+  assert_contains "$output" "add-agent in PATH, but not the managed installed copy"
 }
 
 @test "doctor warns when ~/bin a47 symlink is broken" {
@@ -110,6 +120,6 @@ EOF
 
   run "$ROOT_DIR/bin/a47" doctor
   assert_success
-  assert_contains "$output" "a47 in PATH, but not the managed launcher from ~/bin"
+  assert_contains "$output" "a47 in PATH, but not the managed launcher"
   assert_contains "$output" "a47 symlink in ~/bin is broken or points to a non-executable target"
 }

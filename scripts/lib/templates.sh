@@ -58,6 +58,17 @@ check_prompt_template() {
   fi
 }
 
+check_template_manifest() {
+  local templates_dir="$1"
+
+  if [ -f "$templates_dir/manifest.txt" ]; then
+    echo "[OK] Template manifest present"
+  else
+    echo "[WARN] Template manifest missing"
+    return 1
+  fi
+}
+
 check_security_rule_ids() {
   local templates_dir="$1"
   local security_dir="$templates_dir/rules"

@@ -7,39 +7,16 @@ USER_BIN="$HOME/bin"
 INSTALLED_BIN_DIR="$HOME/.agent47/bin"
 INSTALLED_BIN="$INSTALLED_BIN_DIR/a47"
 VERSION="$(cat "$REPO_DIR/VERSION" 2>/dev/null || echo "unknown")"
-ROOT_DIR="$REPO_DIR"
-USER_DIR="$HOME/bin"
-AGENT47_HOME="${AGENT47_HOME:-$HOME/.agent47}"
-SCRIPTS_DIR="$ROOT_DIR/scripts"
-LIB_DIR="$ROOT_DIR/scripts/lib"
-
-require_lib() {
-  local path="$1"
-  if [ ! -f "$path" ]; then
-    echo "[ERR] Missing library: $path"
-    exit 1
-  fi
-}
-
-require_lib "$LIB_DIR/constants.sh"
-require_lib "$LIB_DIR/install.sh"
+RUNTIME_ENV_LIB="$REPO_DIR/scripts/lib/runtime-env.sh"
 
 # shellcheck disable=SC1090
-source "$LIB_DIR/constants.sh"
-# shellcheck disable=SC1090
-source "$LIB_DIR/install.sh"
-
-detect_rc_file() {
-  shell_name="$(basename "${SHELL:-}")"
-  case "$shell_name" in
-    zsh) echo "$HOME/.zshrc" ;;
-    bash) echo "$HOME/.bashrc" ;;
-    *) echo "$HOME/.profile" ;;
-  esac
-}
+source "$RUNTIME_ENV_LIB"
+init_agent47_runtime_from_entrypoint "$BIN"
+load_agent47_libs constants.sh managed-files.sh install-assets.sh install-runtime.sh install.sh
 
 ensure_path_persistent() {
-  rc_file="$(detect_rc_file)"
+  rc_file="$(detect_shell_rc_file)"
+  # shellcheck disable=SC2016
   export_line='export PATH="$HOME/bin:$PATH"'
 
   if grep -F "$export_line" "$rc_file" >/dev/null 2>&1; then
@@ -109,13 +86,18 @@ fi
 mkdir -p "$USER_BIN"
 
 # 4) Create/refresh symlink (primary entrypoint: a47)
-install_symlink_atomically "$INSTALLED_BIN" "$USER_BIN/a47"
-echo "[OK] Linked a47 into ~/bin -> $INSTALLED_BIN"
+if [ -e "$USER_BIN/a47" ] && [ "$FORCE" != true ]; then
+  echo "[WARN] a47 entry already exists in ~/bin (use --force to refresh)"
+else
+  install_symlink_atomically "$INSTALLED_BIN" "$USER_BIN/a47"
+  echo "[OK] Linked a47 into ~/bin -> $INSTALLED_BIN"
+fi
 
 # 5) PATH check
 if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
   echo "[WARN] ~/bin not in PATH"
   echo "[HINT] Add this to your shell config:"
+  # shellcheck disable=SC2016
   echo 'export PATH="$HOME/bin:$PATH"'
   export PATH="$HOME/bin:$PATH"
   echo "[OK] Temporarily added ~/bin to PATH for this session"

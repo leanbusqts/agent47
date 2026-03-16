@@ -6,9 +6,10 @@
 
 ## 2. Current Status
 - **Implemented:** CLI in `bin/a47` with uninstall, doctor, opt-in update checks, and project bootstrap commands, plus `./install.sh` as the public installation entrypoint; curated templates for `AGENTS.md`, stack rules, security rules, skills, prompts, and `specs/spec.yml`; Bats-based unit test suite and Make targets.
-- **Architecture:** `bin/a47` is now mostly a router and sources shared logic from `scripts/lib/` (`constants`, `update`, `templates`, `install`, `doctor`, `common`).
+- **Architecture:** `bin/a47` is now mostly a router and sources shared logic from `scripts/lib/`, including dedicated runtime bootstrap, install, bootstrap, test-runtime, and skill helper modules plus a declarative `templates/manifest.txt`.
 - **Documentation:** `README.md` is now intentionally short; usage and structure details live in `docs/usage.md` and `docs/architecture.md`.
 - **Stable workflow:** `a47 add-agent` bootstraps `AGENTS.md` and all `rules/*.yaml` plus skills; `a47 add-agent-prompt` and `a47 add-snapshot-prompt` are available as focused helpers.
+- **Managed refresh behavior:** during `a47 add-agent --force`, `rules/*.yaml`, `skills/*`, and `skills/AVAILABLE_SKILLS.xml` are reconciled against the current template set, so local custom files in those paths may be replaced or removed.
 - **Dynamic skills:** the curated skill set is discovered from installed `templates/skills/*/SKILL.md` entries instead of a hardcoded list, so template additions flow into bootstrap automatically.
 - **Operational hardening:** core helper scripts now run with strict shell mode, install preflights core assets, and bootstrap commands reject unexpected arguments to reduce silent partial failures.
 - **Install hardening:** `./install.sh` now installs the `a47` launcher under `~/.agent47/bin/` and links `~/bin/a47` to that managed copy, avoiding dependence on the original repo checkout path.
@@ -33,9 +34,11 @@
   - `add-agent`
   - `add-agent-prompt`
   - `add-snapshot-prompt`
+  - `lint-shell`
+  - `smoke-install`
   - `test`
-  - `skill-utils.sh`
   - `lib/*.sh`
+- `templates/manifest.txt` – declarative scaffold manifest for managed and preserved targets.
 - `templates/`
   - `AGENTS.md`
   - `prompts/agent-prompt.txt`
@@ -60,6 +63,8 @@
 
 ## 6. Testing And Validation
 - `make test` and `./scripts/test` pass.
+- `make lint-shell` and `./scripts/lint-shell` are available as optional maintainer checks when `shellcheck` exists on `PATH`; end users do not need it.
+- `make smoke-install` and `./scripts/smoke-install` provide an isolated install + `doctor` smoke check for release confidence.
 - `scripts/test` prefers vendored Bats under `tests/vendor/bats` and falls back to system `bats`.
 - Current tests verify:
   - AGENTS sections and root/template alignment
@@ -75,7 +80,8 @@
 - Dependency governance is expressed as policy and tests, not as hard CLI enforcement on package files.
 - Update checks depend on git/curl/network availability, but failures degrade to warnings.
 - Templates are copied into projects; existing files are skipped unless force/restore paths are used.
+- local custom files under `rules/` or `skills/` can be removed by `a47 add-agent --force` while it reconciles the managed scaffold.
 - On macOS, downloaded files may still inherit host OS restrictions outside `com.apple.quarantine`; the installer mitigates common quarantine cases but cannot override system-level execution policy.
 
 ## 8. Last Updated
-- March 14, 2026 (release v1.0.20)
+- March 15, 2026 (release v1.0.21)

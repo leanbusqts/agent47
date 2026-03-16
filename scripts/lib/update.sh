@@ -1,10 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-json_escape() {
-  echo "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
-}
-
 base64_encode() {
   printf "%s" "$1" | base64 | tr -d '\n'
 }
@@ -178,7 +174,7 @@ git_update_check() {
   fi
 
   local upstream_ref
-  upstream_ref="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)"
+  upstream_ref="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null)"
 
   local remote_head
   remote_head="$(git -C "$ROOT_DIR" symbolic-ref --quiet --short "refs/remotes/$remote/HEAD" 2>/dev/null)"

@@ -22,18 +22,28 @@ agent47/
 |   +-- add-agent
 |   +-- add-agent-prompt
 |   +-- add-snapshot-prompt
+|   +-- lint-shell
+|   +-- smoke-install
 |   +-- test
 |   `-- lib/
+|       +-- bootstrap.sh
 |       +-- common.sh
 |       +-- constants.sh
 |       +-- doctor.sh
+|       +-- install-assets.sh
+|       +-- install-runtime.sh
 |       +-- install.sh
+|       +-- managed-files.sh
+|       +-- runtime-env.sh
+|       +-- skill-utils.sh
+|       +-- test-runtime.sh
 |       +-- templates.sh
 |       `-- update.sh
-|           Shared implementation modules
+|           Shared implementation modules by domain
 |
 +-- templates/
 |   +-- AGENTS.md
+|   +-- manifest.txt
 |   +-- prompts/
 |   |   +-- agent-prompt.txt
 |   |   `-- snapshot-prompt.txt
@@ -73,15 +83,15 @@ user
          |      Health check plus optional update check
          |
          +--> add-agent
-         |      Bootstrap completo:
+         |      Bootstrap project scaffolding:
          |      AGENTS.md + rules + skills + README if missing
          |
          +--> add-agent --force
-         |      Refresh completo:
+         |      Refresh managed scaffolding:
          |      managed files only, preserving project-owned files
          |
          +--> add-agent --only-skills [--force]
-         |      Refresh parcial:
+         |      Refresh only skills:
          |      skills/* + AVAILABLE_SKILLS.xml only
          |
          `--> add-*-prompt
@@ -93,21 +103,39 @@ user
 - `bin/a47`
   - command routing
   - high-level help
+  - runtime bootstrap is delegated to `scripts/lib/runtime-env.sh`
   - delegates to shared libs and concrete scripts
 
 - `install.sh`
   - public local installation entrypoint
   - installs the managed launcher and managed templates under `~/.agent47`
+  - interactive PATH persistence targets the active shell's preferred rc file
 
 - `scripts/lib/`
   - reusable CLI internals
-  - constants, installation, doctor, lightweight template checks, update checks
+  - `managed-files.sh` defines project-owned vs agent47-managed file boundaries
+  - `runtime-env.sh` centralizes path resolution, version loading, and shared environment bootstrap
+  - `bootstrap.sh` owns project scaffolding transactions, staging, and rollback
+  - `install-assets.sh` owns atomic file, directory, and symlink publication helpers
+  - `install-runtime.sh` owns installer preflight, managed runtime publication, and uninstall flows
+  - `test-runtime.sh` owns temporary test environment setup and Bats resolution
+  - `install.sh`, `doctor.sh`, `templates.sh`, and `update.sh` stay focused on orchestration and diagnostics
 
 - `scripts/add-*`
   - user-invoked write operations
   - bootstrap or refresh project scaffolding
-  - `add-agent` is the main project command and also handles the `--only-skills` path
+  - `add-agent` is now a thin entrypoint that delegates bootstrap behavior to shared modules
   - curated skills are discovered from `templates/skills/*/SKILL.md` instead of a hardcoded list
+
+- `scripts/test`
+  - repo-level executable test runner
+  - stays outside `lib/` because it is a user-invoked command, not a reusable shell module
+
+- `scripts/smoke-install`
+  - isolated install + `doctor` smoke check for releases and maintenance validation
+
+- `templates/manifest.txt`
+  - declarative scaffold manifest for managed targets, preserved targets, and rule template membership
 
 - `templates/`
   - canonical source of scaffolded files
@@ -120,7 +148,28 @@ user
 
 - Bash-first, no extra runtime dependency
 - conservative by default, explicit `--force` for refresh
+- forced refresh reconciles manifest-managed targets instead of only overwriting matching filenames
+- forced refresh reconciles managed paths such as `rules/` and `skills/` against the current template payload, which can remove local custom files there
 - policy lives in `AGENTS.md`, not duplicated in prompts
-- security guidance is layered: global, language, stack
+- security guidance is layered: global, language, stack, including shell-specific rules for Bash-first repos
 - template-source repositories such as `agent47` can map policy reads from `rules/` to `templates/rules/`
 - project-specific files such as `README.md`, `specs/spec.yml`, and `SNAPSHOT.md` stay preserved during forced refresh
+
+## Ownership model
+
+- repo-owned source files
+  - CLI code under `bin/`, `scripts/`, `docs/`, and `tests/`
+  - these exist to build, install, and verify `agent47` itself
+
+- template payload
+  - canonical scaffold content under `templates/`
+  - this is what gets copied into user repositories
+
+- project-managed targets
+  - `AGENTS.md`, `rules/*.yaml`, `skills/*`, and `skills/AVAILABLE_SKILLS.xml`
+  - ownership is defined in `scripts/lib/managed-files.sh`
+  - local custom files under these paths can be replaced or removed during `--force`
+
+- project-owned preserved targets
+  - `README.md`, `specs/spec.yml`, and snapshot-style files such as `SNAPSHOT.md`
+  - refresh flows keep these intact unless a user changes them manually

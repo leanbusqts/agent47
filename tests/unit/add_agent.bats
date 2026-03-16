@@ -97,6 +97,20 @@ EOF
   assert_success
 }
 
+@test "add-agent --force removes stale managed rules" {
+  mkdir -p rules
+  echo "stale rule" > rules/obsolete-managed.yaml
+  echo "keep me" > rules/custom.txt
+
+  run "$ROOT_DIR/scripts/add-agent" --force
+  assert_success
+  [ ! -f "rules/obsolete-managed.yaml" ]
+  assert_file_exists "rules/rules-backend.yaml"
+  run cat "rules/custom.txt"
+  assert_success
+  [ "$output" = "keep me" ]
+}
+
 @test "add-agent fails if a required template is missing" {
   rm "$AGENT47_HOME/templates/AGENTS.md"
 
@@ -116,16 +130,32 @@ EOF
 }
 
 @test "add-agent aborts before writing when skills helper dependencies are missing" {
-  rm -f "$AGENT47_HOME/scripts/skill-utils.sh"
-
-  run "$ROOT_DIR/scripts/add-agent"
+  run bash -c '
+    set -euo pipefail
+    rm -f "$1/scripts/lib/skill-utils.sh"
+    mv "$2/scripts/lib/skill-utils.sh" "$2/scripts/lib/skill-utils.sh.bak"
+    trap '"'"'
+      mv "$2/scripts/lib/skill-utils.sh.bak" "$2/scripts/lib/skill-utils.sh"
+      cp "$2/scripts/lib/skill-utils.sh" "$1/scripts/lib/skill-utils.sh"
+    '"'"' EXIT
+    cd "$3"
+    "$2/scripts/add-agent"
+  ' _ "$AGENT47_HOME" "$ROOT_DIR" "$PWD"
   [ "$status" -ne 0 ]
   assert_contains "$output" "missing helper dependency"
   [ ! -f "AGENTS.md" ]
   [ ! -f "README.md" ]
   [ ! -d "rules" ]
+}
 
-  cp "$ROOT_DIR/scripts/skill-utils.sh" "$AGENT47_HOME/scripts/skill-utils.sh"
+@test "add-agent falls back to local skill utils when installed copy is missing" {
+  rm -f "$AGENT47_HOME/scripts/lib/skill-utils.sh"
+  mkdir -p "$AGENT47_HOME/scripts"
+
+  run "$ROOT_DIR/scripts/add-agent" --only-skills
+  assert_success
+  assert_file_exists "skills/analyze/SKILL.md"
+  assert_file_exists "skills/AVAILABLE_SKILLS.xml"
 }
 
 @test "add-agent aborts when no valid skill templates are available" {

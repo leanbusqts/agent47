@@ -1,5 +1,9 @@
 #!/bin/bash
 
+doctor_require_context() {
+  require_runtime_vars ROOT_DIR AGENT47_HOME USER_DIR AGENT47_VERSION
+}
+
 doctor_resolve_path() {
   local target="$1"
   local current resolved_dir link_target depth=0
@@ -52,6 +56,31 @@ doctor_is_managed_command() {
   [ -n "$actual_resolved" ] && [ -n "$expected_resolved" ] && [ "$actual_resolved" = "$expected_resolved" ]
 }
 
+doctor_is_managed_helper_command() {
+  local cmd_name="$1"
+  local managed_target="$2"
+  local user_target="$3"
+  local actual_path managed_resolved user_resolved actual_resolved
+
+  actual_path="$(command -v "$cmd_name" 2>/dev/null || true)"
+  [ -n "$actual_path" ] || return 1
+
+  actual_resolved="$(doctor_resolve_path "$actual_path" || true)"
+  managed_resolved="$(doctor_resolve_path "$managed_target" || true)"
+  user_resolved="$(doctor_resolve_path "$user_target" || true)"
+
+  if [ -n "$actual_resolved" ] && [ -n "$managed_resolved" ] && [ "$actual_resolved" = "$managed_resolved" ]; then
+    return 0
+  fi
+
+  if [ -n "$actual_resolved" ] && [ -n "$user_resolved" ] && [ "$actual_resolved" = "$user_resolved" ] \
+    && [ -f "$managed_target" ] && [ -f "$user_target" ] && cmp -s "$managed_target" "$user_target"; then
+    return 0
+  fi
+
+  return 1
+}
+
 doctor_symlink_matches() {
   local link_path="$1"
   local expected_target="$2"
@@ -66,6 +95,8 @@ doctor_symlink_matches() {
 doctor() {
   local check_updates=false
   local force_update=false
+
+  doctor_require_context || return 1
 
   case "${1:-}" in
     --check-update)
@@ -89,7 +120,7 @@ doctor() {
   if doctor_is_managed_command a47 "$AGENT47_HOME/bin/a47"; then
     echo "[OK] a47 in PATH"
   elif command -v a47 >/dev/null 2>&1; then
-    echo "[WARN] a47 in PATH, but not the managed launcher from ~/bin"
+    echo "[WARN] a47 in PATH, but not the managed launcher"
     echo "[HINT] Fix: run ./install.sh"
   else
     echo "[WARN] a47 not in PATH"
@@ -97,10 +128,10 @@ doctor() {
   fi
 
   for script in "${INSTALLABLE_SCRIPTS[@]}"; do
-    if doctor_is_managed_command "$script" "$AGENT47_HOME/scripts/$script"; then
+    if doctor_is_managed_helper_command "$script" "$AGENT47_HOME/scripts/$script" "$USER_DIR/$script"; then
       echo "[OK] $script available"
     elif command -v "$script" >/dev/null 2>&1; then
-      echo "[WARN] $script in PATH, but not the managed copy from ~/bin"
+      echo "[WARN] $script in PATH, but not the managed installed copy"
       echo "[HINT] Fix: run ./install.sh"
     else
       echo "[WARN] $script missing"
@@ -117,6 +148,7 @@ doctor() {
 
   if [ -d "$AGENT47_HOME/templates" ]; then
     echo "[OK] Templates installed"
+    check_template_manifest "$AGENT47_HOME/templates" || true
     check_prompt_template "$AGENT47_HOME/templates" || true
     check_security_templates "$AGENT47_HOME/templates" || true
     check_security_rule_ids "$AGENT47_HOME/templates" || true
@@ -135,10 +167,14 @@ doctor() {
     fi
   fi
 
-  if [ -x "$ROOT_DIR/tests/vendor/bats/bin/bats" ] || command -v bats >/dev/null 2>&1; then
-    echo "[OK] bats available"
+  if [ -d "$ROOT_DIR/tests" ]; then
+    if [ -x "$ROOT_DIR/tests/vendor/bats/bin/bats" ] || command -v bats >/dev/null 2>&1; then
+      echo "[OK] bats available"
+    else
+      echo "[WARN] bats missing"
+    fi
   else
-    echo "[WARN] bats missing"
+    echo "[INFO] bats check skipped outside the source repository"
   fi
 
   if doctor_symlink_matches "$USER_DIR/a47" "$AGENT47_HOME/bin/a47"; then
@@ -156,6 +192,7 @@ doctor() {
   else
     echo "[WARN] ~/bin not in PATH"
     echo "[HINT] Add to your shell config:"
+    # shellcheck disable=SC2016
     echo '       export PATH="$HOME/bin:$PATH"'
   fi
 

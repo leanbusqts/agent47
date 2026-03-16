@@ -1,0 +1,27 @@
+#!/bin/bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SMOKE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/a47-smoke-XXXXXX")"
+
+cleanup() {
+  rm -rf "$SMOKE_ROOT"
+}
+trap cleanup EXIT INT TERM
+
+export HOME="$SMOKE_ROOT/home"
+export AGENT47_HOME="$HOME/.agent47"
+export PATH="$HOME/bin:/usr/bin:/bin"
+
+mkdir -p "$HOME/bin"
+
+"$ROOT_DIR/install.sh" --force --no-prompt
+doctor_output="$("$HOME/bin/a47" doctor)"
+printf "%s\n" "$doctor_output"
+
+if printf "%s\n" "$doctor_output" | grep -q '^\[WARN\]'; then
+  echo "[ERR] smoke install detected doctor warnings"
+  exit 1
+fi
+
+echo "[OK] smoke install succeeded"

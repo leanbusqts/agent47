@@ -1,6 +1,10 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [1.0.21] - 2026-03-15
+### Changed
+- Clarified the managed-ownership model across `README.md`, `SNAPSHOT.md`, and docs so `a47 add-agent --force` is explicit about `rules/` and `skills/` being fully managed refresh targets rather than mixed-ownership directories.
+
 ## [1.0.20] - 2026-03-14
 ### Fixed
 - Hardened installation so it now fails fast on permission errors and on missing core install assets from the source checkout instead of reporting a false success.

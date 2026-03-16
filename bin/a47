@@ -1,57 +1,34 @@
 #!/bin/bash
 set -euo pipefail
 
-USER_DIR="$HOME/bin"
-AGENT47_HOME="$HOME/.agent47"
-
-# Resolve real path even if a47 is a symlink
-SOURCE="${BASH_SOURCE[0]}"
-while [ -h "$SOURCE" ]; do
-  DIR="${SOURCE%/*}"
-  if [ "$DIR" = "$SOURCE" ]; then
-    DIR="."
+ENTRY_SOURCE="${BASH_SOURCE[0]}"
+REAL_SOURCE="$ENTRY_SOURCE"
+while [ -h "$REAL_SOURCE" ]; do
+  ENTRY_DIR="${REAL_SOURCE%/*}"
+  if [ "$ENTRY_DIR" = "$REAL_SOURCE" ]; then
+    ENTRY_DIR="."
   fi
-  DIR="$(cd -P "$DIR" && pwd)"
-  SOURCE="$(readlink "$SOURCE")"
-  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+  ENTRY_DIR="$(cd -P "$ENTRY_DIR" && pwd)"
+  REAL_SOURCE="$(readlink "$REAL_SOURCE")"
+  [[ $REAL_SOURCE != /* ]] && REAL_SOURCE="$ENTRY_DIR/$REAL_SOURCE"
 done
 
-SCRIPT_DIR="${SOURCE%/*}"
-if [ "$SCRIPT_DIR" = "$SOURCE" ]; then
-  SCRIPT_DIR="."
+ENTRY_DIR="${REAL_SOURCE%/*}"
+if [ "$ENTRY_DIR" = "$REAL_SOURCE" ]; then
+  ENTRY_DIR="."
 fi
-SCRIPT_DIR="$(cd -P "$SCRIPT_DIR" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ENTRY_DIR="$(cd -P "$ENTRY_DIR" && pwd)"
+RUNTIME_ENV_LIB="$ENTRY_DIR/../scripts/lib/runtime-env.sh"
 
-SCRIPTS_DIR="$ROOT_DIR/scripts"
-VERSION_FILE="$AGENT47_HOME/VERSION"
-CACHE_DIR="$AGENT47_HOME/cache"
-UPDATE_CACHE_FILE="$CACHE_DIR/update.cache"
-UPDATE_CACHE_TTL_SECONDS=86400
-DEFAULT_VERSION_URL="https://raw.githubusercontent.com/leanbusqts/agent47/main/VERSION"
-REMOTE_VERSION_URL="${AGENT47_VERSION_URL:-$DEFAULT_VERSION_URL}"
-LIB_DIR="$ROOT_DIR/scripts/lib"
-
-# ---------------------------
-# Version
-# ---------------------------
-# Prefer repo VERSION if present; fallback to installed copy
-if [ -f "$ROOT_DIR/VERSION" ]; then
-  AGENT47_VERSION="$(cat "$ROOT_DIR/VERSION")"
-elif [ -f "$VERSION_FILE" ]; then
-  AGENT47_VERSION="$(cat "$VERSION_FILE")"
-else
-  AGENT47_VERSION="unknown"
+if [ ! -f "$RUNTIME_ENV_LIB" ]; then
+  echo "[ERR] Missing library: $RUNTIME_ENV_LIB"
+  exit 1
 fi
 
-for lib in constants.sh common.sh update.sh templates.sh install.sh doctor.sh; do
-  if [ ! -f "$LIB_DIR/$lib" ]; then
-    echo "[ERR] Missing library: $LIB_DIR/$lib"
-    exit 1
-  fi
-  # shellcheck disable=SC1090
-  source "$LIB_DIR/$lib"
-done
+# shellcheck disable=SC1090
+source "$RUNTIME_ENV_LIB"
+init_agent47_runtime_from_entrypoint "$ENTRY_SOURCE"
+load_agent47_libs constants.sh managed-files.sh common.sh update.sh templates.sh install-assets.sh install-runtime.sh install.sh doctor.sh
 
 # ---------------------------
 # Help
@@ -66,11 +43,11 @@ print_help() {
   echo "  a47 doctor [--check-update|--check-update-force]"
   echo ""
   echo "Project commands:"
-  echo "  a47 add-agent                 bootstrap completo"
-  echo "  a47 add-agent --force         refresh completo"
-  echo "  a47 add-agent --only-skills   instalar solo skills"
+  echo "  a47 add-agent                 bootstrap project scaffolding"
+  echo "  a47 add-agent --force         refresh managed scaffolding"
+  echo "  a47 add-agent --only-skills   install only skills"
   echo "  a47 add-agent --only-skills --force"
-  echo "                               refrescar solo skills"
+  echo "                               refresh only skills"
   echo "  a47 add-agent-prompt [--force]"
   echo "  a47 add-snapshot-prompt"
 }

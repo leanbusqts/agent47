@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 
+ensure_test_runtime_seeded() {
+  # shellcheck disable=SC1090
+  source "$ROOT_DIR/scripts/lib/test-runtime.sh"
+  seed_test_runtime_environment
+}
+
 setup_workdir() {
+  ensure_test_runtime_seeded
   TEST_WORKDIR="$(mktemp -d "$TEST_TMP_ROOT/work-XXXXXX")"
   cd "$TEST_WORKDIR"
 }

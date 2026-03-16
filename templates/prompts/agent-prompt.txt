@@ -33,9 +33,9 @@ Do not duplicate policy from `AGENTS.md`; follow it.
 ## Work Mode
 
 - Use a skill when the task clearly matches one.
-- For non-trivial work, use `specs/spec.yml` as the only plan/tasks/log location.
-- If the user asks for a spec, create or update `specs/spec.yml` through normal interaction instead of expecting a dedicated scaffold command.
-- When the spec draft is ready, suggest that the user review it; if the runtime supports it and the task matters enough, prefer an independent review by another agent or sub-agent.
+- For non-trivial work, use `specs/spec.yml` as the only spec/plan/tasks/log location.
+- If the user asks for a spec or plan, create or update `specs/spec.yml` through normal interaction instead of expecting a dedicated scaffold command.
+- When the spec/plan draft is ready, suggest that the user review it; if the runtime supports it and the task matters enough, prefer an independent review by another agent or sub-agent.
 - Treat skills and spec-driven workflow as optional modes that activate when the relevant files or context are present.
 - Do not create vendor-specific planning or prompt files.
 
