@@ -20,7 +20,7 @@ seed_test_runtime_environment() {
   cp "$ROOT_DIR/VERSION" "$AGENT47_HOME/VERSION"
   cp "$ROOT_DIR/scripts/add-agent" "$AGENT47_HOME/scripts/"
   cp "$ROOT_DIR/scripts/add-agent-prompt" "$AGENT47_HOME/scripts/"
-  cp "$ROOT_DIR/scripts/add-snapshot-prompt" "$AGENT47_HOME/scripts/"
+  cp "$ROOT_DIR/scripts/add-ss-prompt" "$AGENT47_HOME/scripts/"
   rm -rf "$AGENT47_HOME/scripts/lib"
   mkdir -p "$AGENT47_HOME/scripts/lib"
   cp -R "$ROOT_DIR/scripts/lib/." "$AGENT47_HOME/scripts/lib/"

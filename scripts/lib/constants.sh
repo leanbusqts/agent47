@@ -6,11 +6,12 @@
 INSTALLABLE_SCRIPTS=(
   add-agent
   add-agent-prompt
-  add-snapshot-prompt
+  add-ss-prompt
 )
 
 LEGACY_SCRIPTS=(
   a47
+  add-snapshot-prompt
   add-agent-prompt-base
   add-agent-prompt-skills
   add-agent-prompt-sdd

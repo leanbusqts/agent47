@@ -12,6 +12,8 @@ It is intentionally simple: copy templates into a project, keep them versioned, 
 
 The public command is `afs`, short for `Agent Forty-Seven` (`agent47`).
 
+In this repository, root [`SPEC.md`](SPEC.md) is a current-state product spec for `agent47` itself. It is not the place to draft a new feature spec or implementation plan; those should live in `specs/spec.yml` when needed.
+
 ## Quickstart
 
 ```bash
@@ -55,7 +57,7 @@ afs add-agent --force
 afs add-agent --only-skills
 afs add-agent --only-skills --force
 afs add-agent-prompt [--force]
-afs add-snapshot-prompt
+afs add-ss-prompt
 ```
 
 ## Documentation
@@ -65,6 +67,7 @@ afs add-snapshot-prompt
 - [Ownership](docs/ownership.md)
 - [AGENTS.md](AGENTS.md)
 - [SNAPSHOT.md](SNAPSHOT.md)
+- [SPEC.md](SPEC.md)
 
 The usage guide covers:
 
@@ -72,6 +75,7 @@ The usage guide covers:
 - managed vs project-owned files
 - use with agent CLIs such as Codex or Claude Code
 - use with IDEs such as VS Code or Cursor
+- the difference between root `SPEC.md` and project work in `specs/spec.yml`
 
 ## Notes
 
@@ -82,7 +86,7 @@ The usage guide covers:
 - `afs` prefers its managed helper scripts over same-named commands found earlier in `PATH`.
 - `afs add-agent --only-skills` refreshes the curated skills set from whatever `templates/skills/*/SKILL.md` entries ship with the installed templates.
 - during `afs add-agent --force`, `rules/*.yaml` and `skills/*` are reconciled against the current template set, so local custom files there may be replaced or removed
-- `afs add-agent-prompt` and `afs add-snapshot-prompt` are focused helpers.
+- `afs add-agent-prompt` and `afs add-ss-prompt` are focused helpers.
 - `./scripts/test` auto-installs a temporary `bats` copy from `tests/vendor/bats` when needed and cleans it up after the run.
 - `./scripts/lint-shell` runs `shellcheck` over repo Bash sources as an optional contributor check; it is not required for installing or using `agent47`.
 - `./scripts/smoke-install` runs an isolated install + `doctor` pass in a temporary home directory as a release/smoke check.

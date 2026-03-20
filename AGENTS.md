@@ -30,6 +30,7 @@ Read what applies before acting:
   - In template-source repositories such as `agent47` itself, read the equivalent files under `templates/rules/`
   - For shell-heavy repositories, include the shell security rules when present
 - `specs/spec.yml` when the task is non-trivial, plan-driven, or spec-driven
+- In this repository, root `SPEC.md` describes the current-state product spec for `agent47` itself; do not treat it as the default place to draft a new feature spec or implementation plan
 - Relevant code and tests
 - `skills/AVAILABLE_SKILLS.xml` and the selected `skills/*/SKILL.md` when skills are in use
 
@@ -56,6 +57,7 @@ If a command is not defined by the current project, do not assume an `agent47` C
 - Use `specs/spec.yml` as the optional spec/plan/tasks/log location for non-trivial work.
 - If the user asks for a spec or plan and `specs/spec.yml` does not exist, create or update it through normal agent interaction instead of relying on a dedicated CLI scaffold.
 - When drafting or updating a spec or plan through conversation, ask follow-up questions when needed, then suggest that the user review the resulting spec/plan before implementation starts.
+- If `SNAPSHOT.md` or `SPEC.md` already exist and the scoped work materially changes them, consider updating them before commit to keep project documentation aligned with the current state.
 - Trivial tasks do not require a spec or written plan.
 - Prefer an implement-then-review flow for non-trivial changes.
 - Prefer tests in this order: happy path, error handling, edge cases.

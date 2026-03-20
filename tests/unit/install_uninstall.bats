@@ -19,7 +19,7 @@ teardown() {
   assert_file_exists "$AGENT47_HOME/templates/rules/security-shell.yaml"
   assert_file_exists "$AGENT47_HOME/scripts/lib/skill-utils.sh"
   assert_file_exists "$AGENT47_HOME/scripts/add-agent-prompt"
-  assert_file_exists "$AGENT47_HOME/scripts/add-snapshot-prompt"
+  assert_file_exists "$AGENT47_HOME/scripts/add-ss-prompt"
 }
 
 @test "install without force preserves existing installed runtime files" {
@@ -82,7 +82,7 @@ README.md
 AGENTS.md
 manifest.txt
 prompts/agent-prompt.txt
-prompts/snapshot-prompt.txt
+prompts/ss-prompt.txt
 specs/spec.yml
 
 [required_template_dirs]
@@ -121,7 +121,7 @@ exit "$status"' _ "$ROOT_DIR"
   assert_success
   [ ! -f "$HOME/bin/add-agent" ]
   [ ! -f "$HOME/bin/add-agent-prompt" ]
-  [ ! -f "$HOME/bin/add-snapshot-prompt" ]
+  [ ! -f "$HOME/bin/add-ss-prompt" ]
   [ ! -L "$HOME/bin/afs" ]
   [ ! -d "$AGENT47_HOME/templates" ]
   [ ! -d "$AGENT47_HOME/scripts" ]

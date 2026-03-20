@@ -21,7 +21,7 @@ agent47/
 +-- scripts/
 |   +-- add-agent
 |   +-- add-agent-prompt
-|   +-- add-snapshot-prompt
+|   +-- add-ss-prompt
 |   +-- lint-shell
 |   +-- smoke-install
 |   +-- test
@@ -46,7 +46,7 @@ agent47/
 |   +-- manifest.txt
 |   +-- prompts/
 |   |   +-- agent-prompt.txt
-|   |   `-- snapshot-prompt.txt
+|   |   `-- ss-prompt.txt
 |   +-- rules/
 |   |   +-- rules-backend.yaml
 |   |   +-- rules-frontend.yaml
@@ -60,6 +60,7 @@ agent47/
 |       Bats coverage for CLI behavior and template integrity
 |
 +-- AGENTS.md
++-- SPEC.md
 +-- SNAPSHOT.md
 `-- README.md
 ```

@@ -8,12 +8,12 @@
 - **Implemented:** the `agent47` CLI, invoked via `afs`, supports uninstall, doctor, opt-in update checks, and project bootstrap commands, plus `./install.sh` as the public installation entrypoint; curated templates for `AGENTS.md`, stack rules, security rules, skills, prompts, and `specs/spec.yml`; Bats-based unit test suite and Make targets.
 - **Architecture:** the `agent47` CLI entrypoint at `bin/afs` is now mostly a router and sources shared logic from `scripts/lib/`, including dedicated runtime bootstrap, install, bootstrap, test-runtime, and skill helper modules plus a declarative `templates/manifest.txt`.
 - **Documentation:** `README.md` is now intentionally short; usage and structure details live in `docs/usage.md` and `docs/architecture.md`.
-- **Stable workflow:** `afs add-agent` bootstraps `AGENTS.md` and all `rules/*.yaml` plus skills; `afs add-agent-prompt` and `afs add-snapshot-prompt` are available as focused helpers.
+- **Stable workflow:** `afs add-agent` bootstraps `AGENTS.md` and all `rules/*.yaml` plus skills; `afs add-agent-prompt` and `afs add-ss-prompt` are available as focused helpers.
 - **Managed refresh behavior:** during `afs add-agent --force`, `rules/*.yaml`, `skills/*`, and `skills/AVAILABLE_SKILLS.xml` are reconciled against the current template set, so local custom files in those paths may be replaced or removed.
 - **Dynamic skills:** the curated skill set is discovered from installed `templates/skills/*/SKILL.md` entries instead of a hardcoded list, so template additions flow into bootstrap automatically.
 - **Operational hardening:** core helper scripts now run with strict shell mode, install preflights core assets, and bootstrap commands reject unexpected arguments to reduce silent partial failures.
 - **Install hardening:** `./install.sh` now installs the `afs` launcher under `~/.agent47/bin/` and links `~/bin/afs` to that managed copy, avoiding dependence on the original repo checkout path.
-- **Not automated by CLI:** `SNAPSHOT.md` creation/update, vendor-specific configs, Windows/PowerShell support, dependency enforcement against concrete package manifests.
+- **Not automated by CLI:** `SNAPSHOT.md` and `SPEC.md` creation/update remain manual-agent workflows, alongside vendor-specific configs, Windows/PowerShell support, and dependency enforcement against concrete package manifests.
 
 ## 3. Current Commands
 - `./install.sh [--force]`
@@ -22,7 +22,7 @@
 - `afs add-agent [--force]`
 - `afs add-agent --only-skills [--force]`
 - `afs add-agent-prompt`
-- `afs add-snapshot-prompt`
+- `afs add-ss-prompt`
 
 ## 4. Key Repository Structure
 - `AGENTS.md` – live root policy file for this repo.
@@ -33,7 +33,7 @@
 - `scripts/`
   - `add-agent`
   - `add-agent-prompt`
-  - `add-snapshot-prompt`
+  - `add-ss-prompt`
   - `lint-shell`
   - `smoke-install`
   - `test`
@@ -42,14 +42,14 @@
 - `templates/`
   - `AGENTS.md`
   - `prompts/agent-prompt.txt`
-  - `prompts/snapshot-prompt.txt`
+  - `prompts/ss-prompt.txt`
   - `rules/rules-frontend.yaml`
   - `rules/rules-backend.yaml`
   - `rules/rules-mobile.yaml`
   - `rules/security-*.yaml`
   - `specs/spec.yml`
   - `skills/<name>/SKILL.md`
-- `tests/unit/` – Bats unit coverage for CLI, prompts, policy, skills, backups, and snapshot helper.
+- `tests/unit/` – Bats unit coverage for CLI, prompts, policy, skills, backups, and snapshot/spec helper flows.
 
 ## 5. Policy And Rules Model
 - Authority order: user > nearest `AGENTS.md` > security rules > stack rules > spec > code/tests > memories.
@@ -59,7 +59,7 @@
 - Vendor-specific agent config files such as `claude.md`, `.cursorrules`, and `/.codex/config.toml` require explicit prior user authorization before creation or modification.
 - Security rules live directly under `templates/rules/` as `security-*.yaml`.
 - Java/Kotlin rules apply to backend and mobile; Swift applies to mobile; C# applies to backend and MAUI/Xamarin-style mobile work.
-- `SNAPSHOT.md` remains a manual project note, outside the public agent contract and default prompt flow.
+- `SNAPSHOT.md` and `SPEC.md` remain manual, agent-assisted project documents outside the default scaffold flow.
 
 ## 6. Testing And Validation
 - `make test` and `./scripts/test` pass.
@@ -72,7 +72,7 @@
   - prompt generation without policy duplication
   - security rule IDs and required fields
   - install/uninstall flows
-  - snapshot helper behavior
+  - snapshot/spec helper behavior
   - legacy prompt-script detection in `doctor`
 
 ## 7. Constraints And Risks
@@ -84,4 +84,4 @@
 - On macOS, downloaded files may still inherit host OS restrictions outside `com.apple.quarantine`; the installer mitigates common quarantine cases but cannot override system-level execution policy.
 
 ## 8. Last Updated
-- March 15, 2026 (release v1.0.21)
+- March 20, 2026 (release v1.0.22)

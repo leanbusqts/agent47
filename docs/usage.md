@@ -136,10 +136,10 @@ Refresh only the general prompt:
 afs add-agent-prompt [--force]
 ```
 
-Get the helper prompt for manually updating a project snapshot or summary file, such as `SNAPSHOT.md`:
+Get the helper prompt for manually generating or updating project state documents such as `SNAPSHOT.md` and `SPEC.md`:
 
 ```bash
-afs add-snapshot-prompt
+afs add-ss-prompt
 ```
 
 ## Which command to use
@@ -150,6 +150,7 @@ afs add-snapshot-prompt
 - Refresh an existing repo-managed setup: `afs add-agent --force`
 - Add or refresh only the default curated skills: `afs add-agent --only-skills [--force]`
 - Create or refine a spec/plan through the agent in `specs/spec.yml`
+- Treat root `SPEC.md` as the current-state product spec for `agent47`, not as the default file for a new feature spec or plan
 
 ## Operational notes
 

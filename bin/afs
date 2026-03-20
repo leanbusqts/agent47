@@ -49,7 +49,7 @@ print_help() {
   echo "  afs add-agent --only-skills --force"
   echo "                               refresh only skills"
   echo "  afs add-agent-prompt [--force]"
-  echo "  afs add-snapshot-prompt"
+  echo "  afs add-ss-prompt"
 }
 
 # ---------------------------
@@ -87,8 +87,8 @@ case "${1:-}" in
   add-agent-prompt)
     run_cmd add-agent-prompt "${@:2}"
   ;;
-  add-snapshot-prompt)
-    run_cmd add-snapshot-prompt "${@:2}"
+  add-ss-prompt)
+    run_cmd add-ss-prompt "${@:2}"
   ;;
   init-agent)
     init_agent

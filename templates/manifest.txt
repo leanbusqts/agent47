@@ -25,7 +25,7 @@ SNAPSHOT.md
 AGENTS.md
 manifest.txt
 prompts/agent-prompt.txt
-prompts/snapshot-prompt.txt
+prompts/ss-prompt.txt
 specs/spec.yml
 
 [required_template_dirs]

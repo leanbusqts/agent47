@@ -1,0 +1,13 @@
+Review this repository and generate or update the project's snapshot/summary file and technical spec, typically `SNAPSHOT.md` and `SPEC.md`, so they reflect the current state of the repo.
+
+Requirements:
+- Treat `AGENTS.md`, rules, specs, code, and tests as authoritative.
+- Update or create both files when the project uses them.
+- Keep `SNAPSHOT.md` descriptive, concise, and non-authoritative.
+- Keep `SPEC.md` technical, structured, and aligned with actual behavior.
+- Do not invent capabilities or status.
+- Include current project structure, key commands, active scaffolding files if relevant, and noteworthy constraints.
+- In `SPEC.md`, describe the current product contract, public commands, ownership model, and operational behavior.
+- Exclude secrets, credentials, and private data.
+- If the project does not use one of these files, say so instead of assuming it exists.
+- If a fact is uncertain, say so briefly instead of guessing.

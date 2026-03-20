@@ -24,4 +24,5 @@ teardown() {
   assert_contains "$output" "afs add-agent                 bootstrap project scaffolding"
   assert_contains "$output" "afs add-agent --only-skills   install only skills"
   assert_contains "$output" "afs add-agent-prompt [--force]"
+  assert_contains "$output" "afs add-ss-prompt"
 }

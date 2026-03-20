@@ -1,6 +1,13 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [1.0.22] - 2026-03-20
+### Changed
+- Renamed the snapshot helper flow to `afs add-ss-prompt`, renamed the installed prompt template to `templates/prompts/ss-prompt.txt`, and updated docs/tests/runtime references accordingly.
+- Expanded the `add-ss-prompt` template so it guides agents to generate or update both `SNAPSHOT.md` and `SPEC.md` instead of only snapshot-style documentation.
+- Clarified across `README.md`, `SPEC.md`, `SNAPSHOT.md`, `docs/`, and `AGENTS.md` that root `SPEC.md` is the current-state product spec for `agent47` itself, while task-specific planning work should live in `specs/spec.yml`.
+- Added guidance in root and template `AGENTS.md` suggesting that existing `SNAPSHOT.md` and `SPEC.md` files be updated before commit when scoped work materially changes them.
+
 ## [1.0.21] - 2026-03-15
 ### Changed
 - Clarified the managed-ownership model across `README.md`, `SNAPSHOT.md`, and docs so `afs add-agent --force` is explicit about `rules/` and `skills/` being fully managed refresh targets rather than mixed-ownership directories.
@@ -9,7 +16,7 @@
 ### Fixed
 - Hardened installation so it now fails fast on permission errors and on missing core install assets from the source checkout instead of reporting a false success.
 - Made `add-agent` abort before writing any project files when required skills helper dependencies are missing, preventing partial bootstrap state.
-- Rejected unexpected arguments across scaffolding scripts such as `add-agent`, `add-agent-prompt`, and `add-snapshot-prompt`.
+- Rejected unexpected arguments across scaffolding scripts such as `add-agent`, `add-agent-prompt`, and the snapshot/spec prompt helper flow.
 - Ensured unknown `afs` commands return a non-zero exit code.
 - Fixed template restore behavior under strict shell mode so `templates --restore-latest` now reports missing backups correctly and restore tests are isolated.
 - Made skill installation derive from the actual template tree instead of a hardcoded list, so new curated skills are picked up automatically.
@@ -59,9 +66,9 @@
 ## [1.0.14] - 2026-03-11
 ### Added
 - Project bootstrap around `AGENTS.md`, layered `rules/*.yaml`, curated skills, `skills/AVAILABLE_SKILLS.xml`, `specs/spec.yml`, and a single general `agent-prompt.txt`.
-- CLI maintenance flows for install, upgrade, uninstall, doctor checks, template backups, update checks, and focused project commands such as `add-spec`, `add-agent-prompt`, and `add-snapshot-prompt`.
+- CLI maintenance flows for install, upgrade, uninstall, doctor checks, template backups, update checks, and focused project commands such as `add-spec`, `add-agent-prompt`, and the snapshot/spec prompt helper flow.
 - Security rule coverage split by global, JavaScript/TypeScript, Python, Java/Kotlin, Swift, and C# concerns, with mobile applicability for Android and MAUI/Xamarin-oriented stacks.
-- Shared CLI internals under `scripts/lib/` and Bats-based unit coverage for bootstrap, refresh, prompts, templates, policy validation, and snapshot helper behavior.
+- Shared CLI internals under `scripts/lib/` and Bats-based unit coverage for bootstrap, refresh, prompts, templates, policy validation, and snapshot/spec helper behavior.
 - Dedicated documentation pages in `docs/usage.md` and `docs/architecture.md`, including an ASCII diagram of the repository structure and execution flow.
 
 ### Changed
