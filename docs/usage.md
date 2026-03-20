@@ -23,17 +23,17 @@ Non-interactive install:
 Verify:
 
 ```bash
-a47 doctor
-a47 doctor --check-update
+afs doctor
+afs doctor --check-update
 ./scripts/lint-shell
 ./scripts/smoke-install
 ```
 
 `./install.sh` is the only public installation entrypoint.
-It installs the managed launcher under `~/.agent47/bin/a47` and links `~/bin/a47` to that copy.
+It installs the managed launcher under `~/.agent47/bin/afs` and links `~/bin/afs` to that copy.
 `--no-prompt` skips interactive shell rc edits and is intended for automation.
 
-There is no supported `a47 install` or `a47 upgrade` command.
+There is no supported `afs install` or `afs upgrade` command.
 
 ## First steps
 
@@ -46,14 +46,14 @@ There is no supported `a47 install` or `a47 upgrade` command.
 2. Verify the local setup:
 
 ```bash
-a47 doctor
+afs doctor
 ```
 
 3. Enter the target project and bootstrap it:
 
 ```bash
 cd /path/to/project
-a47 add-agent
+afs add-agent
 ```
 
 ## Bootstrap a project
@@ -61,7 +61,7 @@ a47 add-agent
 Inside the target project:
 
 ```bash
-a47 add-agent
+afs add-agent
 ```
 
 This copies:
@@ -70,14 +70,14 @@ This copies:
 - all `rules/*.yaml`
 - all curated `skills/*` discovered from the installed template tree
 - `skills/AVAILABLE_SKILLS.xml`
-- `README.md` if missing
+- and creates an empty `README.md` if missing
 
 ## Update an older project
 
 If the project already has an older agent47 setup:
 
 ```bash
-a47 add-agent --force
+afs add-agent --force
 ```
 
 This reconciles managed files against the current template set:
@@ -105,7 +105,7 @@ By default, `agent47` manages these project files:
 - `skills/*`
 - `skills/AVAILABLE_SKILLS.xml`
 
-`a47 add-agent --force` refreshes those managed files.
+`afs add-agent --force` refreshes those managed files.
 During `--force`, those paths are reconciled against the current template set.
 
 `agent47` does not overwrite these project-owned files during the normal refresh flow:
@@ -121,8 +121,8 @@ If you keep project-specific extensions under `rules/` or `skills/`, expect to r
 Refresh only skills:
 
 ```bash
-a47 add-agent --only-skills
-a47 add-agent --only-skills --force
+afs add-agent --only-skills
+afs add-agent --only-skills --force
 ```
 
 This mode only updates `skills/*` and `skills/AVAILABLE_SKILLS.xml`.
@@ -133,22 +133,22 @@ With `--force`, local custom files under `skills/` are still replaceable because
 Refresh only the general prompt:
 
 ```bash
-a47 add-agent-prompt [--force]
+afs add-agent-prompt [--force]
 ```
 
 Get the helper prompt for manually updating a project snapshot or summary file, such as `SNAPSHOT.md`:
 
 ```bash
-a47 add-snapshot-prompt
+afs add-snapshot-prompt
 ```
 
 ## Which command to use
 
 - Install the tool on your machine: `./install.sh`
-- Verify the local install: `a47 doctor`
-- Bootstrap a repo with the default scaffolding: `a47 add-agent`
-- Refresh an existing repo-managed setup: `a47 add-agent --force`
-- Add or refresh only the default curated skills: `a47 add-agent --only-skills [--force]`
+- Verify the local install: `afs doctor`
+- Bootstrap a repo with the default scaffolding: `afs add-agent`
+- Refresh an existing repo-managed setup: `afs add-agent --force`
+- Add or refresh only the default curated skills: `afs add-agent --only-skills [--force]`
 - Create or refine a spec/plan through the agent in `specs/spec.yml`
 
 ## Operational notes
@@ -158,15 +158,15 @@ a47 add-snapshot-prompt
 - interactive installs write the PATH export to the preferred shell rc file for the active shell, using `~/.bash_profile` for Bash on macOS/login-style setups
 - `add-*` commands write to the current project directory
 - `doctor` checks installed commands, templates, prompt layout, and policy structure
-- `doctor` skips update checks by default; use `a47 doctor --check-update` to include them
+- `doctor` skips update checks by default; use `afs doctor --check-update` to include them
 - `./scripts/test` auto-installs a temporary `bats` copy from `tests/vendor/bats` when needed
 - `./scripts/lint-shell` runs `shellcheck` against repo Bash sources as an optional maintainer/contributor check; users of `agent47` do not need it
-- `./scripts/smoke-install` runs an isolated install plus `a47 doctor` as a smoke/release check
+- `./scripts/smoke-install` runs an isolated install plus `afs doctor` as a smoke/release check
 - reinstalling without `--force` preserves existing installed commands and launcher links; use `--force` when you intend to refresh managed runtime files
 - template backups keep only the latest backup when reinstalling with `--force`
 - if you need to recover templates manually, copy the latest `~/.agent47/templates.bak.*` back over `~/.agent47/templates`
-- `a47` resolves managed helper scripts before falling back to same-named commands on `PATH`
-- `a47 uninstall` removes both the published commands in `~/bin` and the managed runtime assets under `~/.agent47`
+- `afs` resolves managed helper scripts before falling back to same-named commands on `PATH`
+- `afs uninstall` removes both the published commands in `~/bin` and the managed runtime assets under `~/.agent47`
 
 ## Use with agent CLIs
 

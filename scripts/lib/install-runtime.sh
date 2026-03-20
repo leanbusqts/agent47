@@ -112,7 +112,7 @@ preflight_install_assets() {
 
   install_runtime_require_context || return 1
 
-  require_install_asset file "$ROOT_DIR/bin/a47" || return 1
+  require_install_asset file "$ROOT_DIR/bin/afs" || return 1
   require_install_asset dir "$ROOT_DIR/templates" || return 1
   require_install_asset dir "$ROOT_DIR/scripts/lib" || return 1
   require_install_asset file "$ROOT_DIR/VERSION" || return 1
@@ -175,7 +175,7 @@ install_managed_runtime() {
 
   mkdir -p "$USER_DIR"
   mkdir -p "$AGENT47_HOME/bin" "$AGENT47_HOME/scripts"
-  user_stage_root="$(mktemp -d "${TMPDIR:-/tmp}/a47-user-install-XXXXXX")"
+  user_stage_root="$(mktemp -d "${TMPDIR:-/tmp}/afs-user-install-XXXXXX")"
 
   prepare_user_script_stage "$force" "$user_stage_root"
 
@@ -184,13 +184,13 @@ install_managed_runtime() {
     return 1
   fi
 
-  if [ -f "$AGENT47_HOME/bin/a47" ] && [ "$force" != "true" ]; then
-    echo "[WARN] a47 launcher already exists in $AGENT47_HOME/bin (use --force to overwrite)"
+  if [ -f "$AGENT47_HOME/bin/afs" ] && [ "$force" != "true" ]; then
+    echo "[WARN] afs launcher already exists in $AGENT47_HOME/bin (use --force to overwrite)"
   else
-    install_file_atomically "$ROOT_DIR/bin/a47" "$AGENT47_HOME/bin/a47"
-    chmod +x "$AGENT47_HOME/bin/a47"
-    clear_quarantine_attrs "$AGENT47_HOME/bin/a47"
-    echo "[OK] Installed a47 launcher"
+    install_file_atomically "$ROOT_DIR/bin/afs" "$AGENT47_HOME/bin/afs"
+    chmod +x "$AGENT47_HOME/bin/afs"
+    clear_quarantine_attrs "$AGENT47_HOME/bin/afs"
+    echo "[OK] Installed afs launcher"
   fi
 
   for script in "${INSTALLABLE_SCRIPTS[@]}"; do
@@ -233,13 +233,13 @@ install_managed_runtime() {
   fi
 
   rm -rf "$user_stage_root"
-  echo "[OK] a47 installation complete"
+  echo "[OK] afs installation complete"
 }
 
 uninstall_managed_runtime() {
   local script
 
-  echo "[*] Uninstalling a47 scripts..."
+  echo "[*] Uninstalling afs scripts..."
 
   install_runtime_require_context || return 1
   for script in "${INSTALLABLE_SCRIPTS[@]}" "${LEGACY_SCRIPTS[@]}"; do
@@ -251,14 +251,14 @@ uninstall_managed_runtime() {
     fi
   done
 
-  if [ -L "$USER_DIR/a47" ]; then
-    rm "$USER_DIR/a47"
-    echo "[OK] Removed a47 symlink"
+  if [ -L "$USER_DIR/afs" ]; then
+    rm "$USER_DIR/afs"
+    echo "[OK] Removed afs symlink"
   fi
 
-  if [ -f "$AGENT47_HOME/bin/a47" ]; then
-    rm "$AGENT47_HOME/bin/a47"
-    echo "[OK] Removed installed a47 launcher"
+  if [ -f "$AGENT47_HOME/bin/afs" ]; then
+    rm "$AGENT47_HOME/bin/afs"
+    echo "[OK] Removed installed afs launcher"
   fi
 
   rm -rf "${AGENT47_HOME:?}/bin" "${AGENT47_HOME:?}/scripts" "${AGENT47_HOME:?}/templates" "${AGENT47_HOME:?}/cache"
@@ -268,5 +268,5 @@ uninstall_managed_runtime() {
     rmdir "$AGENT47_HOME" >/dev/null 2>&1 || true
   fi
 
-  echo "[OK] a47 tools removed from system"
+  echo "[OK] afs tools removed from system"
 }

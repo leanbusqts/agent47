@@ -109,21 +109,21 @@ doctor() {
     "")
       ;;
     *)
-      echo "Usage: a47 doctor [--check-update|--check-update-force]"
+      echo "Usage: afs doctor [--check-update|--check-update-force]"
       return 1
       ;;
   esac
 
-  echo "[*] a47 doctor"
+  echo "[*] afs doctor"
   echo "[INFO] Version: $AGENT47_VERSION"
 
-  if doctor_is_managed_command a47 "$AGENT47_HOME/bin/a47"; then
-    echo "[OK] a47 in PATH"
-  elif command -v a47 >/dev/null 2>&1; then
-    echo "[WARN] a47 in PATH, but not the managed launcher"
+  if doctor_is_managed_command afs "$AGENT47_HOME/bin/afs"; then
+    echo "[OK] afs in PATH"
+  elif command -v afs >/dev/null 2>&1; then
+    echo "[WARN] afs in PATH, but not the managed launcher"
     echo "[HINT] Fix: run ./install.sh"
   else
-    echo "[WARN] a47 not in PATH"
+    echo "[WARN] afs not in PATH"
     echo "[HINT] Fix: run ./install.sh"
   fi
 
@@ -177,13 +177,13 @@ doctor() {
     echo "[INFO] bats check skipped outside the source repository"
   fi
 
-  if doctor_symlink_matches "$USER_DIR/a47" "$AGENT47_HOME/bin/a47"; then
-    echo "[OK] a47 symlink present in ~/bin"
-  elif [ -L "$USER_DIR/a47" ]; then
-    echo "[WARN] a47 symlink in ~/bin is broken or points to a non-executable target"
+  if doctor_symlink_matches "$USER_DIR/afs" "$AGENT47_HOME/bin/afs"; then
+    echo "[OK] afs symlink present in ~/bin"
+  elif [ -L "$USER_DIR/afs" ]; then
+    echo "[WARN] afs symlink in ~/bin is broken or points to a non-executable target"
     echo "[HINT] Fix: run ./install.sh"
   else
-    echo "[WARN] a47 symlink missing"
+    echo "[WARN] afs symlink missing"
     echo "[HINT] Fix: run ./install.sh"
   fi
 
@@ -204,6 +204,6 @@ doctor() {
     fi
   else
     echo "[INFO] Skipping update check by default"
-    echo "[HINT] Run: a47 doctor --check-update"
+    echo "[HINT] Run: afs doctor --check-update"
   fi
 }

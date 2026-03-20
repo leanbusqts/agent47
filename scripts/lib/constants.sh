@@ -10,6 +10,7 @@ INSTALLABLE_SCRIPTS=(
 )
 
 LEGACY_SCRIPTS=(
+  a47
   add-agent-prompt-base
   add-agent-prompt-skills
   add-agent-prompt-sdd

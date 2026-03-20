@@ -47,7 +47,7 @@ teardown() {
   PATH="/usr/sbin:/sbin:/bin"
   export AGENT47_VERSION_URL=""
   rm -f "$AGENT47_HOME/cache/update.cache"
-  run "$ROOT_DIR/bin/a47" doctor --check-update-force
+  run "$ROOT_DIR/bin/afs" doctor --check-update-force
   assert_success
   assert_contains "$output" "Cannot check for updates"
 }
@@ -55,7 +55,7 @@ teardown() {
 @test "doctor update check succeeds when remote VERSION is readable" {
   export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
   rm -f "$AGENT47_HOME/cache/update.cache"
-  run "$ROOT_DIR/bin/a47" doctor --check-update
+  run "$ROOT_DIR/bin/afs" doctor --check-update
   assert_success
   assert_contains "$output" "Up to date"
 }
@@ -64,7 +64,7 @@ teardown() {
   PATH="/usr/sbin:/sbin:/bin"
   unset AGENT47_VERSION_URL
   rm -f "$AGENT47_HOME/cache/update.cache"
-  run "$ROOT_DIR/bin/a47" doctor --check-update-force
+  run "$ROOT_DIR/bin/afs" doctor --check-update-force
   assert_success
   assert_contains "$output" "Cannot check for updates"
 }
@@ -81,7 +81,7 @@ message_b64=%%%
 EOF
   export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
 
-  run "$ROOT_DIR/bin/a47" doctor --check-update
+  run "$ROOT_DIR/bin/afs" doctor --check-update
   assert_success
   assert_contains "$output" "Up to date"
   assert_not_contains "$output" "Using cached update check"

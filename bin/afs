@@ -34,22 +34,22 @@ load_agent47_libs constants.sh managed-files.sh common.sh update.sh templates.sh
 # Help
 # ---------------------------
 print_help() {
-  echo "a47 - Agent & SDD CLI"
+  echo "agent47 Agent CLI (command: afs, Agent Forty-Seven)"
   echo "Version: $AGENT47_VERSION"
   echo ""
   echo "Core commands:"
-  echo "  a47 help"
-  echo "  a47 uninstall"
-  echo "  a47 doctor [--check-update|--check-update-force]"
+  echo "  afs help"
+  echo "  afs uninstall"
+  echo "  afs doctor [--check-update|--check-update-force]"
   echo ""
   echo "Project commands:"
-  echo "  a47 add-agent                 bootstrap project scaffolding"
-  echo "  a47 add-agent --force         refresh managed scaffolding"
-  echo "  a47 add-agent --only-skills   install only skills"
-  echo "  a47 add-agent --only-skills --force"
+  echo "  afs add-agent                 bootstrap project scaffolding"
+  echo "  afs add-agent --force         refresh managed scaffolding"
+  echo "  afs add-agent --only-skills   install only skills"
+  echo "  afs add-agent --only-skills --force"
   echo "                               refresh only skills"
-  echo "  a47 add-agent-prompt [--force]"
-  echo "  a47 add-snapshot-prompt"
+  echo "  afs add-agent-prompt [--force]"
+  echo "  afs add-snapshot-prompt"
 }
 
 # ---------------------------

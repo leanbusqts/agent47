@@ -2,10 +2,10 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
-BIN="$REPO_DIR/bin/a47"
+BIN="$REPO_DIR/bin/afs"
 USER_BIN="$HOME/bin"
 INSTALLED_BIN_DIR="$HOME/.agent47/bin"
-INSTALLED_BIN="$INSTALLED_BIN_DIR/a47"
+INSTALLED_BIN="$INSTALLED_BIN_DIR/afs"
 VERSION="$(cat "$REPO_DIR/VERSION" 2>/dev/null || echo "unknown")"
 RUNTIME_ENV_LIB="$REPO_DIR/scripts/lib/runtime-env.sh"
 
@@ -85,12 +85,12 @@ fi
 # 3) Ensure ~/bin exists
 mkdir -p "$USER_BIN"
 
-# 4) Create/refresh symlink (primary entrypoint: a47)
-if [ -e "$USER_BIN/a47" ] && [ "$FORCE" != true ]; then
-  echo "[WARN] a47 entry already exists in ~/bin (use --force to refresh)"
+# 4) Create/refresh symlink (primary entrypoint: afs)
+if [ -e "$USER_BIN/afs" ] && [ "$FORCE" != true ]; then
+  echo "[WARN] afs entry already exists in ~/bin (use --force to refresh)"
 else
-  install_symlink_atomically "$INSTALLED_BIN" "$USER_BIN/a47"
-  echo "[OK] Linked a47 into ~/bin -> $INSTALLED_BIN"
+  install_symlink_atomically "$INSTALLED_BIN" "$USER_BIN/afs"
+  echo "[OK] Linked afs into ~/bin -> $INSTALLED_BIN"
 fi
 
 # 5) PATH check
@@ -106,5 +106,5 @@ else
   echo "[OK] ~/bin in PATH"
 fi
 
-echo "[OK] a47 installed"
-echo "[HINT] Run: a47 doctor"
+echo "[OK] afs installed"
+echo "[HINT] Run: afs doctor"

@@ -3,26 +3,26 @@
 
 ## [1.0.21] - 2026-03-15
 ### Changed
-- Clarified the managed-ownership model across `README.md`, `SNAPSHOT.md`, and docs so `a47 add-agent --force` is explicit about `rules/` and `skills/` being fully managed refresh targets rather than mixed-ownership directories.
+- Clarified the managed-ownership model across `README.md`, `SNAPSHOT.md`, and docs so `afs add-agent --force` is explicit about `rules/` and `skills/` being fully managed refresh targets rather than mixed-ownership directories.
 
 ## [1.0.20] - 2026-03-14
 ### Fixed
 - Hardened installation so it now fails fast on permission errors and on missing core install assets from the source checkout instead of reporting a false success.
 - Made `add-agent` abort before writing any project files when required skills helper dependencies are missing, preventing partial bootstrap state.
 - Rejected unexpected arguments across scaffolding scripts such as `add-agent`, `add-agent-prompt`, and `add-snapshot-prompt`.
-- Ensured unknown `a47` commands return a non-zero exit code.
+- Ensured unknown `afs` commands return a non-zero exit code.
 - Fixed template restore behavior under strict shell mode so `templates --restore-latest` now reports missing backups correctly and restore tests are isolated.
 - Made skill installation derive from the actual template tree instead of a hardcoded list, so new curated skills are picked up automatically.
 - Prevented `add-agent-prompt` from creating `prompts/` when the source template is missing.
 - Hardened update-cache decoding so corrupted cache entries now fall back cleanly instead of poisoning later checks.
 
 ### Changed
-- Simplified the public install surface so `./install.sh` is now the only supported installation entrypoint; `a47 install` and `a47 upgrade` are no longer exposed.
-- Removed `a47 add-spec` from the public CLI; spec creation is now an agent-driven workflow around `specs/spec.yml`, with an explicit user review step and optional multi-agent review when supported.
-- Removed `a47 add-cli-prompt`; the minimal bootstrap text for CLIs and IDEs now lives in documentation instead of the public CLI.
-- Removed `a47 templates` from the public CLI; template backups remain automatic and recovery is now documented as a manual maintenance step.
-- Removed `a47 check-update` from the public CLI; update checks now live only under `a47 doctor --check-update`.
-- Folded `add-default-skills` into `a47 add-agent --only-skills [--force]` and updated help text to explain each `add-agent` variant inline.
+- Simplified the public install surface so `./install.sh` is now the only supported installation entrypoint; `afs install` and `afs upgrade` are no longer exposed.
+- Removed `afs add-spec` from the public CLI; spec creation is now an agent-driven workflow around `specs/spec.yml`, with an explicit user review step and optional multi-agent review when supported.
+- Removed `afs add-cli-prompt`; the minimal bootstrap text for CLIs and IDEs now lives in documentation instead of the public CLI.
+- Removed `afs templates` from the public CLI; template backups remain automatic and recovery is now documented as a manual maintenance step.
+- Removed `afs check-update` from the public CLI; update checks now live only under `afs doctor --check-update`.
+- Folded `add-default-skills` into `afs add-agent --only-skills [--force]` and updated help text to explain each `add-agent` variant inline.
 - Updated `doctor` usage to make update checks opt-in via `--check-update` and `--check-update-force`.
 - Switched the update cache filename from `update.json` to `update.cache` to reflect the on-disk format.
 - Improved the test runner to install a temporary `bats` copy automatically when needed.
@@ -41,16 +41,16 @@
 ## [1.0.16] - 2026-03-13
 ### Fixed
 - Replaced absolute local filesystem links in `README.md` documentation with repository-relative links so they work outside the original author machine.
-- Changed `./install.sh` to link `~/bin/a47` to an installed launcher in `~/.agent47/bin/a47` instead of symlinking directly into the git checkout.
+- Changed `./install.sh` to link `~/bin/afs` to an installed launcher in `~/.agent47/bin/afs` instead of symlinking directly into the git checkout.
 - Cleared macOS quarantine attributes from installed launchers and helper scripts when possible to reduce `Operation not permitted` failures after downloading the repo on another Mac.
 
 ### Changed
-- Updated install/doctor test coverage to validate the installed launcher layout and `~/bin/a47` symlink behavior.
+- Updated install/doctor test coverage to validate the installed launcher layout and `~/bin/afs` symlink behavior.
 
 ## [1.0.15] - 2026-03-11
 ### Changed
 - Renamed `add-prompt` to `add-agent-prompt` to keep prompt-related commands under a consistent `add-*-prompt` naming scheme.
-- Stopped `a47 add-agent` from copying the general agent prompt by default; prompt files are now opt-in helpers.
+- Stopped `afs add-agent` from copying the general agent prompt by default; prompt files are now opt-in helpers.
 - Removed `SNAPSHOT.md` references from the public agent contract and default prompt flow.
 
 ### Removed
@@ -65,10 +65,10 @@
 - Dedicated documentation pages in `docs/usage.md` and `docs/architecture.md`, including an ASCII diagram of the repository structure and execution flow.
 
 ### Changed
-- Simplified project bootstrap so `a47 add-agent` now installs the full managed scaffolding by default instead of requiring `--with-skills` and `--prompt`.
-- Added `a47 add-agent --force` as the refresh path for older projects while preserving `README.md`, `specs/spec.yml`, and `SNAPSHOT.md`.
+- Simplified project bootstrap so `afs add-agent` now installs the full managed scaffolding by default instead of requiring `--with-skills` and `--prompt`.
+- Added `afs add-agent --force` as the refresh path for older projects while preserving `README.md`, `specs/spec.yml`, and `SNAPSHOT.md`.
 - Reduced policy duplication by consolidating prompt usage around one general prompt and keeping `AGENTS.md` as the authoritative contract.
-- Refactored `bin/a47` into a thinner router backed by shared modules and hardened bootstrap scripts with strict shell mode to fail fast on copy/update errors.
+- Refactored `bin/afs` into a thinner router backed by shared modules and hardened bootstrap scripts with strict shell mode to fail fast on copy/update errors.
 - Shortened `README.md` into an entry document and moved detailed operational and structural guidance into `docs/`.
 
 ### Removed

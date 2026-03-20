@@ -31,9 +31,9 @@ Target project files preserved during refresh:
 - `specs/spec.yml`
 - `SNAPSHOT.md`
 
-During `a47 add-agent --force`, the managed target set is reconciled to the current manifest and template payload.
+During `afs add-agent --force`, the managed target set is reconciled to the current manifest and template payload.
 That means stale managed rules or skills are removed, while preserved targets stay untouched.
-Custom project files can exist under `rules/` and `skills/`, but they are at risk of replacement or removal during `a47 add-agent --force`.
+Custom project files can exist under `rules/` and `skills/`, but they are at risk of replacement or removal during `afs add-agent --force`.
 
 ## Code boundaries
 

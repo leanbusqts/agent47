@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SMOKE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/a47-smoke-XXXXXX")"
+SMOKE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/afs-smoke-XXXXXX")"
 
 cleanup() {
   rm -rf "$SMOKE_ROOT"
@@ -16,7 +16,7 @@ export PATH="$HOME/bin:/usr/bin:/bin"
 mkdir -p "$HOME/bin"
 
 "$ROOT_DIR/install.sh" --force --no-prompt
-doctor_output="$("$HOME/bin/a47" doctor)"
+doctor_output="$("$HOME/bin/afs" doctor)"
 printf "%s\n" "$doctor_output"
 
 if printf "%s\n" "$doctor_output" | grep -q '^\[WARN\]'; then

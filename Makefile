@@ -12,7 +12,7 @@ smoke-install:
 
 # Remove any leftover temp dirs from failed/terminated test runs
 clean-test:
-	find "${TMPDIR:-/tmp}" -maxdepth 1 \( -type d -name 'a47-test-*' -o -type d -name 'a47-skills-*' \) -print -exec rm -rf {} +
+	find "${TMPDIR:-/tmp}" -maxdepth 1 \( -type d -name 'afs-test-*' -o -type d -name 'afs-skills-*' \) -print -exec rm -rf {} +
 
 # Remove embedded git metadata from vendored deps (e.g., bats)
 vendor-clean:

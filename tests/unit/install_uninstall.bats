@@ -13,7 +13,7 @@ teardown() {
 @test "install copies templates and library helpers into AGENT47_HOME" {
   PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh" --force
   assert_success
-  assert_file_exists "$AGENT47_HOME/bin/a47"
+  assert_file_exists "$AGENT47_HOME/bin/afs"
   assert_file_exists "$AGENT47_HOME/templates/AGENTS.md"
   assert_file_exists "$AGENT47_HOME/templates/specs/spec.yml"
   assert_file_exists "$AGENT47_HOME/templates/rules/security-shell.yaml"
@@ -24,20 +24,20 @@ teardown() {
 
 @test "install without force preserves existing installed runtime files" {
   mkdir -p "$AGENT47_HOME/bin" "$AGENT47_HOME/scripts" "$HOME/bin"
-  printf '%s\n' old-launcher > "$AGENT47_HOME/bin/a47"
+  printf '%s\n' old-launcher > "$AGENT47_HOME/bin/afs"
   printf '%s\n' old-helper > "$AGENT47_HOME/scripts/add-agent"
   printf '%s\n' old-user-helper > "$HOME/bin/add-agent"
-  touch "$TEST_WORKDIR/old-a47"
-  rm -f "$HOME/bin/a47"
-  ln -s "$TEST_WORKDIR/old-a47" "$HOME/bin/a47"
+  touch "$TEST_WORKDIR/old-afs"
+  rm -f "$HOME/bin/afs"
+  ln -s "$TEST_WORKDIR/old-afs" "$HOME/bin/afs"
 
   PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh" --no-prompt
   assert_success
-  assert_contains "$output" "a47 launcher already exists"
+  assert_contains "$output" "afs launcher already exists"
   assert_contains "$output" "add-agent already exists in $HOME/bin"
-  assert_contains "$output" "a47 entry already exists in ~/bin"
+  assert_contains "$output" "afs entry already exists in ~/bin"
 
-  run cat "$AGENT47_HOME/bin/a47"
+  run cat "$AGENT47_HOME/bin/afs"
   assert_success
   [ "$output" = "old-launcher" ]
   run cat "$AGENT47_HOME/scripts/add-agent"
@@ -46,19 +46,19 @@ teardown() {
   run cat "$HOME/bin/add-agent"
   assert_success
   [ "$output" = "old-user-helper" ]
-  run readlink "$HOME/bin/a47"
+  run readlink "$HOME/bin/afs"
   assert_success
-  [ "$output" = "$TEST_WORKDIR/old-a47" ]
+  [ "$output" = "$TEST_WORKDIR/old-afs" ]
 }
 
-@test "install without force preserves an existing regular a47 file in ~/bin" {
-  run bash -c 'mkdir -p "${HOME}/bin"; rm -f "${HOME}/bin/a47"; printf "%s\n" user-owned-a47 > "${HOME}/bin/a47"; PATH="${HOME}/bin:$PATH" "$1/install.sh" --no-prompt' _ "$ROOT_DIR"
+@test "install without force preserves an existing regular afs file in ~/bin" {
+  run bash -c 'mkdir -p "${HOME}/bin"; rm -f "${HOME}/bin/afs"; printf "%s\n" user-owned-afs > "${HOME}/bin/afs"; PATH="${HOME}/bin:$PATH" "$1/install.sh" --no-prompt' _ "$ROOT_DIR"
   assert_success
-  assert_contains "$output" "a47 entry already exists in ~/bin"
+  assert_contains "$output" "afs entry already exists in ~/bin"
 
-  run cat "$HOME/bin/a47"
+  run cat "$HOME/bin/afs"
   assert_success
-  [ "$output" = "user-owned-a47" ]
+  [ "$output" = "user-owned-afs" ]
 }
 
 @test "smoke install completes without doctor warnings" {
@@ -117,12 +117,12 @@ exit "$status"' _ "$ROOT_DIR"
   mkdir -p "$AGENT47_HOME/cache"
   echo "cached" > "$AGENT47_HOME/cache/update.cache"
 
-  run "$ROOT_DIR/bin/a47" uninstall
+  run "$ROOT_DIR/bin/afs" uninstall
   assert_success
   [ ! -f "$HOME/bin/add-agent" ]
   [ ! -f "$HOME/bin/add-agent-prompt" ]
   [ ! -f "$HOME/bin/add-snapshot-prompt" ]
-  [ ! -L "$HOME/bin/a47" ]
+  [ ! -L "$HOME/bin/afs" ]
   [ ! -d "$AGENT47_HOME/templates" ]
   [ ! -d "$AGENT47_HOME/scripts" ]
   [ ! -f "$AGENT47_HOME/VERSION" ]
@@ -138,7 +138,7 @@ exit "$status"' _ "$ROOT_DIR"
   assert_success
   assert_contains "$output" "templates.bak."
 
-  run "$ROOT_DIR/bin/a47" uninstall
+  run "$ROOT_DIR/bin/afs" uninstall
   assert_success
   run find "$HOME" -maxdepth 3 -path "$AGENT47_HOME*" -print
   assert_success
@@ -164,17 +164,17 @@ exit "$status"' _ "$ROOT_DIR"
   run bash -c "PATH=/usr/bin:/bin \"$ROOT_DIR/install.sh\" --no-prompt </dev/null"
   assert_success
   assert_contains "$output" "Non-interactive install; skipping shell rc update"
-  assert_file_exists "$AGENT47_HOME/bin/a47"
+  assert_file_exists "$AGENT47_HOME/bin/afs"
 }
 
 @test "install --force fails fast when launcher cannot be written" {
   mkdir -p "$AGENT47_HOME/bin"
-  rm -f "$AGENT47_HOME/bin/a47"
+  rm -f "$AGENT47_HOME/bin/afs"
   chmod 500 "$AGENT47_HOME/bin"
 
   PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh" --force
   [ "$status" -ne 0 ]
-  assert_not_contains "$output" "[OK] Installed a47 launcher"
+  assert_not_contains "$output" "[OK] Installed afs launcher"
 
   chmod 700 "$AGENT47_HOME/bin"
 }
@@ -202,7 +202,7 @@ EOF
 
   printf '%s\n' old-add-agent > "$HOME/bin/add-agent"
   printf '%s\n' old-add-agent-prompt > "$HOME/bin/add-agent-prompt"
-  rm -f "$HOME/bin/a47"
+  rm -f "$HOME/bin/afs"
 
   PATH="$TEST_WORKDIR/fake-bin:$HOME/bin:/usr/bin:/bin" run "$ROOT_DIR/install.sh" --force --no-prompt
   [ "$status" -ne 0 ]
@@ -215,30 +215,30 @@ EOF
   assert_success
   [ "$output" = "old-add-agent-prompt" ]
 
-  [ ! -L "$HOME/bin/a47" ]
+  [ ! -L "$HOME/bin/afs" ]
 }
 
-@test "install preserves existing a47 symlink if link swap fails" {
+@test "install preserves existing afs symlink if link swap fails" {
   mkdir -p "$TEST_WORKDIR/fake-bin" "$TEST_WORKDIR/old"
   cat > "$TEST_WORKDIR/fake-bin/mv" <<EOF
 #!/bin/bash
-if [ "\${!#}" = "$HOME/bin/a47" ]; then
+if [ "\${!#}" = "$HOME/bin/afs" ]; then
   exit 1
 fi
 exec /bin/mv "\$@"
 EOF
   chmod +x "$TEST_WORKDIR/fake-bin/mv"
 
-  touch "$TEST_WORKDIR/old/a47"
-  rm -f "$HOME/bin/a47"
-  ln -s "$TEST_WORKDIR/old/a47" "$HOME/bin/a47"
+  touch "$TEST_WORKDIR/old/afs"
+  rm -f "$HOME/bin/afs"
+  ln -s "$TEST_WORKDIR/old/afs" "$HOME/bin/afs"
 
   PATH="$TEST_WORKDIR/fake-bin:$HOME/bin:/usr/bin:/bin" run "$ROOT_DIR/install.sh" --force --no-prompt
   [ "$status" -ne 0 ]
-  [ -L "$HOME/bin/a47" ]
-  run readlink "$HOME/bin/a47"
+  [ -L "$HOME/bin/afs" ]
+  run readlink "$HOME/bin/afs"
   assert_success
-  [ "$output" = "$TEST_WORKDIR/old/a47" ]
+  [ "$output" = "$TEST_WORKDIR/old/afs" ]
 }
 
 @test "install restores previous templates directory if forced swap fails" {
@@ -262,12 +262,12 @@ EOF
   fail_marker="$TEST_WORKDIR/fail-dir-swap-once"
 
   mkdir -p "$temp_agent47_home/bin" "$temp_agent47_home/templates"
-  printf '%s\n' old-launcher > "$temp_agent47_home/bin/a47"
+  printf '%s\n' old-launcher > "$temp_agent47_home/bin/afs"
   echo "old template" > "$temp_agent47_home/templates/AGENTS.md"
 
   run bash -c "HOME=\"$temp_home\" AGENT47_HOME=\"$temp_agent47_home\" AGENT47_ENABLE_TEST_HOOKS=true AGENT47_FAIL_DIR_SWAP_TARGET=\"$temp_agent47_home/templates\" AGENT47_FAIL_DIR_SWAP_MARKER=\"$fail_marker\" PATH=\"\$HOME/bin:/usr/bin:/bin\" \"$ROOT_DIR/install.sh\" --force --no-prompt"
   [ "$status" -ne 0 ]
-  run cat "$temp_agent47_home/bin/a47"
+  run cat "$temp_agent47_home/bin/afs"
   assert_success
   [ "$output" = "old-launcher" ]
 }

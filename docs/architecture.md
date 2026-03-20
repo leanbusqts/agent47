@@ -3,7 +3,7 @@
 `agent47` is a Bash-first CLI built around a simple model:
 
 1. install the managed launcher and templates with `./install.sh`
-2. run project commands from `a47`
+2. run `agent47` project commands via `afs`
 3. bootstrap or refresh managed scaffolding in the target repo
 
 ## Project structure
@@ -12,7 +12,7 @@
 agent47/
 |
 +-- bin/
-|   `-- a47
+|   `-- afs
 |       Router and user-facing CLI entrypoint
 |
 +-- install.sh
@@ -75,16 +75,16 @@ user
   |   scripts/lib/install.sh
   |      |
   |      v
-  |   ~/.agent47 + ~/bin/a47
+  |   ~/.agent47 + ~/bin/afs
   |
-  `--> a47
+  `--> afs
          |
          +--> doctor [--check-update]
          |      Health check plus optional update check
          |
          +--> add-agent
          |      Bootstrap project scaffolding:
-         |      AGENTS.md + rules + skills + README if missing
+         |      AGENTS.md + rules + skills + empty README if missing
          |
          +--> add-agent --force
          |      Refresh managed scaffolding:
@@ -100,7 +100,7 @@ user
 
 ## Responsibility split
 
-- `bin/a47`
+- `bin/afs`
   - command routing
   - high-level help
   - runtime bootstrap is delegated to `scripts/lib/runtime-env.sh`

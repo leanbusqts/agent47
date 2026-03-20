@@ -3,7 +3,7 @@ set -euo pipefail
 
 init_test_runtime() {
   ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-  TEST_TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/a47-test-XXXXXX")"
+  TEST_TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/afs-test-XXXXXX")"
   BATS_BIN="${BATS_BIN:-}"
 }
 

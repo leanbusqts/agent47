@@ -12,7 +12,7 @@ teardown() {
 
 @test "init_agent uses fallback and copies core files" {
   PATH="/usr/bin:/bin"
-  run "$ROOT_DIR/bin/a47" init-agent
+  run "$ROOT_DIR/bin/afs" init-agent
   echo "$output"
   assert_success
   assert_file_exists "AGENTS.md"

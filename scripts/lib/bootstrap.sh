@@ -90,7 +90,7 @@ bootstrap_finish_transaction() {
 }
 
 bootstrap_prepare_transaction() {
-  BOOTSTRAP_WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/a47-stage-XXXXXX")"
+  BOOTSTRAP_WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/afs-stage-XXXXXX")"
   BOOTSTRAP_STAGE_DIR="$BOOTSTRAP_WORK_DIR/stage"
   BOOTSTRAP_BACKUP_DIR="$BOOTSTRAP_WORK_DIR/backup"
   mkdir -p "$BOOTSTRAP_STAGE_DIR" "$BOOTSTRAP_BACKUP_DIR"

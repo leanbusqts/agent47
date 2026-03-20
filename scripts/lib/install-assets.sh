@@ -8,7 +8,7 @@ install_file_atomically() {
 
   target_dir="$(dirname "$target_path")"
   mkdir -p "$target_dir"
-  tmp_file="$(mktemp "$target_dir/.a47-tmp.XXXXXX")"
+  tmp_file="$(mktemp "$target_dir/.afs-tmp.XXXXXX")"
   cp "$source_path" "$tmp_file"
   mv -f "$tmp_file" "$target_path"
 }
