@@ -15,7 +15,7 @@ export PATH="$HOME/bin:/usr/bin:/bin"
 
 mkdir -p "$HOME/bin"
 
-"$ROOT_DIR/install.sh" --force --no-prompt
+"$ROOT_DIR/install.sh" --force --non-interactive
 doctor_output="$("$HOME/bin/afs" doctor)"
 printf "%s\n" "$doctor_output"
 

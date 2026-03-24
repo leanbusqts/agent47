@@ -10,13 +10,14 @@
 - **Documentation:** `README.md` is now intentionally short; usage and structure details live in `docs/usage.md` and `docs/architecture.md`.
 - **Stable workflow:** `afs add-agent` bootstraps `AGENTS.md` and all `rules/*.yaml` plus skills; `afs add-agent-prompt` and `afs add-ss-prompt` are available as focused helpers.
 - **Managed refresh behavior:** during `afs add-agent --force`, `rules/*.yaml`, `skills/*`, and `skills/AVAILABLE_SKILLS.xml` are reconciled against the current template set, so local custom files in those paths may be replaced or removed.
+- **Preserved project docs:** during `afs add-agent --force`, `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md` stay untouched.
 - **Dynamic skills:** the curated skill set is discovered from installed `templates/skills/*/SKILL.md` entries instead of a hardcoded list, so template additions flow into bootstrap automatically.
 - **Operational hardening:** core helper scripts now run with strict shell mode, install preflights core assets, and bootstrap commands reject unexpected arguments to reduce silent partial failures.
 - **Install hardening:** `./install.sh` now installs the `afs` launcher under `~/.agent47/bin/` and links `~/bin/afs` to that managed copy, avoiding dependence on the original repo checkout path.
 - **Not automated by CLI:** `SNAPSHOT.md` and `SPEC.md` creation/update remain manual-agent workflows, alongside vendor-specific configs, Windows/PowerShell support, and dependency enforcement against concrete package manifests.
 
 ## 3. Current Commands
-- `./install.sh [--force]`
+- `./install.sh [--force] [--non-interactive]`
 - `afs uninstall`
 - `afs doctor [--check-update|--check-update-force]`
 - `afs add-agent [--force]`
@@ -59,7 +60,7 @@
 - Vendor-specific agent config files such as `claude.md`, `.cursorrules`, and `/.codex/config.toml` require explicit prior user authorization before creation or modification.
 - Security rules live directly under `templates/rules/` as `security-*.yaml`.
 - Java/Kotlin rules apply to backend and mobile; Swift applies to mobile; C# applies to backend and MAUI/Xamarin-style mobile work.
-- `SNAPSHOT.md` and `SPEC.md` remain manual, agent-assisted project documents outside the default scaffold flow.
+- `SNAPSHOT.md` and `SPEC.md` remain manual, agent-assisted preserved project documents outside the default scaffold flow; their canonical role definitions live in `README.md`.
 
 ## 6. Testing And Validation
 - `make test` and `./scripts/test` pass.
@@ -72,6 +73,7 @@
   - prompt generation without policy duplication
   - security rule IDs and required fields
   - install/uninstall flows
+  - regression guards for removed legacy entrypoints and flags
   - snapshot/spec helper behavior
   - legacy prompt-script detection in `doctor`
 
@@ -84,4 +86,4 @@
 - On macOS, downloaded files may still inherit host OS restrictions outside `com.apple.quarantine`; the installer mitigates common quarantine cases but cannot override system-level execution policy.
 
 ## 8. Last Updated
-- March 20, 2026 (release v1.0.22)
+- March 24, 2026 (workspace state after release v1.0.22; unreleased changes present)

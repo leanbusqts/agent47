@@ -25,7 +25,7 @@ ensure_path_persistent() {
   fi
 
   echo "[HINT] Add \"$export_line\" to $rc_file to persist PATH"
-  if [ "$NO_PROMPT" = true ] || [ ! -t 0 ] || [ ! -t 1 ]; then
+  if [ "$NON_INTERACTIVE" = true ] || [ ! -t 0 ] || [ ! -t 1 ]; then
     echo "[WARN] Non-interactive install; skipping shell rc update"
     return 0
   fi
@@ -47,19 +47,19 @@ ensure_path_persistent() {
 }
 
 usage() {
-  echo "Usage: ./install.sh [--force] [--no-prompt]"
+  echo "Usage: ./install.sh [--force] [--non-interactive]"
 }
 
 FORCE=false
-NO_PROMPT=false
+NON_INTERACTIVE=false
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --force)
       FORCE=true
       shift
       ;;
-    --no-prompt)
-      NO_PROMPT=true
+    --non-interactive)
+      NON_INTERACTIVE=true
       shift
       ;;
     *)

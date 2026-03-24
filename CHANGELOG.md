@@ -1,5 +1,12 @@
 # CHANGELOG
 ## [Unreleased]
+### Changed
+- Promoted root `SPEC.md` to a preserved project document during `afs add-agent --force`, aligning the manifest, tests, and documentation with the product contract.
+- Renamed the non-interactive install flag from `--no-prompt` to `--non-interactive` across runtime, tests, smoke install, and documentation.
+- Added a compact document-role taxonomy across docs to distinguish `SNAPSHOT.md`, root `SPEC.md`, and `specs/spec.yml`.
+
+### Removed
+- Removed the legacy `init-agent` compatibility path from `bin/afs` and its dedicated test coverage.
 
 ## [1.0.22] - 2026-03-20
 ### Changed

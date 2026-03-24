@@ -93,3 +93,9 @@ EOF
   [ "$status" -ne 0 ]
   assert_contains "$output" "Unknown command: add-default-skills"
 }
+
+@test "bin/afs no expone init-agent como comando publico" {
+  run "$ROOT_DIR/bin/afs" init-agent
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "Unknown command: init-agent"
+}

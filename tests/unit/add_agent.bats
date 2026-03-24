@@ -63,6 +63,7 @@ EOF
   echo "custom spec" > specs/spec.yml
   echo "custom readme" > README.md
   echo "custom snapshot" > SNAPSHOT.md
+  echo "custom product spec" > SPEC.md
   echo "custom skill" > skills/analyze/SKILL.md
 
   run "$ROOT_DIR/scripts/add-agent" --force
@@ -79,6 +80,8 @@ EOF
   run grep -F "custom readme" README.md
   assert_success
   run grep -F "custom snapshot" SNAPSHOT.md
+  assert_success
+  run grep -F "custom product spec" SPEC.md
   assert_success
   run grep -F "name: analyze" skills/analyze/SKILL.md
   assert_success

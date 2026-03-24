@@ -17,7 +17,7 @@ Force reinstall:
 Non-interactive install:
 
 ```bash
-./install.sh --no-prompt
+./install.sh --non-interactive
 ```
 
 Verify:
@@ -31,7 +31,7 @@ afs doctor --check-update
 
 `./install.sh` is the only public installation entrypoint.
 It installs the managed launcher under `~/.agent47/bin/afs` and links `~/bin/afs` to that copy.
-`--no-prompt` skips interactive shell rc edits and is intended for automation.
+`--non-interactive` skips interactive shell rc edits and is intended for automation.
 
 There is no supported `afs install` or `afs upgrade` command.
 
@@ -94,7 +94,8 @@ This preserves project-owned files:
 
 - `README.md`
 - `specs/spec.yml`
-- any existing project snapshot or summary file such as `SNAPSHOT.md`
+- `SNAPSHOT.md`
+- `SPEC.md`
 
 ## Managed files
 
@@ -112,7 +113,8 @@ During `--force`, those paths are reconciled against the current template set.
 
 - `README.md`
 - `specs/spec.yml`
-- any existing project snapshot or summary file such as `SNAPSHOT.md`
+- `SNAPSHOT.md`
+- `SPEC.md`
 
 If you keep project-specific extensions under `rules/` or `skills/`, expect to reapply them after a forced refresh when necessary.
 
@@ -142,6 +144,12 @@ Get the helper prompt for manually generating or updating project state document
 afs add-ss-prompt
 ```
 
+Canonical document roles live in `README.md`:
+
+- `SNAPSHOT.md`
+- root `SPEC.md`
+- `specs/spec.yml`
+
 ## Which command to use
 
 - Install the tool on your machine: `./install.sh`
@@ -155,7 +163,7 @@ afs add-ss-prompt
 ## Operational notes
 
 - `./install.sh` writes to `~/.agent47` and `~/bin`
-- `./install.sh --no-prompt` avoids interactive prompts when `~/bin` is not yet on `PATH`
+- `./install.sh --non-interactive` avoids interactive shell rc prompts when `~/bin` is not yet on `PATH`; the installer also behaves this way automatically when no TTY is available
 - interactive installs write the PATH export to the preferred shell rc file for the active shell, using `~/.bash_profile` for Bash on macOS/login-style setups
 - `add-*` commands write to the current project directory
 - `doctor` checks installed commands, templates, prompt layout, and policy structure

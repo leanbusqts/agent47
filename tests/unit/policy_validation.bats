@@ -28,8 +28,9 @@ teardown() {
   assert_success
 }
 
-@test "single prompt template exists" {
+@test "current prompt templates exist and legacy split prompts do not" {
   assert_file_exists "$ROOT_DIR/templates/prompts/agent-prompt.txt"
+  assert_file_exists "$ROOT_DIR/templates/prompts/ss-prompt.txt"
   [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-base.txt" ]
   [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-skills.txt" ]
   [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-sdd.txt" ]
@@ -83,7 +84,7 @@ teardown() {
     assert_success
   done
 
-  for target in README.md specs/spec.yml SNAPSHOT.md; do
+  for target in README.md specs/spec.yml SNAPSHOT.md SPEC.md; do
     run grep -Fx "$target" "$ROOT_DIR/templates/manifest.txt"
     assert_success
   done
@@ -102,6 +103,7 @@ teardown() {
   assert_contains "$output" "README.md"
   assert_contains "$output" "specs/spec.yml"
   assert_contains "$output" "SNAPSHOT.md"
+  assert_contains "$output" "SPEC.md"
 }
 
 @test "manifest required template files all exist" {

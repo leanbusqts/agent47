@@ -31,7 +31,7 @@ teardown() {
   rm -f "$HOME/bin/afs"
   ln -s "$TEST_WORKDIR/old-afs" "$HOME/bin/afs"
 
-  PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh" --no-prompt
+  PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh" --non-interactive
   assert_success
   assert_contains "$output" "afs launcher already exists"
   assert_contains "$output" "add-agent already exists in $HOME/bin"
@@ -52,7 +52,7 @@ teardown() {
 }
 
 @test "install without force preserves an existing regular afs file in ~/bin" {
-  run bash -c 'mkdir -p "${HOME}/bin"; rm -f "${HOME}/bin/afs"; printf "%s\n" user-owned-afs > "${HOME}/bin/afs"; PATH="${HOME}/bin:$PATH" "$1/install.sh" --no-prompt' _ "$ROOT_DIR"
+  run bash -c 'mkdir -p "${HOME}/bin"; rm -f "${HOME}/bin/afs"; printf "%s\n" user-owned-afs > "${HOME}/bin/afs"; PATH="${HOME}/bin:$PATH" "$1/install.sh" --non-interactive' _ "$ROOT_DIR"
   assert_success
   assert_contains "$output" "afs entry already exists in ~/bin"
 
@@ -91,7 +91,7 @@ rules
 skills
 specs
 EOF
-PATH="$HOME/bin:$PATH" "$1/install.sh" --no-prompt
+PATH="$HOME/bin:$PATH" "$1/install.sh" --non-interactive
 status=$?
 mv "$1/templates/manifest.txt.bak" "$1/templates/manifest.txt"
 exit "$status"' _ "$ROOT_DIR"
@@ -157,11 +157,17 @@ exit "$status"' _ "$ROOT_DIR"
 @test "install.sh rejects unexpected arguments" {
   run "$ROOT_DIR/install.sh" unexpected-arg
   [ "$status" -ne 0 ]
-  assert_contains "$output" "Usage: ./install.sh [--force] [--no-prompt]"
+  assert_contains "$output" "Usage: ./install.sh [--force] [--non-interactive]"
+}
+
+@test "install.sh rejects legacy no-prompt flag" {
+  run "$ROOT_DIR/install.sh" --no-prompt
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "Usage: ./install.sh [--force] [--non-interactive]"
 }
 
 @test "install succeeds without tty when ~/bin is not in PATH" {
-  run bash -c "PATH=/usr/bin:/bin \"$ROOT_DIR/install.sh\" --no-prompt </dev/null"
+  run bash -c "PATH=/usr/bin:/bin \"$ROOT_DIR/install.sh\" --non-interactive </dev/null"
   assert_success
   assert_contains "$output" "Non-interactive install; skipping shell rc update"
   assert_file_exists "$AGENT47_HOME/bin/afs"
@@ -204,7 +210,7 @@ EOF
   printf '%s\n' old-add-agent-prompt > "$HOME/bin/add-agent-prompt"
   rm -f "$HOME/bin/afs"
 
-  PATH="$TEST_WORKDIR/fake-bin:$HOME/bin:/usr/bin:/bin" run "$ROOT_DIR/install.sh" --force --no-prompt
+  PATH="$TEST_WORKDIR/fake-bin:$HOME/bin:/usr/bin:/bin" run "$ROOT_DIR/install.sh" --force --non-interactive
   [ "$status" -ne 0 ]
 
   run cat "$HOME/bin/add-agent"
@@ -233,7 +239,7 @@ EOF
   rm -f "$HOME/bin/afs"
   ln -s "$TEST_WORKDIR/old/afs" "$HOME/bin/afs"
 
-  PATH="$TEST_WORKDIR/fake-bin:$HOME/bin:/usr/bin:/bin" run "$ROOT_DIR/install.sh" --force --no-prompt
+  PATH="$TEST_WORKDIR/fake-bin:$HOME/bin:/usr/bin:/bin" run "$ROOT_DIR/install.sh" --force --non-interactive
   [ "$status" -ne 0 ]
   [ -L "$HOME/bin/afs" ]
   run readlink "$HOME/bin/afs"
@@ -249,7 +255,7 @@ EOF
   mkdir -p "$temp_agent47_home/templates"
   echo "old template" > "$temp_agent47_home/templates/AGENTS.md"
 
-  run bash -c "HOME=\"$temp_home\" AGENT47_HOME=\"$temp_agent47_home\" AGENT47_ENABLE_TEST_HOOKS=true AGENT47_FAIL_DIR_SWAP_TARGET=\"$temp_agent47_home/templates\" AGENT47_FAIL_DIR_SWAP_MARKER=\"$fail_marker\" PATH=\"\$HOME/bin:/usr/bin:/bin\" \"$ROOT_DIR/install.sh\" --force --no-prompt"
+  run bash -c "HOME=\"$temp_home\" AGENT47_HOME=\"$temp_agent47_home\" AGENT47_ENABLE_TEST_HOOKS=true AGENT47_FAIL_DIR_SWAP_TARGET=\"$temp_agent47_home/templates\" AGENT47_FAIL_DIR_SWAP_MARKER=\"$fail_marker\" PATH=\"\$HOME/bin:/usr/bin:/bin\" \"$ROOT_DIR/install.sh\" --force --non-interactive"
   [ "$status" -ne 0 ]
   run cat "$temp_agent47_home/templates/AGENTS.md"
   assert_success
@@ -265,7 +271,7 @@ EOF
   printf '%s\n' old-launcher > "$temp_agent47_home/bin/afs"
   echo "old template" > "$temp_agent47_home/templates/AGENTS.md"
 
-  run bash -c "HOME=\"$temp_home\" AGENT47_HOME=\"$temp_agent47_home\" AGENT47_ENABLE_TEST_HOOKS=true AGENT47_FAIL_DIR_SWAP_TARGET=\"$temp_agent47_home/templates\" AGENT47_FAIL_DIR_SWAP_MARKER=\"$fail_marker\" PATH=\"\$HOME/bin:/usr/bin:/bin\" \"$ROOT_DIR/install.sh\" --force --no-prompt"
+  run bash -c "HOME=\"$temp_home\" AGENT47_HOME=\"$temp_agent47_home\" AGENT47_ENABLE_TEST_HOOKS=true AGENT47_FAIL_DIR_SWAP_TARGET=\"$temp_agent47_home/templates\" AGENT47_FAIL_DIR_SWAP_MARKER=\"$fail_marker\" PATH=\"\$HOME/bin:/usr/bin:/bin\" \"$ROOT_DIR/install.sh\" --force --non-interactive"
   [ "$status" -ne 0 ]
   run cat "$temp_agent47_home/bin/afs"
   assert_success

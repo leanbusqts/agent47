@@ -53,22 +53,6 @@ print_help() {
 }
 
 # ---------------------------
-# Init Agent (project)
-# ---------------------------
-init_agent() {
-  echo "[*] Initializing AGENT setup in current directory..."
-
-  if [ ! -w "." ]; then
-    echo "[ERR] Current directory is not writable"
-    exit 1
-  fi
-
-  run_cmd add-agent
-  echo "[OK] AGENT initialized"
-}
-
-
-# ---------------------------
 # Command router
 # ---------------------------
 case "${1:-}" in
@@ -89,9 +73,6 @@ case "${1:-}" in
   ;;
   add-ss-prompt)
     run_cmd add-ss-prompt "${@:2}"
-  ;;
-  init-agent)
-    init_agent
   ;;
   *)
     echo "Unknown command: ${1:-}"

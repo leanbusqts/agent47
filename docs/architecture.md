@@ -154,7 +154,7 @@ user
 - policy lives in `AGENTS.md`, not duplicated in prompts
 - security guidance is layered: global, language, stack, including shell-specific rules for Bash-first repos
 - template-source repositories such as `agent47` can map policy reads from `rules/` to `templates/rules/`
-- project-specific files such as `README.md`, `specs/spec.yml`, and `SNAPSHOT.md` stay preserved during forced refresh
+- project-specific files such as `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and `SPEC.md` stay preserved during forced refresh
 
 ## Ownership model
 
@@ -172,5 +172,5 @@ user
   - local custom files under these paths can be replaced or removed during `--force`
 
 - project-owned preserved targets
-  - `README.md`, `specs/spec.yml`, and snapshot-style files such as `SNAPSHOT.md`
+  - `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and `SPEC.md`
   - refresh flows keep these intact unless a user changes them manually

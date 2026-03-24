@@ -30,6 +30,7 @@ Target project files preserved during refresh:
 - `README.md`
 - `specs/spec.yml`
 - `SNAPSHOT.md`
+- `SPEC.md`
 
 During `afs add-agent --force`, the managed target set is reconciled to the current manifest and template payload.
 That means stale managed rules or skills are removed, while preserved targets stay untouched.

@@ -20,6 +20,7 @@ skills/AVAILABLE_SKILLS.xml
 README.md
 specs/spec.yml
 SNAPSHOT.md
+SPEC.md
 
 [required_template_files]
 AGENTS.md

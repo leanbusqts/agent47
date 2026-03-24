@@ -53,7 +53,7 @@ The project is intentionally conservative:
 
 Entry point:
 
-- `./install.sh [--force] [--no-prompt]`
+- `./install.sh [--force] [--non-interactive]`
 
 Expected outcome:
 
@@ -108,6 +108,7 @@ Expected outcome:
   - `README.md`
   - `specs/spec.yml`
   - `SNAPSHOT.md`
+  - `SPEC.md`
 
 ### 5.5 Refresh only curated skills
 
@@ -154,7 +155,7 @@ Supported user-facing CLI commands:
 - `afs add-agent [--force] [--only-skills]`
 - `afs add-agent-prompt [--force]`
 - `afs add-ss-prompt`
-- `./install.sh [--force] [--no-prompt]`
+- `./install.sh [--force] [--non-interactive]`
 
 Repository validation and maintenance commands:
 
@@ -179,7 +180,7 @@ Commands intentionally not part of the supported public install surface:
 - `scripts/`
 - `docs/`
 - `tests/`
-- root metadata such as `README.md`, `VERSION`, `CHANGELOG.md`, `SNAPSHOT.md`
+- root metadata such as `README.md`, `VERSION`, `CHANGELOG.md`, `SNAPSHOT.md`, `SPEC.md`
 
 ### 7.2 Template payload
 
@@ -322,6 +323,7 @@ The refresh flow preserves:
 - `README.md`
 - `specs/spec.yml`
 - `SNAPSHOT.md`
+- `SPEC.md`
 
 ### 10.3 Force semantics
 
@@ -495,7 +497,6 @@ Current automated coverage includes:
 ## 20. Known Product Gaps
 
 - `templates/specs/spec.yml` ships with the installed template payload, but `afs add-agent` does not scaffold `specs/spec.yml` into the target repository by default.
-- A compatibility-oriented `init-agent` command path still exists in the router even though it is not part of the documented main command set.
 
 ## 21. Success Criteria
 

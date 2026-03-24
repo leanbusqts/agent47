@@ -26,7 +26,7 @@ afs add-agent
 For non-interactive environments, use:
 
 ```bash
-./install.sh --no-prompt
+./install.sh --non-interactive
 ```
 
 That bootstraps:
@@ -43,7 +43,7 @@ To refresh an older project copy:
 afs add-agent --force
 ```
 
-`--force` reconciles agent47-managed files with the current template set, removing stale managed rules or skills while preserving `README.md`, `specs/spec.yml`, and any existing project snapshot or summary file such as `SNAPSHOT.md`.
+`--force` reconciles agent47-managed files with the current template set, removing stale managed rules or skills while preserving `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md` when present.
 Custom files can live under `rules/` or `skills/`, but `afs add-agent --force` may replace or remove them while reconciling the managed scaffold.
 
 ## Common commands
@@ -77,11 +77,17 @@ The usage guide covers:
 - use with IDEs such as VS Code or Cursor
 - the difference between root `SPEC.md` and project work in `specs/spec.yml`
 
+Document roles:
+
+- `SNAPSHOT.md`: concise summary of the current project state
+- root `SPEC.md`: current-state product spec for `agent47` itself
+- `specs/spec.yml`: task-specific spec/plan artifact for non-trivial work
+
 ## Notes
 
 - `afs add-agent` is the default bootstrap path.
 - `./install.sh` now installs a stable launcher at `~/.agent47/bin/afs` and links `~/bin/afs` to that copy.
-- `./install.sh --no-prompt` skips shell rc edits and is safe for automation.
+- `./install.sh --non-interactive` skips interactive shell rc edits and is safe for automation; the installer also falls back to this non-interactive behavior automatically when no TTY is available.
 - interactive installs update the preferred shell rc file for the active shell, using `~/.bash_profile` for Bash on macOS/login-style setups.
 - `afs` prefers its managed helper scripts over same-named commands found earlier in `PATH`.
 - `afs add-agent --only-skills` refreshes the curated skills set from whatever `templates/skills/*/SKILL.md` entries ship with the installed templates.
