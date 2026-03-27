@@ -1,82 +1,146 @@
 #!/bin/bash
 set -euo pipefail
 
-ENTRY_SOURCE="${BASH_SOURCE[0]}"
-REAL_SOURCE="$ENTRY_SOURCE"
-while [ -h "$REAL_SOURCE" ]; do
-  ENTRY_DIR="${REAL_SOURCE%/*}"
-  if [ "$ENTRY_DIR" = "$REAL_SOURCE" ]; then
-    ENTRY_DIR="."
-  fi
-  ENTRY_DIR="$(cd -P "$ENTRY_DIR" && pwd)"
-  REAL_SOURCE="$(readlink "$REAL_SOURCE")"
-  [[ $REAL_SOURCE != /* ]] && REAL_SOURCE="$ENTRY_DIR/$REAL_SOURCE"
-done
+resolve_self_dir() {
+  local source dir
 
-ENTRY_DIR="${REAL_SOURCE%/*}"
-if [ "$ENTRY_DIR" = "$REAL_SOURCE" ]; then
-  ENTRY_DIR="."
-fi
-ENTRY_DIR="$(cd -P "$ENTRY_DIR" && pwd)"
-RUNTIME_ENV_LIB="$ENTRY_DIR/../scripts/lib/runtime-env.sh"
+  source="${BASH_SOURCE[0]}"
+  while [ -L "$source" ]; do
+    dir="$(cd "$(path_dirname "$source")" && pwd)"
+    source="$(readlink "$source")"
+    case "$source" in
+      /*) ;;
+      *) source="$dir/$source" ;;
+    esac
+  done
 
-if [ ! -f "$RUNTIME_ENV_LIB" ]; then
-  echo "[ERR] Missing library: $RUNTIME_ENV_LIB"
-  exit 1
-fi
-
-# shellcheck disable=SC1090
-source "$RUNTIME_ENV_LIB"
-init_agent47_runtime_from_entrypoint "$ENTRY_SOURCE"
-load_agent47_libs constants.sh managed-files.sh common.sh update.sh templates.sh install-assets.sh install-runtime.sh install.sh doctor.sh
-
-# ---------------------------
-# Help
-# ---------------------------
-print_help() {
-  echo "agent47 Agent CLI (command: afs, Agent Forty-Seven)"
-  echo "Version: $AGENT47_VERSION"
-  echo ""
-  echo "Core commands:"
-  echo "  afs help"
-  echo "  afs uninstall"
-  echo "  afs doctor [--check-update|--check-update-force]"
-  echo ""
-  echo "Project commands:"
-  echo "  afs add-agent                 bootstrap project scaffolding"
-  echo "  afs add-agent --force         refresh managed scaffolding"
-  echo "  afs add-agent --only-skills   install only skills"
-  echo "  afs add-agent --only-skills --force"
-  echo "                               refresh only skills"
-  echo "  afs add-agent-prompt [--force]"
-  echo "  afs add-ss-prompt"
+  dir="$(cd "$(path_dirname "$source")" && pwd)"
+  printf "%s\n" "$dir"
 }
 
-# ---------------------------
-# Command router
-# ---------------------------
-case "${1:-}" in
-  help|"")
-    print_help
-    ;;
-  uninstall)
-    uninstall
-    ;;
-  doctor)
-    doctor "${@:2}"
-    ;;
-  add-agent)
-    run_cmd add-agent "${@:2}"
-  ;;
-  add-agent-prompt)
-    run_cmd add-agent-prompt "${@:2}"
-  ;;
-  add-ss-prompt)
-    run_cmd add-ss-prompt "${@:2}"
-  ;;
-  *)
-    echo "Unknown command: ${1:-}"
-    print_help
+path_dirname() {
+  case "$1" in
+    */*) printf "%s\n" "${1%/*}" ;;
+    *) printf ".\n" ;;
+  esac
+}
+
+path_basename() {
+  printf "%s\n" "${1##*/}"
+}
+
+SCRIPT_DIR="$(resolve_self_dir)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+SOURCE_REPO_DIR="${AGENT47_REPO_ROOT:-$REPO_DIR}"
+GO_CLI_PATH="${AGENT47_GO_CLI:-$SCRIPT_DIR/afs-go}"
+REPO_CLI_PATH="${AGENT47_REPO_CLI:-}"
+TMP_ROOT="${TMPDIR:-/tmp}"
+GO_BUILD_CACHE="${GOCACHE:-$TMP_ROOT/agent47-go-build-cache}"
+CALLER_DIR="$(pwd)"
+
+resolve_go_bin() {
+  if command -v go >/dev/null 2>&1; then
+    command -v go
+    return 0
+  fi
+
+  for candidate in /opt/homebrew/bin/go /usr/local/bin/go /usr/bin/go; do
+    if [ -x "$candidate" ]; then
+      printf "%s\n" "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+can_run_repo_cli() {
+  [ -x "$REPO_CLI_PATH" ] || return 1
+  [ ! -d "$REPO_CLI_PATH" ] || return 1
+  ! is_self_cli "$REPO_CLI_PATH" || return 1
+
+  AGENT47_REPO_ROOT="$SOURCE_REPO_DIR" \
+  AGENT47_TEMPLATE_SOURCE=filesystem \
+  AGENT47_CALLER_DIR="$CALLER_DIR" \
+  "$REPO_CLI_PATH" version >/dev/null 2>&1
+}
+
+resolve_cli_path() {
+  local path="$1"
+  local dir base link
+
+  while [ -L "$path" ]; do
+    dir="$(cd "$(path_dirname "$path")" && pwd -P)"
+    link="$(readlink "$path")"
+    case "$link" in
+      /*) path="$link" ;;
+      *) path="$dir/$link" ;;
+    esac
+  done
+
+  dir="$(cd "$(path_dirname "$path")" && pwd -P)"
+  base="$(path_basename "$path")"
+  printf "%s/%s\n" "$dir" "$base"
+}
+
+is_self_cli() {
+  local candidate resolved_candidate resolved_self
+
+  candidate="$1"
+  resolved_candidate="$(resolve_cli_path "$candidate" 2>/dev/null || printf '%s\n' "$candidate")"
+  resolved_self="$(resolve_cli_path "$SCRIPT_DIR/afs" 2>/dev/null || printf '%s\n' "$SCRIPT_DIR/afs")"
+  [ "$resolved_candidate" = "$resolved_self" ]
+}
+
+validate_explicit_cli() {
+  local env_name candidate
+
+  env_name="$1"
+  candidate="$2"
+  [ -n "$candidate" ] || return 0
+
+  if [ ! -e "$candidate" ]; then
+    echo "[ERR] $env_name points to a missing path: $candidate" >&2
     exit 1
-    ;;
-esac
+  fi
+  if [ -d "$candidate" ]; then
+    echo "[ERR] $env_name must point to an executable file: $candidate" >&2
+    exit 1
+  fi
+  if [ ! -x "$candidate" ]; then
+    echo "[ERR] $env_name is not executable: $candidate" >&2
+    exit 1
+  fi
+}
+
+if [ "${AGENT47_GO_CLI+x}" = x ] && ! is_self_cli "$GO_CLI_PATH"; then
+  validate_explicit_cli "AGENT47_GO_CLI" "$GO_CLI_PATH"
+fi
+
+if [ "${AGENT47_REPO_CLI+x}" = x ]; then
+  validate_explicit_cli "AGENT47_REPO_CLI" "$REPO_CLI_PATH"
+fi
+
+if [ -x "$GO_CLI_PATH" ] && [ ! -d "$GO_CLI_PATH" ] && ! is_self_cli "$GO_CLI_PATH"; then
+  exec "$GO_CLI_PATH" "$@"
+fi
+
+if [ -n "$REPO_CLI_PATH" ] && can_run_repo_cli; then
+  AGENT47_REPO_ROOT="$SOURCE_REPO_DIR" \
+  AGENT47_TEMPLATE_SOURCE=filesystem \
+  AGENT47_CALLER_DIR="$CALLER_DIR" \
+  exec "$REPO_CLI_PATH" "$@"
+fi
+
+if GO_BIN="$(resolve_go_bin)"; then
+  mkdir -p "$GO_BUILD_CACHE"
+  cd "$REPO_DIR"
+  AGENT47_REPO_ROOT="$SOURCE_REPO_DIR" \
+  AGENT47_TEMPLATE_SOURCE=filesystem \
+  AGENT47_CALLER_DIR="$CALLER_DIR" \
+  GOCACHE="$GO_BUILD_CACHE" \
+  exec "$GO_BIN" run ./cmd/afs "$@"
+fi
+
+echo "[ERR] Go CLI not available. Install Go, set AGENT47_GO_CLI, or provide an explicit compiled repo binary via AGENT47_REPO_CLI."
+exit 1

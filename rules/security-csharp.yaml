@@ -1,0 +1,10 @@
+rules:
+  - id: "SEC-csharp-001"
+    severity: "critical"
+    applies_to: "backend|mobile"
+    rule: "Avoid unsafe deserialization and dynamic code execution paths with untrusted input."
+
+  - id: "SEC-csharp-002"
+    severity: "critical"
+    applies_to: "backend|mobile"
+    rule: "Use parameterized queries and safe data access APIs; never compose SQL directly from user input."

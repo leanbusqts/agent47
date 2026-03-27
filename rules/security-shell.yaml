@@ -1,0 +1,29 @@
+rules:
+  - id: "SEC-shell-001"
+    severity: "critical"
+    applies_to: "shell"
+    rule: "Quote expansions and paths unless a deliberate word-splitting behavior is required."
+    refs:
+      - "SEC-global-003"
+
+  - id: "SEC-shell-002"
+    severity: "critical"
+    applies_to: "shell"
+    rule: "Do not build or execute shell commands from untrusted input; use fixed command forms and explicit allow-lists."
+    refs:
+      - "SEC-global-004"
+
+  - id: "SEC-shell-003"
+    severity: "high"
+    applies_to: "shell"
+    rule: "Use strict mode where supported and fail fast on command, pipeline, and unset-variable errors."
+
+  - id: "SEC-shell-004"
+    severity: "high"
+    applies_to: "shell"
+    rule: "Perform destructive filesystem changes only on explicitly scoped paths and prefer transactional staging for replacements."
+
+  - id: "SEC-shell-005"
+    severity: "high"
+    applies_to: "shell"
+    rule: "Prefer platform-portable shell constructs or guard platform-specific commands with capability checks."

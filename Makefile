@@ -1,14 +1,27 @@
-.PHONY: test lint-shell smoke-install clean-test vendor-clean
+.PHONY: test test-checkout test-installed go-test go-build lint-shell smoke-install clean-test vendor-clean
 
 # Run the CLI test suite (auto-installs a temporary bats copy from tests/vendor when needed)
 test:
-	./scripts/test
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go run ./cmd/afstest
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go run ./cmd/afsverify
+
+test-checkout:
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go run ./cmd/afstest
+
+test-installed:
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go run ./cmd/afsverify
+
+go-test:
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go test ./...
+
+go-build:
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go build ./cmd/afs
 
 lint-shell:
 	./scripts/lint-shell
 
 smoke-install:
-	./scripts/smoke-install
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go run ./cmd/afssmoke
 
 # Remove any leftover temp dirs from failed/terminated test runs
 clean-test:

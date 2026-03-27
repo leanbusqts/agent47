@@ -15,9 +15,11 @@ while IFS= read -r file; do
   SHELL_FILES+=("$file")
 done < <(
   {
-    find "$ROOT_DIR/bin" -type f \( -name '*.sh' -o -perm -u+x \)
-    find "$ROOT_DIR/scripts" -type f \( -name '*.sh' -o -perm -u+x \)
-    printf '%s\n' "$ROOT_DIR/install.sh"
+    [ -d "$ROOT_DIR/bin" ] && find "$ROOT_DIR/bin" -type f \( -name '*.sh' -o -perm -u+x \)
+    [ -d "$ROOT_DIR/scripts" ] && find "$ROOT_DIR/scripts" -type f \( -name '*.sh' -o -perm -u+x \)
+    [ -d "$ROOT_DIR/tests/helpers" ] && find "$ROOT_DIR/tests/helpers" -type f -name '*.bash'
+    [ -d "$ROOT_DIR/tests/unit" ] && find "$ROOT_DIR/tests/unit" -type f -name '*.bats'
+    [ -f "$ROOT_DIR/install.sh" ] && printf '%s\n' "$ROOT_DIR/install.sh"
   } | sort -u
 )
 

@@ -2,22 +2,20 @@
 
 ## Install
 
-Recommended:
+Unix-like systems:
 
 ```bash
 ./install.sh
-```
-
-Force reinstall:
-
-```bash
 ./install.sh --force
+./install.sh --non-interactive
 ```
 
-Non-interactive install:
+Windows:
 
-```bash
-./install.sh --non-interactive
+```powershell
+.\install.ps1
+.\install.ps1 -Force
+.\install.ps1 -NonInteractive
 ```
 
 Verify:
@@ -25,36 +23,26 @@ Verify:
 ```bash
 afs doctor
 afs doctor --check-update
-./scripts/lint-shell
-./scripts/smoke-install
 ```
 
-`./install.sh` is the only public installation entrypoint.
-It installs the managed launcher under `~/.agent47/bin/afs` and links `~/bin/afs` to that copy.
-`--non-interactive` skips interactive shell rc edits and is intended for automation.
+Contributor checks:
 
-There is no supported `afs install` or `afs upgrade` command.
+```bash
+make test
+make go-test
+make go-build
+make lint-shell
+make smoke-install
+```
+
+`install.sh` and `install.ps1` are the public install entrypoints. There is no supported public `afs install`, `afs upgrade`, `afs templates`, `afs check-update`, `afs add-spec`, `afs add-cli-prompt`, `afs add-default-skills`, or `afs init-agent` command.
 
 ## First steps
 
-1. Install the tool locally:
-
-```bash
-./install.sh
-```
-
-2. Verify the local setup:
-
-```bash
-afs doctor
-```
-
-3. Enter the target project and bootstrap it:
-
-```bash
-cd /path/to/project
-afs add-agent
-```
+1. Install the tool locally.
+2. Verify the local setup with `afs doctor`.
+3. Enter the target project.
+4. Run `afs add-agent`.
 
 ## Bootstrap a project
 
@@ -64,168 +52,139 @@ Inside the target project:
 afs add-agent
 ```
 
-This copies:
+This bootstraps:
 
 - `AGENTS.md`
-- all `rules/*.yaml`
+- all template `rules/*.yaml`
 - all curated `skills/*` discovered from the installed template tree
 - `skills/AVAILABLE_SKILLS.xml`
-- and creates an empty `README.md` if missing
+- an empty `README.md` if missing
 
-## Update an older project
+Existing managed files are preserved unless you use `--force`.
 
-If the project already has an older agent47 setup:
+## Refresh an older project
+
+If the project already has an older `agent47` scaffold:
 
 ```bash
 afs add-agent --force
 ```
 
-This reconciles managed files against the current template set:
+This is a fresh install of the managed scaffold in the current project. It:
 
-- `AGENTS.md`
-- `rules/*.yaml`
-- `skills/*`
-- `skills/AVAILABLE_SKILLS.xml`
+- replaces `AGENTS.md`
+- reconciles `rules/*.yaml`
+- replaces `skills/*`
+- regenerates `skills/AVAILABLE_SKILLS.xml`
+- removes stale managed rules and skills no longer shipped by the templates
 
-Managed files no longer shipped by the current templates are removed during `--force`.
-That includes custom files you may have added under managed paths such as `rules/` or `skills/`.
-
-This preserves project-owned files:
+This preserves:
 
 - `README.md`
 - `specs/spec.yml`
 - `SNAPSHOT.md`
 - `SPEC.md`
 
-## Managed files
+If you keep project-specific files under `rules/` or `skills/`, expect them to be replaced or removed by `--force`.
 
-By default, `agent47` manages these project files:
-
-- `AGENTS.md`
-- `rules/*.yaml`
-- `skills/*`
-- `skills/AVAILABLE_SKILLS.xml`
-
-`afs add-agent --force` refreshes those managed files.
-During `--force`, those paths are reconciled against the current template set.
-
-`agent47` does not overwrite these project-owned files during the normal refresh flow:
-
-- `README.md`
-- `specs/spec.yml`
-- `SNAPSHOT.md`
-- `SPEC.md`
-
-If you keep project-specific extensions under `rules/` or `skills/`, expect to reapply them after a forced refresh when necessary.
-
-## Other commands
-
-Refresh only skills:
+## Skills-only mode
 
 ```bash
 afs add-agent --only-skills
 afs add-agent --only-skills --force
 ```
 
-This mode only updates `skills/*` and `skills/AVAILABLE_SKILLS.xml`.
-The skill set is derived from whichever `templates/skills/*/SKILL.md` entries are installed under `~/.agent47`.
-It does not touch `AGENTS.md` or `rules/*.yaml`.
-With `--force`, local custom files under `skills/` are still replaceable because the directory is managed as a whole.
+This mode only manages:
 
-Refresh only the general prompt:
+- `skills/*`
+- `skills/AVAILABLE_SKILLS.xml`
+
+It does not touch `AGENTS.md` or `rules/*.yaml`.
+
+Behavior differences:
+
+- without `--force`, existing invalid skill files are preserved but omitted from `AVAILABLE_SKILLS.xml`
+- with `--force`, the managed skills directory is replaced with the current template set
+
+## Prompt helpers
+
+Refresh or create the general agent prompt:
 
 ```bash
-afs add-agent-prompt [--force]
+afs add-agent-prompt
+afs add-agent-prompt --force
 ```
 
-Get the helper prompt for manually generating or updating project state documents such as `SNAPSHOT.md` and `SPEC.md`:
+Print the snapshot/spec helper prompt:
 
 ```bash
 afs add-ss-prompt
 ```
 
-Canonical document roles live in `README.md`:
+When a supported clipboard tool is available, `afs add-ss-prompt` copies the prompt directly. Otherwise it prints the prompt to stdout.
 
-- `SNAPSHOT.md`
-- root `SPEC.md`
+## Managed vs preserved files
+
+Managed targets:
+
+- `AGENTS.md`
+- `rules/*.yaml`
+- `skills/*`
+- `skills/AVAILABLE_SKILLS.xml`
+
+Preserved targets:
+
+- `README.md`
 - `specs/spec.yml`
+- `SNAPSHOT.md`
+- `SPEC.md`
 
-## Which command to use
+Ownership is defined by `templates/manifest.txt`.
 
-- Install the tool on your machine: `./install.sh`
-- Verify the local install: `afs doctor`
-- Bootstrap a repo with the default scaffolding: `afs add-agent`
-- Refresh an existing repo-managed setup: `afs add-agent --force`
-- Add or refresh only the default curated skills: `afs add-agent --only-skills [--force]`
-- Create or refine a spec/plan through the agent in `specs/spec.yml`
-- Treat root `SPEC.md` as the current-state product spec for `agent47`, not as the default file for a new feature spec or plan
+## Update checks
+
+`afs doctor` skips update checks by default.
+
+Use:
+
+```bash
+afs doctor --check-update
+afs doctor --check-update-force
+afs doctor --fail-on-warn
+afs doctor --check-update --fail-on-warn
+```
+
+Behavior:
+
+- if `AGENT47_VERSION_URL` is configured, `agent47` compares local and remote `VERSION`
+- otherwise, from a git checkout with an upstream branch, it compares `HEAD` to the upstream branch
+- regular git-based checks do not run `git fetch`
+- `afs doctor --check-update-force` performs `git fetch --quiet` before comparing
+- remote checks may be cached; git-tracking checks are evaluated fresh
+- `doctor` flags can be combined, for example `afs doctor --check-update --fail-on-warn`
 
 ## Operational notes
 
-- `./install.sh` writes to `~/.agent47` and `~/bin`
-- `./install.sh --non-interactive` avoids interactive shell rc prompts when `~/bin` is not yet on `PATH`; the installer also behaves this way automatically when no TTY is available
-- interactive installs write the PATH export to the preferred shell rc file for the active shell, using `~/.bash_profile` for Bash on macOS/login-style setups
-- `add-*` commands write to the current project directory
-- `doctor` checks installed commands, templates, prompt layout, and policy structure
-- `doctor` skips update checks by default; use `afs doctor --check-update` to include them
-- `./scripts/test` auto-installs a temporary `bats` copy from `tests/vendor/bats` when needed
-- `./scripts/lint-shell` runs `shellcheck` against repo Bash sources as an optional maintainer/contributor check; users of `agent47` do not need it
-- `./scripts/smoke-install` runs an isolated install plus `afs doctor` as a smoke/release check
-- reinstalling without `--force` preserves existing installed commands and launcher links; use `--force` when you intend to refresh managed runtime files
-- template backups keep only the latest backup when reinstalling with `--force`
-- if you need to recover templates manually, copy the latest `~/.agent47/templates.bak.*` back over `~/.agent47/templates`
-- `afs` resolves managed helper scripts before falling back to same-named commands on `PATH`
-- `afs uninstall` removes both the published commands in `~/bin` and the managed runtime assets under `~/.agent47`
+- Unix-like installs write managed assets under `~/.agent47` and publish `afs` plus helper commands into `~/bin`
+- Windows installs default to `%LOCALAPPDATA%\agent47` and use the managed bin directory on PATH
+- `--non-interactive` avoids interactive shell rc prompts
+- repo-local `bin/afs` is for checkout-based development, not the installed runtime path
+- checkout-based execution depends on Go unless you provide `AGENT47_GO_CLI` or an explicit `AGENT47_REPO_CLI`
+- `afs uninstall` removes published commands and managed runtime assets
 
-## Use with agent CLIs
+## Use with agent CLIs and IDEs
 
-`agent47` does not depend on a specific CLI runtime.
-It provides a repository contract that CLIs such as Codex or Claude Code can follow.
+`agent47` is a repository convention, not a vendor-specific integration.
 
-In practice:
+Recommended workflow:
 
-- tell the agent to read `AGENTS.md` first if it does not discover it automatically
-- let `AGENTS.md` drive the next reads; it already defines authority order and required inputs
-- for template-source repositories such as `agent47` itself, read `templates/rules/` when the policy points to `rules/`
-- use `specs/spec.yml` for non-trivial work when the workflow needs a written spec, plan, or task log
-- if the user asks for a spec or plan, let the agent build or refine `specs/spec.yml` through conversation
-- once the draft exists, suggest that the user review it before implementation starts
-- if the runtime supports multi-agent or sub-agent execution and the task matters enough, prefer an independent spec/plan review
-- use `skills/AVAILABLE_SKILLS.xml` only when the workflow is actually using skills
+1. Open the repository root.
+2. Ensure the agent reads `AGENTS.md`.
+3. Let `AGENTS.md` drive the next reads, including relevant `rules/*.yaml` or, in template-source repos like `agent47`, `templates/rules/*.yaml`.
+4. Use `specs/spec.yml` only when work actually needs a written spec or plan.
 
-Recommended terminal-first workflow:
-
-1. Open the repository in the CLI.
-2. Ask the agent to read `AGENTS.md`.
-3. Ask it to inspect the relevant `rules/*.yaml` and code/tests for the task.
-4. Use `specs/spec.yml` only when the task is non-trivial, plan-driven, or spec-driven.
-
-The important point is that `AGENTS.md` remains the authority.
-The CLI should adapt to the repository contract, not the other way around.
-
-Minimal text for tools that support persistent instructions:
+Minimal instruction text for tools that do not discover repo policy reliably:
 
 ```text
 Read AGENTS.md first and follow the applicable rules before making changes.
 ```
-
-Use that only when the tool does not reliably discover `AGENTS.md` on its own.
-Prefer local user settings or explicitly approved vendor-specific files over adding extra repo-level config by default.
-
-## Use with IDEs
-
-`agent47` is a repository convention, not an IDE integration layer.
-That applies to VS Code, Cursor, Windsurf, and similar editors with embedded agents.
-
-Recommended usage:
-
-- open the repository root, not an isolated subfolder
-- make `AGENTS.md` visible early in the session
-- tell the IDE agent to use `AGENTS.md` as the repository policy if it does not do so automatically
-- keep vendor-specific agent config files out of the repo unless they were explicitly requested
-
-This is the intended mental model:
-
-- `agent47` defines portable repository rules
-- the IDE agent should be pointed at those rules
-- the repo should not depend on vendor-specific config to remain usable

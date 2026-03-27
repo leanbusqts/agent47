@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  go-test:
+    name: go-test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run go test
+        run: go test ./...
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Check coverage floor
+        run: |
+          go test ./... -coverprofile=coverage.out
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ { gsub("%","",$3); print $3 }')
+          echo "total coverage: ${total}%"
+          awk -v total="$total" 'BEGIN { exit !(total+0 >= 80) }'
+      - name: Check package coverage floors
+        run: |
+          failed=0
+          for pkg in $(go list ./...); do
+            output=$(go test -cover "$pkg" 2>&1)
+            echo "$output"
+            coverage=$(printf '%s\n' "$output" | awk '/coverage: .* of statements/ { gsub("%","",$5); print $5 }' | tail -n 1)
+            if [ -z "$coverage" ]; then
+              continue
+            fi
+            awk -v coverage="$coverage" -v pkg="$pkg" 'BEGIN {
+              if (coverage+0 < 80) {
+                printf("package coverage below floor: %s (%s%%)\n", pkg, coverage) > "/dev/stderr"
+                exit 1
+              }
+            }' || failed=1
+          done
+          exit "$failed"
+
+  lint-shell:
+    name: lint-shell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Run shell lint
+        run: ./scripts/lint-shell
+
+  checkout-tests:
+    name: checkout-tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run checkout test suite
+        run: go run ./cmd/afstest
+
+  installed-verify:
+    name: installed-verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Verify installed artifact flows
+        run: go run ./cmd/afsverify
+
+  smoke-install:
+    name: smoke-install (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Run smoke install
+        run: go run ./cmd/afssmoke

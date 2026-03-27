@@ -11,12 +11,12 @@ teardown() {
 }
 
 @test "add-agent-prompt creates prompt" {
-  run "$ROOT_DIR/scripts/add-agent-prompt"
+  run "$ROOT_DIR/bin/afs" add-agent-prompt
   assert_success
   assert_file_exists "prompts/agent-prompt.txt"
   run cat "prompts/agent-prompt.txt"
   assert_success
-  assert_contains "$output" 'Use `AGENTS.md` as the single source of policy.'
+  assert_contains "$output" "Use \`AGENTS.md\` as the single source of policy."
   assert_contains "$output" "skills/AVAILABLE_SKILLS.xml"
   assert_contains "$output" "specs/spec.yml"
   assert_contains "$output" "suggest that the user review it"
@@ -28,45 +28,41 @@ teardown() {
   mkdir -p prompts
   echo "custom prompt" > prompts/agent-prompt.txt
 
-  run "$ROOT_DIR/scripts/add-agent-prompt" --force
+  run "$ROOT_DIR/bin/afs" add-agent-prompt --force
   assert_success
-  run grep -F 'Use `AGENTS.md` as the single source of policy.' prompts/agent-prompt.txt
+  run grep -F "Use \`AGENTS.md\` as the single source of policy." prompts/agent-prompt.txt
   assert_success
 }
 
 @test "add-agent-prompt rejects unexpected arguments" {
-  run "$ROOT_DIR/scripts/add-agent-prompt" unexpected
+  run "$ROOT_DIR/bin/afs" add-agent-prompt unexpected
   [ "$status" -ne 0 ]
   assert_contains "$output" "Usage: add-agent-prompt [--force]"
 }
 
 @test "add-agent-prompt does not create prompts dir when template is missing" {
-  rm -f "$AGENT47_HOME/templates/prompts/agent-prompt.txt"
-
-  run "$ROOT_DIR/scripts/add-agent-prompt"
+  temp_repo="$(make_test_repo_copy)"
+  run bash -c '
+    set -euo pipefail
+    mv "$1/templates/prompts/agent-prompt.txt" "$1/templates/prompts/agent-prompt.txt.bak"
+    trap '"'"'mv "$1/templates/prompts/agent-prompt.txt.bak" "$1/templates/prompts/agent-prompt.txt"'"'"' EXIT
+    cd "$2"
+    AGENT47_REPO_ROOT="$1" "$3/bin/afs" add-agent-prompt
+  ' _ "$temp_repo" "$PWD" "$ROOT_DIR"
   [ "$status" -ne 0 ]
   assert_contains "$output" "Template not found: agent-prompt.txt"
   [ ! -d "prompts" ]
-
-  cp "$ROOT_DIR/templates/prompts/agent-prompt.txt" "$AGENT47_HOME/templates/prompts/agent-prompt.txt"
 }
 
-@test "add-agent-prompt --force preserves existing file if replace fails" {
-  mkdir -p prompts "$TEST_WORKDIR/fake-bin"
-  echo "custom prompt" > prompts/agent-prompt.txt
-
-  cat > "$TEST_WORKDIR/fake-bin/mv" <<'EOF'
+@test "bin/afs delegates add-agent-prompt to configured go cli bridge" {
+  cat > "$TEST_WORKDIR/fake-go-cli" <<'EOF'
 #!/bin/bash
-if [ "${!#}" = "prompts/agent-prompt.txt" ]; then
-  exit 1
-fi
-exec /bin/mv "$@"
+echo "prompt-go-cli:$*"
+exit 0
 EOF
-  chmod +x "$TEST_WORKDIR/fake-bin/mv"
+  chmod +x "$TEST_WORKDIR/fake-go-cli"
 
-  PATH="$TEST_WORKDIR/fake-bin:/usr/bin:/bin" run "$ROOT_DIR/scripts/add-agent-prompt" --force
-  [ "$status" -ne 0 ]
-  run cat prompts/agent-prompt.txt
+  run env AGENT47_GO_CLI="$TEST_WORKDIR/fake-go-cli" "$ROOT_DIR/bin/afs" add-agent-prompt --force
   assert_success
-  [ "$output" = "custom prompt" ]
+  assert_contains "$output" "prompt-go-cli:add-agent-prompt --force"
 }

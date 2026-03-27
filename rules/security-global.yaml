@@ -1,0 +1,30 @@
+rules:
+  - id: "SEC-global-001"
+    severity: "critical"
+    applies_to: "all"
+    rule: "Never hardcode secrets, tokens, passwords, API keys, or private credentials."
+    examples:
+      dont: |
+        const apiKey = "hardcoded-key"
+      do: |
+        const apiKey = secrets.get("API_KEY")
+
+  - id: "SEC-global-002"
+    severity: "critical"
+    applies_to: "all"
+    rule: "Do not log or expose secrets, tokens, credentials, or sensitive personal data."
+
+  - id: "SEC-global-003"
+    severity: "critical"
+    applies_to: "all"
+    rule: "Validate and constrain untrusted input at the appropriate boundary before use."
+
+  - id: "SEC-global-004"
+    severity: "critical"
+    applies_to: "all"
+    rule: "Do not execute code or commands derived from untrusted input without strict allow-list controls."
+
+  - id: "SEC-global-005"
+    severity: "high"
+    applies_to: "all"
+    rule: "Do not send repository code, secrets, or user data to external systems unless explicitly approved."

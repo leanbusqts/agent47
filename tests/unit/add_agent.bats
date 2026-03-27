@@ -11,7 +11,7 @@ teardown() {
 }
 
 @test "add-agent copies core files and creates README" {
-  run "$ROOT_DIR/scripts/add-agent"
+  run "$ROOT_DIR/bin/afs" add-agent
   assert_success
   assert_file_exists "AGENTS.md"
   assert_file_exists "rules/rules-mobile.yaml"
@@ -29,7 +29,7 @@ teardown() {
 }
 
 @test "add-agent --only-skills instala solo skills" {
-  run "$ROOT_DIR/scripts/add-agent" --only-skills
+  run "$ROOT_DIR/bin/afs" add-agent --only-skills
   assert_success
   [ ! -f "AGENTS.md" ]
   [ ! -d "rules" ]
@@ -38,8 +38,9 @@ teardown() {
 }
 
 @test "add-agent discovers skill templates dynamically" {
-  mkdir -p "$AGENT47_HOME/templates/skills/custom-skill"
-  cat > "$AGENT47_HOME/templates/skills/custom-skill/SKILL.md" <<'EOF'
+  temp_repo="$(make_test_repo_copy)"
+  mkdir -p "$temp_repo/templates/skills/custom-skill"
+  cat > "$temp_repo/templates/skills/custom-skill/SKILL.md" <<'EOF'
 ---
 name: custom-skill
 description: Dynamic test skill.
@@ -48,7 +49,7 @@ description: Dynamic test skill.
 # Custom Skill
 EOF
 
-  run "$ROOT_DIR/scripts/add-agent" --only-skills
+  run env AGENT47_REPO_ROOT="$temp_repo" "$ROOT_DIR/bin/afs" add-agent --only-skills
   assert_success
   assert_file_exists "skills/custom-skill/SKILL.md"
   run grep -F "<name>custom-skill</name>" skills/AVAILABLE_SKILLS.xml
@@ -66,7 +67,7 @@ EOF
   echo "custom product spec" > SPEC.md
   echo "custom skill" > skills/analyze/SKILL.md
 
-  run "$ROOT_DIR/scripts/add-agent" --force
+  run "$ROOT_DIR/bin/afs" add-agent --force
   assert_success
 
   run grep -F "single source of operating policy" AGENTS.md
@@ -92,7 +93,7 @@ EOF
   echo "custom" > skills/analyze/SKILL.md
   echo "keep rule" > rules/rules-backend.yaml
 
-  run "$ROOT_DIR/scripts/add-agent" --only-skills --force
+  run "$ROOT_DIR/bin/afs" add-agent --only-skills --force
   assert_success
   run grep -q "custom" skills/analyze/SKILL.md
   [ "$status" -ne 0 ]
@@ -100,24 +101,42 @@ EOF
   assert_success
 }
 
-@test "add-agent --force removes stale managed rules" {
+@test "add-agent --force removes stale managed yaml rules" {
   mkdir -p rules
-  echo "stale rule" > rules/obsolete-managed.yaml
+  echo "stale managed rule" > rules/custom-rule.yaml
   echo "keep me" > rules/custom.txt
 
-  run "$ROOT_DIR/scripts/add-agent" --force
+  run "$ROOT_DIR/bin/afs" add-agent --force
   assert_success
-  [ ! -f "rules/obsolete-managed.yaml" ]
+  [ ! -f "rules/custom-rule.yaml" ]
   assert_file_exists "rules/rules-backend.yaml"
   run cat "rules/custom.txt"
   assert_success
   [ "$output" = "keep me" ]
 }
 
-@test "add-agent fails if a required template is missing" {
-  rm "$AGENT47_HOME/templates/AGENTS.md"
+@test "add-agent --force replaces skills dir with fresh managed install" {
+  mkdir -p skills/custom-skill
+  cat > skills/custom-skill/SKILL.md <<'EOF'
+---
+name: custom-skill
+description: Local custom skill.
+---
 
-  run "$ROOT_DIR/scripts/add-agent"
+# Local Custom Skill
+EOF
+
+  run "$ROOT_DIR/bin/afs" add-agent --force
+  assert_success
+  [ ! -d "skills/custom-skill" ]
+  assert_file_exists "skills/analyze/SKILL.md"
+}
+
+@test "add-agent fails if a required template is missing" {
+  temp_repo="$(make_test_repo_copy)"
+  mv "$temp_repo/templates/AGENTS.md" "$temp_repo/templates/AGENTS.md.bak"
+
+  run env AGENT47_REPO_ROOT="$temp_repo" "$ROOT_DIR/bin/afs" add-agent
   [ "$status" -ne 0 ]
   assert_contains "$output" "Template not found"
   assert_contains "$output" "required templates missing"
@@ -126,62 +145,43 @@ EOF
   [ ! -f "rules/rules-frontend.yaml" ]
   [ ! -f "rules/rules-mobile.yaml" ]
   [ ! -f "rules/security-global.yaml" ]
-
-  # Restaurar templates
-  rm -rf "$AGENT47_HOME/templates"
-  cp -R "$ROOT_DIR/templates" "$AGENT47_HOME/"
-}
-
-@test "add-agent aborts before writing when skills helper dependencies are missing" {
-  run bash -c '
-    set -euo pipefail
-    rm -f "$1/scripts/lib/skill-utils.sh"
-    mv "$2/scripts/lib/skill-utils.sh" "$2/scripts/lib/skill-utils.sh.bak"
-    trap '"'"'
-      mv "$2/scripts/lib/skill-utils.sh.bak" "$2/scripts/lib/skill-utils.sh"
-      cp "$2/scripts/lib/skill-utils.sh" "$1/scripts/lib/skill-utils.sh"
-    '"'"' EXIT
-    cd "$3"
-    "$2/scripts/add-agent"
-  ' _ "$AGENT47_HOME" "$ROOT_DIR" "$PWD"
-  [ "$status" -ne 0 ]
-  assert_contains "$output" "missing helper dependency"
-  [ ! -f "AGENTS.md" ]
-  [ ! -f "README.md" ]
-  [ ! -d "rules" ]
-}
-
-@test "add-agent falls back to local skill utils when installed copy is missing" {
-  rm -f "$AGENT47_HOME/scripts/lib/skill-utils.sh"
-  mkdir -p "$AGENT47_HOME/scripts"
-
-  run "$ROOT_DIR/scripts/add-agent" --only-skills
-  assert_success
-  assert_file_exists "skills/analyze/SKILL.md"
-  assert_file_exists "skills/AVAILABLE_SKILLS.xml"
 }
 
 @test "add-agent aborts when no valid skill templates are available" {
-  rm -rf "$AGENT47_HOME/templates/skills"
-  mkdir -p "$AGENT47_HOME/templates/skills"
-
-  run "$ROOT_DIR/scripts/add-agent" --only-skills
+  temp_repo="$(make_test_repo_copy)"
+  run bash -c '
+    set -euo pipefail
+    for file in "$1"/templates/skills/*/SKILL.md; do
+      mv "$file" "$file.bak"
+    done
+    trap '"'"'
+      for file in "$1"/templates/skills/*/SKILL.md.bak; do
+        [ -e "$file" ] || continue
+        mv "$file" "${file%.bak}"
+      done
+    '"'"' EXIT
+    cd "$2"
+    AGENT47_REPO_ROOT="$1" "$3/bin/afs" add-agent --only-skills
+  ' _ "$temp_repo" "$PWD" "$ROOT_DIR"
   [ "$status" -ne 0 ]
-  assert_contains "$output" "No valid skill templates found"
+  assert_contains "$output" "no valid skill templates found in skills"
   [ ! -d "skills" ]
-
-  rm -rf "$AGENT47_HOME/templates/skills"
-  cp -R "$ROOT_DIR/templates/skills" "$AGENT47_HOME/templates/"
 }
 
 @test "add-agent --force rolls back if staged skills are invalid" {
-  mkdir -p rules skills/analyze "$AGENT47_HOME/templates/skills/analyze"
+  temp_repo="$(make_test_repo_copy)"
+  mkdir -p rules skills/analyze
   echo "existing agents" > AGENTS.md
   echo "existing rule" > rules/rules-backend.yaml
   echo "existing skill" > skills/analyze/SKILL.md
-  printf '%s\n' 'not-valid-frontmatter' > "$AGENT47_HOME/templates/skills/analyze/SKILL.md"
-
-  run "$ROOT_DIR/scripts/add-agent" --force
+  run bash -c '
+    set -euo pipefail
+    cp "$1/templates/skills/analyze/SKILL.md" "$1/templates/skills/analyze/SKILL.md.bak"
+    trap '"'"'mv "$1/templates/skills/analyze/SKILL.md.bak" "$1/templates/skills/analyze/SKILL.md"'"'"' EXIT
+    printf "%s\n" not-valid-frontmatter > "$1/templates/skills/analyze/SKILL.md"
+    cd "$2"
+    AGENT47_REPO_ROOT="$1" "$3/bin/afs" add-agent --force
+  ' _ "$temp_repo" "$PWD" "$ROOT_DIR"
   [ "$status" -ne 0 ]
   run grep -F "existing agents" AGENTS.md
   assert_success
@@ -189,19 +189,20 @@ EOF
   assert_success
   run grep -F "existing skill" skills/analyze/SKILL.md
   assert_success
-
-  cp "$ROOT_DIR/templates/skills/analyze/SKILL.md" "$AGENT47_HOME/templates/skills/analyze/SKILL.md"
 }
 
 @test "add-agent --force cleans empty rules dir after rollback on fresh repo" {
-  mkdir -p "$AGENT47_HOME/templates/skills/analyze"
-  printf '%s\n' 'not-valid-frontmatter' > "$AGENT47_HOME/templates/skills/analyze/SKILL.md"
-
-  run "$ROOT_DIR/scripts/add-agent" --force
+  temp_repo="$(make_test_repo_copy)"
+  run bash -c '
+    set -euo pipefail
+    cp "$1/templates/skills/analyze/SKILL.md" "$1/templates/skills/analyze/SKILL.md.bak"
+    trap '"'"'mv "$1/templates/skills/analyze/SKILL.md.bak" "$1/templates/skills/analyze/SKILL.md"'"'"' EXIT
+    printf "%s\n" not-valid-frontmatter > "$1/templates/skills/analyze/SKILL.md"
+    cd "$2"
+    AGENT47_REPO_ROOT="$1" "$3/bin/afs" add-agent --force
+  ' _ "$temp_repo" "$PWD" "$ROOT_DIR"
   [ "$status" -ne 0 ]
   [ ! -d "rules" ]
   [ ! -f "AGENTS.md" ]
   [ ! -f "README.md" ]
-
-  cp "$ROOT_DIR/templates/skills/analyze/SKILL.md" "$AGENT47_HOME/templates/skills/analyze/SKILL.md"
 }

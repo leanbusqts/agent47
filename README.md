@@ -1,57 +1,77 @@
 # agent47
 
-`agent47` is a small CLI for bootstrapping agent-oriented project scaffolding:
+`agent47` is a small Go-first CLI plus template payload for bootstrapping agent-oriented repository scaffolding.
 
-- `AGENTS.md` as the policy contract
-- `rules/*.yaml` for stack and security guidance
-- `skills/*` plus `AVAILABLE_SKILLS.xml`
-- `specs/spec.yml` for non-trivial spec/plan work
-- optional helper prompts for agent-driven workflows
+It standardizes a portable repo contract around:
 
-It is intentionally simple: copy templates into a project, keep them versioned, and refresh them explicitly when needed.
+- `AGENTS.md`
+- `rules/*.yaml`
+- curated `skills/*`
+- `skills/AVAILABLE_SKILLS.xml`
+- prompt helpers
+- `specs/spec.yml` as a template artifact for non-trivial planning work
 
-The public command is `afs`, short for `Agent Forty-Seven` (`agent47`).
-
-In this repository, root [`SPEC.md`](SPEC.md) is a current-state product spec for `agent47` itself. It is not the place to draft a new feature spec or implementation plan; those should live in `specs/spec.yml` when needed.
+The public command is `afs`, short for `Agent Forty-Seven`.
 
 ## Quickstart
 
+Install locally:
+
 ```bash
 ./install.sh
+```
 
+Bootstrap a target repo:
+
+```bash
 cd /path/to/project
 afs add-agent
 ```
 
-For non-interactive environments, use:
+For automation:
 
 ```bash
 ./install.sh --non-interactive
 ```
 
-That bootstraps:
+On Windows, use:
+
+```powershell
+.\install.ps1
+```
+
+## What `add-agent` writes
+
+`afs add-agent` bootstraps:
 
 - `AGENTS.md`
-- `rules/*.yaml`
-- curated `skills/*` discovered from the template tree
+- all template `rules/*.yaml`
+- curated `skills/*`
 - `skills/AVAILABLE_SKILLS.xml`
 - an empty `README.md` if missing
 
-To refresh an older project copy:
+`afs add-agent --force` performs a fresh install of the managed scaffold in the current project:
 
-```bash
-afs add-agent --force
-```
+- replaces `AGENTS.md`
+- reconciles `rules/*.yaml`
+- replaces `skills/*`
+- regenerates `skills/AVAILABLE_SKILLS.xml`
+- removes stale managed rules and skills no longer shipped by the current templates
+- preserves `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md`
 
-`--force` reconciles agent47-managed files with the current template set, removing stale managed rules or skills while preserving `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md` when present.
-Custom files can live under `rules/` or `skills/`, but `afs add-agent --force` may replace or remove them while reconciling the managed scaffold.
+Because `rules/*.yaml` and `skills/*` are managed paths, local custom files under those paths can be replaced or removed during `--force`.
 
-## Common commands
+`afs add-agent --only-skills` refreshes only skills. Without `--force`, existing invalid skill files are preserved but omitted from `AVAILABLE_SKILLS.xml`.
+
+## Public commands
 
 ```bash
 afs help
+afs uninstall
 afs doctor
 afs doctor --check-update
+afs doctor --check-update-force
+afs doctor --check-update --fail-on-warn
 afs add-agent
 afs add-agent --force
 afs add-agent --only-skills
@@ -59,6 +79,37 @@ afs add-agent --only-skills --force
 afs add-agent-prompt [--force]
 afs add-ss-prompt
 ```
+
+There is no supported public `afs install`, `afs upgrade`, `afs templates`, `afs check-update`, `afs add-spec`, `afs add-cli-prompt`, `afs add-default-skills`, or `afs init-agent` command.
+
+## Runtime notes
+
+- The installed product runtime is the Go CLI under `cmd/afs` and `internal/*`.
+- `install.sh` and `install.ps1` are thin wrappers around the native install service.
+- Repo-local `bin/afs` is a launcher for checkout-based development.
+- `bin/afs` prefers an explicit compiled Go CLI via `AGENT47_GO_CLI`, then an explicit repo CLI via `AGENT47_REPO_CLI`, then `go run ./cmd/afs`. It no longer falls back to an implicit repo-root binary or to the legacy Bash runtime.
+- Installed templates live under `~/.agent47/templates` on Unix-like systems and under `%LOCALAPPDATA%\agent47\templates` by default on Windows.
+- On Unix-like systems, the installer publishes `~/bin/afs` plus helper commands. On Windows, it uses the managed bin directory directly.
+- `doctor` flags can be combined, for example `afs doctor --check-update --fail-on-warn`.
+
+## Repo maintenance
+
+Primary contributor commands:
+
+```bash
+make test
+make go-test
+make go-build
+make lint-shell
+make smoke-install
+```
+
+Notes:
+
+- `make test` runs the checkout test runner plus installed-artifact verification.
+- `make go-test` runs `go test ./...` with a repo-safe `GOCACHE`.
+- `make smoke-install` runs an isolated install plus `doctor` verification.
+- `scripts/lint-shell` is the remaining shell maintenance entrypoint in this repo.
 
 ## Documentation
 
@@ -69,35 +120,8 @@ afs add-ss-prompt
 - [SNAPSHOT.md](SNAPSHOT.md)
 - [SPEC.md](SPEC.md)
 
-The usage guide covers:
-
-- installation and refresh flows
-- managed vs project-owned files
-- use with agent CLIs such as Codex or Claude Code
-- use with IDEs such as VS Code or Cursor
-- the difference between root `SPEC.md` and project work in `specs/spec.yml`
-
 Document roles:
 
-- `SNAPSHOT.md`: concise summary of the current project state
-- root `SPEC.md`: current-state product spec for `agent47` itself
-- `specs/spec.yml`: task-specific spec/plan artifact for non-trivial work
-
-## Notes
-
-- `afs add-agent` is the default bootstrap path.
-- `./install.sh` now installs a stable launcher at `~/.agent47/bin/afs` and links `~/bin/afs` to that copy.
-- `./install.sh --non-interactive` skips interactive shell rc edits and is safe for automation; the installer also falls back to this non-interactive behavior automatically when no TTY is available.
-- interactive installs update the preferred shell rc file for the active shell, using `~/.bash_profile` for Bash on macOS/login-style setups.
-- `afs` prefers its managed helper scripts over same-named commands found earlier in `PATH`.
-- `afs add-agent --only-skills` refreshes the curated skills set from whatever `templates/skills/*/SKILL.md` entries ship with the installed templates.
-- during `afs add-agent --force`, `rules/*.yaml` and `skills/*` are reconciled against the current template set, so local custom files there may be replaced or removed
-- `afs add-agent-prompt` and `afs add-ss-prompt` are focused helpers.
-- `./scripts/test` auto-installs a temporary `bats` copy from `tests/vendor/bats` when needed and cleans it up after the run.
-- `./scripts/lint-shell` runs `shellcheck` over repo Bash sources as an optional contributor check; it is not required for installing or using `agent47`.
-- `./scripts/smoke-install` runs an isolated install + `doctor` pass in a temporary home directory as a release/smoke check.
-- shell security guidance now ships with the template rules for Bash-first repositories and scripts.
-- skill validation helpers now live under `scripts/lib/`, while `scripts/test` remains a repo-level executable entrypoint.
-- Template backups keep only the latest backup when reinstalling with `--force`.
-- `afs uninstall` removes the published commands plus the managed runtime assets under `~/.agent47`.
-- Core scripts use strict shell mode and fail fast on copy/bootstrap errors.
+- `SNAPSHOT.md`: concise current-state summary
+- root `SPEC.md`: current-state product contract for `agent47`
+- `specs/spec.yml`: task-specific spec/plan artifact when work needs one

@@ -1,0 +1,42 @@
+<available_skills>
+  <skill>
+    <name>analyze</name>
+    <description>Understand the current state, flows, and issues before making changes.</description>
+    <location>skills/analyze/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>implement</name>
+    <description>Deliver a scoped change that meets the stated requirements with minimal surface area.</description>
+    <location>skills/implement/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>optimize</name>
+    <description>Improve performance or resource usage with evidence and clear trade-offs.</description>
+    <location>skills/optimize/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>plan</name>
+    <description>Create a concise plan with risks and checkpoints before executing any changes.</description>
+    <location>skills/plan/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>refactor</name>
+    <description>Improve structure and clarity without changing externally visible behavior.</description>
+    <location>skills/refactor/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>review</name>
+    <description>Inspect changes for correctness, risks, and regressions before accepting them.</description>
+    <location>skills/review/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>spec-clarify</name>
+    <description>Ask targeted questions to clarify scope, edge cases, and acceptance before coding.</description>
+    <location>skills/spec-clarify/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>troubleshoot</name>
+    <description>Isolate root causes and propose targeted fixes with clear validation steps.</description>
+    <location>skills/troubleshoot/SKILL.md</location>
+  </skill>
+</available_skills>

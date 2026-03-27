@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck disable=SC2030,SC2031
 
 load ../helpers/common
 
@@ -25,19 +26,10 @@ teardown() {
   rm -f "$HOME/bin/afs" "$HOME/bin/add-agent" "$HOME/bin/add-agent-prompt" "$HOME/bin/add-ss-prompt"
   cp "$ROOT_DIR/bin/afs" "$AGENT47_HOME/bin/afs"
   chmod +x "$AGENT47_HOME/bin/afs"
-  cp "$ROOT_DIR/scripts/add-agent" "$AGENT47_HOME/scripts/add-agent"
-  chmod +x "$AGENT47_HOME/scripts/add-agent"
-  cp "$ROOT_DIR/scripts/add-agent-prompt" "$AGENT47_HOME/scripts/add-agent-prompt"
-  chmod +x "$AGENT47_HOME/scripts/add-agent-prompt"
-  cp "$ROOT_DIR/scripts/add-ss-prompt" "$AGENT47_HOME/scripts/add-ss-prompt"
-  chmod +x "$AGENT47_HOME/scripts/add-ss-prompt"
   ln -s "$AGENT47_HOME/bin/afs" "$HOME/bin/afs"
-  cp "$AGENT47_HOME/scripts/add-agent" "$HOME/bin/add-agent"
-  chmod +x "$HOME/bin/add-agent"
-  cp "$AGENT47_HOME/scripts/add-agent-prompt" "$HOME/bin/add-agent-prompt"
-  chmod +x "$HOME/bin/add-agent-prompt"
-  cp "$AGENT47_HOME/scripts/add-ss-prompt" "$HOME/bin/add-ss-prompt"
-  chmod +x "$HOME/bin/add-ss-prompt"
+  ln -s "$AGENT47_HOME/bin/afs" "$HOME/bin/add-agent"
+  ln -s "$AGENT47_HOME/bin/afs" "$HOME/bin/add-agent-prompt"
+  ln -s "$AGENT47_HOME/bin/afs" "$HOME/bin/add-ss-prompt"
   run "$ROOT_DIR/bin/afs" doctor
   assert_success
   assert_contains "$output" "[OK] afs in PATH"
@@ -54,22 +46,8 @@ teardown() {
   assert_contains "$output" "Skipping update check by default"
 }
 
-@test "doctor detects legacy add-agent-prompt-base script" {
-  mkdir -p "$HOME/bin"
-  cat > "$HOME/bin/add-agent-prompt-base" <<'EOF'
-#!/bin/bash
-exit 0
-EOF
-  chmod +x "$HOME/bin/add-agent-prompt-base"
-  export PATH="$HOME/bin:$ROOT_DIR/bin:$ROOT_DIR/scripts:$PATH"
-
-  run "$ROOT_DIR/bin/afs" doctor
-  assert_success
-  assert_contains "$output" "Legacy script detected: add-agent-prompt-base"
-}
-
 @test "doctor runs update check only when requested" {
-  export PATH="$ROOT_DIR/bin:$ROOT_DIR/scripts:$PATH"
+  export PATH="$ROOT_DIR/bin:$PATH"
   export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
 
   run "$ROOT_DIR/bin/afs" doctor --check-update
@@ -122,4 +100,12 @@ EOF
   assert_success
   assert_contains "$output" "afs in PATH, but not the managed launcher"
   assert_contains "$output" "afs symlink in ~/bin is broken or points to a non-executable target"
+}
+
+@test "doctor --fail-on-warn exits non-zero when warnings are present" {
+  PATH="/usr/bin:/bin"
+  run "$ROOT_DIR/bin/afs" doctor --fail-on-warn
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "afs not in PATH"
+  assert_contains "$output" "doctor reported warnings"
 }

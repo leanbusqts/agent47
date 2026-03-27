@@ -10,22 +10,57 @@ teardown() {
   teardown_workdir
 }
 
-@test "install copies templates and library helpers into AGENT47_HOME" {
+@test "install copies templates and managed launcher into AGENT47_HOME" {
   PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh" --force
   assert_success
   assert_file_exists "$AGENT47_HOME/bin/afs"
   assert_file_exists "$AGENT47_HOME/templates/AGENTS.md"
   assert_file_exists "$AGENT47_HOME/templates/specs/spec.yml"
   assert_file_exists "$AGENT47_HOME/templates/rules/security-shell.yaml"
-  assert_file_exists "$AGENT47_HOME/scripts/lib/skill-utils.sh"
-  assert_file_exists "$AGENT47_HOME/scripts/add-agent-prompt"
-  assert_file_exists "$AGENT47_HOME/scripts/add-ss-prompt"
+  [ ! -d "$AGENT47_HOME/scripts/lib" ]
+  [ ! -e "$AGENT47_HOME/scripts/add-agent" ]
+  [ ! -e "$AGENT47_HOME/scripts/add-agent-prompt" ]
+  [ ! -e "$AGENT47_HOME/scripts/add-ss-prompt" ]
 }
 
-@test "install without force preserves existing installed runtime files" {
-  mkdir -p "$AGENT47_HOME/bin" "$AGENT47_HOME/scripts" "$HOME/bin"
+@test "install.sh uses the native Go installer by default" {
+  if ! command -v go >/dev/null 2>&1; then
+    skip "go not installed"
+  fi
+
+  PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh" --force --non-interactive
+  assert_success
+  assert_file_exists "$AGENT47_HOME/bin/afs"
+  assert_file_exists "$HOME/bin/add-agent"
+  assert_file_exists "$HOME/bin/add-agent-prompt"
+  [ -L "$HOME/bin/afs" ]
+
+  run "$AGENT47_HOME/bin/afs" help
+  assert_success
+  assert_contains "$output" "agent47 Agent CLI"
+}
+
+@test "install.sh resolves the repo root through symlinks" {
+  if ! command -v go >/dev/null 2>&1; then
+    skip "go not installed"
+  fi
+
+  ln -s "$ROOT_DIR/install.sh" "$TEST_WORKDIR/install-link.sh"
+  PATH="$HOME/bin:$PATH" run "$TEST_WORKDIR/install-link.sh" --force --non-interactive
+  assert_success
+  assert_file_exists "$AGENT47_HOME/bin/afs"
+  run "$AGENT47_HOME/bin/afs" help
+  assert_success
+  assert_contains "$output" "agent47 Agent CLI"
+}
+
+@test "default go install preserves existing runtime files without force" {
+  if ! command -v go >/dev/null 2>&1; then
+    skip "go not installed"
+  fi
+
+  mkdir -p "$AGENT47_HOME/bin" "$HOME/bin"
   printf '%s\n' old-launcher > "$AGENT47_HOME/bin/afs"
-  printf '%s\n' old-helper > "$AGENT47_HOME/scripts/add-agent"
   printf '%s\n' old-user-helper > "$HOME/bin/add-agent"
   touch "$TEST_WORKDIR/old-afs"
   rm -f "$HOME/bin/afs"
@@ -34,18 +69,79 @@ teardown() {
   PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh" --non-interactive
   assert_success
   assert_contains "$output" "afs launcher already exists"
-  assert_contains "$output" "add-agent already exists in $HOME/bin"
+  assert_contains "$output" "add-agent already exists in "
   assert_contains "$output" "afs entry already exists in ~/bin"
 
-  run cat "$AGENT47_HOME/bin/afs"
+  assert_file_exists "$AGENT47_HOME/bin/afs"
+  assert_file_exists "$HOME/bin/add-agent"
+  run readlink "$HOME/bin/afs"
   assert_success
-  [ "$output" = "old-launcher" ]
-  run cat "$AGENT47_HOME/scripts/add-agent"
+  [ "$output" = "$TEST_WORKDIR/old-afs" ]
+}
+
+@test "default go install rolls back public scripts if publish fails mid-flight" {
+  if ! command -v go >/dev/null 2>&1; then
+    skip "go not installed"
+  fi
+
+  canonical_home="$(cd "$HOME" && pwd)"
+  printf '%s\n' old-add-agent > "$HOME/bin/add-agent"
+  printf '%s\n' old-add-agent-prompt > "$HOME/bin/add-agent-prompt"
+  rm -f "$HOME/bin/afs"
+
+  run env \
+    AGENT47_ENABLE_TEST_HOOKS=true \
+    AGENT47_FAIL_SYMLINK_TARGET="$canonical_home/bin/add-agent-prompt" \
+    PATH="$HOME/bin:$PATH" \
+    "$ROOT_DIR/install.sh" --force --non-interactive
+  [ "$status" -ne 0 ]
+
+  assert_file_exists "$HOME/bin/add-agent"
+  assert_file_exists "$HOME/bin/add-agent-prompt"
+
+  [ ! -L "$HOME/bin/afs" ]
+}
+
+@test "default go install preserves existing afs symlink if swap fails" {
+  if ! command -v go >/dev/null 2>&1; then
+    skip "go not installed"
+  fi
+
+  canonical_home="$(cd "$HOME" && pwd)"
+  mkdir -p "$TEST_WORKDIR/old"
+  touch "$TEST_WORKDIR/old/afs"
+  rm -f "$HOME/bin/afs"
+  ln -s "$TEST_WORKDIR/old/afs" "$HOME/bin/afs"
+
+  run env \
+    AGENT47_ENABLE_TEST_HOOKS=true \
+    AGENT47_FAIL_SYMLINK_TARGET="$canonical_home/bin/afs" \
+    PATH="$HOME/bin:$PATH" \
+    "$ROOT_DIR/install.sh" --force --non-interactive
+  [ "$status" -ne 0 ]
+  [ -L "$HOME/bin/afs" ]
+
+  run readlink "$HOME/bin/afs"
   assert_success
-  [ "$output" = "old-helper" ]
-  run cat "$HOME/bin/add-agent"
+  [ "$output" = "$TEST_WORKDIR/old/afs" ]
+}
+
+@test "install without force preserves existing installed runtime files" {
+  mkdir -p "$AGENT47_HOME/bin" "$HOME/bin"
+  printf '%s\n' old-launcher > "$AGENT47_HOME/bin/afs"
+  printf '%s\n' old-user-helper > "$HOME/bin/add-agent"
+  touch "$TEST_WORKDIR/old-afs"
+  rm -f "$HOME/bin/afs"
+  ln -s "$TEST_WORKDIR/old-afs" "$HOME/bin/afs"
+
+  PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh" --non-interactive
   assert_success
-  [ "$output" = "old-user-helper" ]
+  assert_contains "$output" "afs launcher already exists"
+  assert_contains "$output" "add-agent already exists in "
+  assert_contains "$output" "afs entry already exists in ~/bin"
+
+  assert_file_exists "$AGENT47_HOME/bin/afs"
+  assert_file_exists "$HOME/bin/add-agent"
   run readlink "$HOME/bin/afs"
   assert_success
   [ "$output" = "$TEST_WORKDIR/old-afs" ]
@@ -62,14 +158,14 @@ teardown() {
 }
 
 @test "smoke install completes without doctor warnings" {
-  run "$ROOT_DIR/scripts/smoke-install"
+  run bash -c 'cd "$1" && GOCACHE="${GOCACHE:-/tmp/agent47-go-build-cache}" go run ./cmd/afssmoke' _ "$ROOT_DIR"
   assert_success
   assert_not_contains "$output" "[WARN]"
 }
 
 @test "install fails if manifest contract drops managed or preserved targets" {
-  run bash -c 'cp "$1/templates/manifest.txt" "$1/templates/manifest.txt.bak"
-cat > "$1/templates/manifest.txt" <<'"'"'EOF'"'"'
+  temp_repo="$(make_test_repo_copy)"
+  run bash -c 'cat > "$1/templates/manifest.txt" <<'"'"'EOF'"'"'
 [rule_templates]
 rules-mobile.yaml
 
@@ -91,10 +187,8 @@ rules
 skills
 specs
 EOF
-PATH="$HOME/bin:$PATH" "$1/install.sh" --non-interactive
-status=$?
-mv "$1/templates/manifest.txt.bak" "$1/templates/manifest.txt"
-exit "$status"' _ "$ROOT_DIR"
+PATH="$HOME/bin:$PATH" AGENT47_REPO_ROOT="$1" "$2/install.sh" --non-interactive
+' _ "$temp_repo" "$ROOT_DIR"
   [ "$status" -ne 0 ]
   assert_contains "$output" "Manifest section has no entries: managed_targets"
 }
@@ -148,10 +242,11 @@ exit "$status"' _ "$ROOT_DIR"
 @test "install runtime prefers bash_profile when present" {
   mkdir -p "$HOME"
   touch "$HOME/.bash_profile"
+  canonical_home="$(cd "$HOME" && pwd)"
 
-  run bash -c "source '$ROOT_DIR/scripts/lib/install-runtime.sh'; detect_shell_rc_file bash"
+  run bash -c "SHELL=/bin/bash PATH=/usr/bin:/bin \"$ROOT_DIR/install.sh\" --non-interactive </dev/null"
   assert_success
-  [ "$output" = "$HOME/.bash_profile" ]
+  assert_contains "$output" "$canonical_home/.bash_profile"
 }
 
 @test "install.sh rejects unexpected arguments" {
@@ -186,76 +281,26 @@ exit "$status"' _ "$ROOT_DIR"
 }
 
 @test "install fails fast when a core install asset is missing" {
-  mv "$ROOT_DIR/templates/AGENTS.md" "$ROOT_DIR/templates/AGENTS.md.bak"
+  temp_repo="$(make_test_repo_copy)"
+  mv "$temp_repo/templates/AGENTS.md" "$temp_repo/templates/AGENTS.md.bak"
 
-  PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh"
+  PATH="$HOME/bin:$PATH" run env AGENT47_REPO_ROOT="$temp_repo" "$ROOT_DIR/install.sh"
   [ "$status" -ne 0 ]
   assert_contains "$output" "Required install asset missing"
-
-  mv "$ROOT_DIR/templates/AGENTS.md.bak" "$ROOT_DIR/templates/AGENTS.md"
-}
-
-@test "install rolls back public scripts if publish fails mid-flight" {
-  mkdir -p "$TEST_WORKDIR/fake-bin"
-  cat > "$TEST_WORKDIR/fake-bin/mv" <<EOF
-#!/bin/bash
-if [ "\${!#}" = "$HOME/bin/add-agent-prompt" ]; then
-  exit 1
-fi
-exec /bin/mv "\$@"
-EOF
-  chmod +x "$TEST_WORKDIR/fake-bin/mv"
-
-  printf '%s\n' old-add-agent > "$HOME/bin/add-agent"
-  printf '%s\n' old-add-agent-prompt > "$HOME/bin/add-agent-prompt"
-  rm -f "$HOME/bin/afs"
-
-  PATH="$TEST_WORKDIR/fake-bin:$HOME/bin:/usr/bin:/bin" run "$ROOT_DIR/install.sh" --force --non-interactive
-  [ "$status" -ne 0 ]
-
-  run cat "$HOME/bin/add-agent"
-  assert_success
-  [ "$output" = "old-add-agent" ]
-
-  run cat "$HOME/bin/add-agent-prompt"
-  assert_success
-  [ "$output" = "old-add-agent-prompt" ]
-
-  [ ! -L "$HOME/bin/afs" ]
-}
-
-@test "install preserves existing afs symlink if link swap fails" {
-  mkdir -p "$TEST_WORKDIR/fake-bin" "$TEST_WORKDIR/old"
-  cat > "$TEST_WORKDIR/fake-bin/mv" <<EOF
-#!/bin/bash
-if [ "\${!#}" = "$HOME/bin/afs" ]; then
-  exit 1
-fi
-exec /bin/mv "\$@"
-EOF
-  chmod +x "$TEST_WORKDIR/fake-bin/mv"
-
-  touch "$TEST_WORKDIR/old/afs"
-  rm -f "$HOME/bin/afs"
-  ln -s "$TEST_WORKDIR/old/afs" "$HOME/bin/afs"
-
-  PATH="$TEST_WORKDIR/fake-bin:$HOME/bin:/usr/bin:/bin" run "$ROOT_DIR/install.sh" --force --non-interactive
-  [ "$status" -ne 0 ]
-  [ -L "$HOME/bin/afs" ]
-  run readlink "$HOME/bin/afs"
-  assert_success
-  [ "$output" = "$TEST_WORKDIR/old/afs" ]
 }
 
 @test "install restores previous templates directory if forced swap fails" {
   temp_home="$TEST_WORKDIR/install-home"
   temp_agent47_home="$temp_home/.agent47"
+  mkdir -p "$temp_home"
+  canonical_temp_home="$(cd "$temp_home" && pwd)"
+  canonical_temp_agent47_home="$canonical_temp_home/.agent47"
   fail_marker="$TEST_WORKDIR/fail-dir-swap-once"
 
   mkdir -p "$temp_agent47_home/templates"
   echo "old template" > "$temp_agent47_home/templates/AGENTS.md"
 
-  run bash -c "HOME=\"$temp_home\" AGENT47_HOME=\"$temp_agent47_home\" AGENT47_ENABLE_TEST_HOOKS=true AGENT47_FAIL_DIR_SWAP_TARGET=\"$temp_agent47_home/templates\" AGENT47_FAIL_DIR_SWAP_MARKER=\"$fail_marker\" PATH=\"\$HOME/bin:/usr/bin:/bin\" \"$ROOT_DIR/install.sh\" --force --non-interactive"
+  run bash -c "HOME=\"$temp_home\" AGENT47_HOME=\"$temp_agent47_home\" AGENT47_ENABLE_TEST_HOOKS=true AGENT47_FAIL_DIR_SWAP_TARGET=\"$canonical_temp_agent47_home/templates\" AGENT47_FAIL_DIR_SWAP_MARKER=\"$fail_marker\" PATH=\"\$HOME/bin:/usr/bin:/bin\" \"$ROOT_DIR/install.sh\" --force --non-interactive"
   [ "$status" -ne 0 ]
   run cat "$temp_agent47_home/templates/AGENTS.md"
   assert_success
@@ -265,13 +310,16 @@ EOF
 @test "install preserves existing launcher when forced template refresh fails early" {
   temp_home="$TEST_WORKDIR/install-home"
   temp_agent47_home="$temp_home/.agent47"
+  mkdir -p "$temp_home"
+  canonical_temp_home="$(cd "$temp_home" && pwd)"
+  canonical_temp_agent47_home="$canonical_temp_home/.agent47"
   fail_marker="$TEST_WORKDIR/fail-dir-swap-once"
 
   mkdir -p "$temp_agent47_home/bin" "$temp_agent47_home/templates"
   printf '%s\n' old-launcher > "$temp_agent47_home/bin/afs"
   echo "old template" > "$temp_agent47_home/templates/AGENTS.md"
 
-  run bash -c "HOME=\"$temp_home\" AGENT47_HOME=\"$temp_agent47_home\" AGENT47_ENABLE_TEST_HOOKS=true AGENT47_FAIL_DIR_SWAP_TARGET=\"$temp_agent47_home/templates\" AGENT47_FAIL_DIR_SWAP_MARKER=\"$fail_marker\" PATH=\"\$HOME/bin:/usr/bin:/bin\" \"$ROOT_DIR/install.sh\" --force --non-interactive"
+  run bash -c "HOME=\"$temp_home\" AGENT47_HOME=\"$temp_agent47_home\" AGENT47_ENABLE_TEST_HOOKS=true AGENT47_FAIL_DIR_SWAP_TARGET=\"$canonical_temp_agent47_home/templates\" AGENT47_FAIL_DIR_SWAP_MARKER=\"$fail_marker\" PATH=\"\$HOME/bin:/usr/bin:/bin\" \"$ROOT_DIR/install.sh\" --force --non-interactive"
   [ "$status" -ne 0 ]
   run cat "$temp_agent47_home/bin/afs"
   assert_success

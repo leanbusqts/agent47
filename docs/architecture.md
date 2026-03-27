@@ -1,10 +1,12 @@
 # Architecture
 
-`agent47` is a Bash-first CLI built around a simple model:
+`agent47` is a Go-first CLI with a small shell layer around checkout launching and shell linting.
 
-1. install the managed launcher and templates with `./install.sh`
-2. run `agent47` project commands via `afs`
-3. bootstrap or refresh managed scaffolding in the target repo
+The shipped model is:
+
+1. install the managed runtime with `./install.sh` or `.\install.ps1`
+2. run project commands through `afs`
+3. bootstrap or refresh scaffolded repo files from `templates/`
 
 ## Project structure
 
@@ -13,56 +15,56 @@ agent47/
 |
 +-- bin/
 |   `-- afs
-|       Router and user-facing CLI entrypoint
+|       Repo launcher for checkout-based development
+|
++-- cmd/
+|   `-- afs/
+|       `-- main.go
+|           Native CLI entrypoint
+|
++-- internal/
+|   +-- app/
+|   +-- bootstrap/
+|   +-- doctor/
+|   +-- fsx/
+|   +-- install/
+|   +-- manifest/
+|   +-- platform/
+|   +-- prompts/
+|   +-- runtime/
+|   +-- skills/
+|   +-- templates/
+|   +-- update/
+|   `-- version/
+|       Native runtime packages
 |
 +-- install.sh
-|   Public installation entrypoint for the local machine
++-- install.ps1
+|   Public install wrappers
 |
 +-- scripts/
-|   +-- add-agent
-|   +-- add-agent-prompt
-|   +-- add-ss-prompt
-|   +-- lint-shell
-|   +-- smoke-install
-|   +-- test
-|   `-- lib/
-|       +-- bootstrap.sh
-|       +-- common.sh
-|       +-- constants.sh
-|       +-- doctor.sh
-|       +-- install-assets.sh
-|       +-- install-runtime.sh
-|       +-- install.sh
-|       +-- managed-files.sh
-|       +-- runtime-env.sh
-|       +-- skill-utils.sh
-|       +-- test-runtime.sh
-|       +-- templates.sh
-|       `-- update.sh
-|           Shared implementation modules by domain
+|   `-- lint-shell
+|       Maintainer shell lint entrypoint
 |
 +-- templates/
 |   +-- AGENTS.md
 |   +-- manifest.txt
 |   +-- prompts/
-|   |   +-- agent-prompt.txt
-|   |   `-- ss-prompt.txt
 |   +-- rules/
-|   |   +-- rules-backend.yaml
-|   |   +-- rules-frontend.yaml
-|   |   +-- rules-mobile.yaml
-|   |   `-- security-*.yaml
-|   `-- skills/
-|       `-- <skill>/SKILL.md
+|   +-- skills/
+|   `-- specs/
+|       Canonical scaffold payload
 |
 +-- tests/
-|   `-- unit/
-|       Bats coverage for CLI behavior and template integrity
+|   +-- unit/
+|   `-- vendor/
+|       Bats-based repo verification
 |
-+-- AGENTS.md
-+-- SPEC.md
++-- docs/
++-- README.md
 +-- SNAPSHOT.md
-`-- README.md
++-- SPEC.md
+`-- PLAN.md
 ```
 
 ## Execution flow
@@ -70,107 +72,98 @@ agent47/
 ```text
 user
   |
-  +--> ./install.sh
+  +--> ./install.sh or .\install.ps1
   |      |
   |      v
-  |   scripts/lib/install.sh
+  |   bin/afs
   |      |
   |      v
-  |   ~/.agent47 + ~/bin/afs
+  |   cmd/afs + internal/install
+  |      |
+  |      v
+  |   managed runtime + templates
   |
   `--> afs
          |
          +--> doctor [--check-update]
-         |      Health check plus optional update check
+         |      install and template health checks
          |
          +--> add-agent
-         |      Bootstrap project scaffolding:
-         |      AGENTS.md + rules + skills + empty README if missing
+         |      bootstrap managed scaffold
          |
          +--> add-agent --force
-         |      Refresh managed scaffolding:
-         |      managed files only, preserving project-owned files
+         |      fresh install of managed scaffold
          |
          +--> add-agent --only-skills [--force]
-         |      Refresh only skills:
-         |      skills/* + AVAILABLE_SKILLS.xml only
+         |      manage only the skills tree
          |
-         `--> add-*-prompt
-                Helper prompt generation
+         `--> add-agent-prompt / add-ss-prompt
+                prompt helpers
 ```
 
 ## Responsibility split
 
 - `bin/afs`
+  - repo-local launcher
+  - prefers `AGENT47_GO_CLI`
+  - otherwise prefers `AGENT47_REPO_CLI`
+  - otherwise runs `go run ./cmd/afs`
+  - avoids self-recursion when `AGENT47_REPO_CLI` points back to itself
+
+- `cmd/afs` and `internal/*`
   - command routing
-  - high-level help
-  - runtime bootstrap is delegated to `scripts/lib/runtime-env.sh`
-  - delegates to shared libs and concrete scripts
+  - runtime path detection
+  - template loading
+  - manifest parsing
+  - bootstrap staging, commit, and rollback
+  - install/uninstall
+  - doctor and update checks
+  - prompt helpers
+  - skill validation and `AVAILABLE_SKILLS.xml` generation
 
-- `install.sh`
-  - public local installation entrypoint
-  - installs the managed launcher and managed templates under `~/.agent47`
-  - interactive PATH persistence targets the active shell's preferred rc file
-
-- `scripts/lib/`
-  - reusable CLI internals
-  - `managed-files.sh` defines project-owned vs agent47-managed file boundaries
-  - `runtime-env.sh` centralizes path resolution, version loading, and shared environment bootstrap
-  - `bootstrap.sh` owns project scaffolding transactions, staging, and rollback
-  - `install-assets.sh` owns atomic file, directory, and symlink publication helpers
-  - `install-runtime.sh` owns installer preflight, managed runtime publication, and uninstall flows
-  - `test-runtime.sh` owns temporary test environment setup and Bats resolution
-  - `install.sh`, `doctor.sh`, `templates.sh`, and `update.sh` stay focused on orchestration and diagnostics
-
-- `scripts/add-*`
-  - user-invoked write operations
-  - bootstrap or refresh project scaffolding
-  - `add-agent` is now a thin entrypoint that delegates bootstrap behavior to shared modules
-  - curated skills are discovered from `templates/skills/*/SKILL.md` instead of a hardcoded list
-
-- `scripts/test`
-  - repo-level executable test runner
-  - stays outside `lib/` because it is a user-invoked command, not a reusable shell module
-
-- `scripts/smoke-install`
-  - isolated install + `doctor` smoke check for releases and maintenance validation
+- `install.sh` and `install.ps1`
+  - public local install entrypoints
+  - forward to the native install service
+  - handle wrapper-specific PATH setup behavior
 
 - `templates/manifest.txt`
-  - declarative scaffold manifest for managed targets, preserved targets, and rule template membership
+  - declarative ownership contract
+  - lists rule templates
+  - defines managed targets
+  - defines preserved targets
+  - defines required install assets
 
 - `templates/`
-  - canonical source of scaffolded files
-  - what gets copied into user projects
+  - canonical source for scaffolded files
+  - copied into target repos or installed into the managed template directory
 
-- `tests/unit`
-  - behavior checks for install, doctor, bootstrap, refresh, prompts, skills, and policy integrity
-
-## Design choices
-
-- Bash-first, no extra runtime dependency
-- conservative by default, explicit `--force` for refresh
-- forced refresh reconciles manifest-managed targets instead of only overwriting matching filenames
-- forced refresh reconciles managed paths such as `rules/` and `skills/` against the current template payload, which can remove local custom files there
-- policy lives in `AGENTS.md`, not duplicated in prompts
-- security guidance is layered: global, language, stack, including shell-specific rules for Bash-first repos
-- template-source repositories such as `agent47` can map policy reads from `rules/` to `templates/rules/`
-- project-specific files such as `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and `SPEC.md` stay preserved during forced refresh
+- `scripts/lint-shell`
+  - maintainer shell lint entrypoint
+  - validates Bash sources and Bats tests when `shellcheck` is available
 
 ## Ownership model
 
-- repo-owned source files
-  - CLI code under `bin/`, `scripts/`, `docs/`, and `tests/`
-  - these exist to build, install, and verify `agent47` itself
+Managed project targets:
 
-- template payload
-  - canonical scaffold content under `templates/`
-  - this is what gets copied into user repositories
+- `AGENTS.md`
+- `rules/*.yaml`
+- `skills/*`
+- `skills/AVAILABLE_SKILLS.xml`
 
-- project-managed targets
-  - `AGENTS.md`, `rules/*.yaml`, `skills/*`, and `skills/AVAILABLE_SKILLS.xml`
-  - ownership is defined in `scripts/lib/managed-files.sh`
-  - local custom files under these paths can be replaced or removed during `--force`
+Preserved project targets:
 
-- project-owned preserved targets
-  - `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and `SPEC.md`
-  - refresh flows keep these intact unless a user changes them manually
+- `README.md`
+- `specs/spec.yml`
+- `SNAPSHOT.md`
+- `SPEC.md`
+
+`afs add-agent --force` is intentionally destructive within managed paths. It reconciles the managed scaffold to the current template set, so local custom files under `rules/` or `skills/` can be removed.
+
+## Design choices
+
+- Go-first runtime with templates remaining as plain files
+- checkout-friendly launcher for local development
+- explicit `--force` for destructive refresh
+- manifest-driven ownership and install validation
+- preserved project docs stay outside the default managed scaffold
+- shell is limited to thin wrappers and maintainer tooling rather than product runtime logic

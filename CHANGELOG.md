@@ -1,6 +1,13 @@
 # CHANGELOG
 ## [Unreleased]
+
+## [1.1.0] - 2026-03-26
 ### Changed
+- Migrated the public product runtime fully to the Go CLI under `cmd/afs` and `internal/*`, with `install.sh` and `install.ps1` acting as thin wrappers around the native install service.
+- Reworked the repo-local launcher so `bin/afs` now prefers explicit compiled CLI overrides, resolves symlinks safely, and rejects invalid explicit launcher paths instead of falling back silently.
+- Expanded installed-artifact verification to cover `doctor --check-update`, `add-agent --force`, and `add-agent --only-skills --force`, and tightened verification isolation so it depends less on host PATH state.
+- Strengthened cross-platform runtime behavior for path matching, Windows file replacement rollback, context-aware install/bootstrap cancellation, and stricter PowerShell launcher override handling.
+- Updated `README.md`, `SNAPSHOT.md`, `SPEC.md`, `docs/`, and `PLAN.md` to reflect the completed Bash-to-Go migration and current public command surface.
 - Promoted root `SPEC.md` to a preserved project document during `afs add-agent --force`, aligning the manifest, tests, and documentation with the product contract.
 - Renamed the non-interactive install flag from `--no-prompt` to `--non-interactive` across runtime, tests, smoke install, and documentation.
 - Added a compact document-role taxonomy across docs to distinguish `SNAPSHOT.md`, root `SPEC.md`, and `specs/spec.yml`.

@@ -1,0 +1,10 @@
+rules:
+  - id: "SEC-swift-001"
+    severity: "critical"
+    applies_to: "mobile"
+    rule: "Do not store secrets in source, Info.plist, or insecure local storage; use Keychain or approved secret delivery mechanisms."
+
+  - id: "SEC-swift-002"
+    severity: "high"
+    applies_to: "mobile"
+    rule: "Validate untrusted input before using it in URLs, file paths, or dynamic view/state updates."

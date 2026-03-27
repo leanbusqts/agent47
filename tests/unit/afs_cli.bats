@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck disable=SC2030,SC2031
 
 load ../helpers/common
 
@@ -32,6 +33,68 @@ EOF
   assert_success
   assert_not_contains "$output" "injected-command"
   assert_file_exists "AGENTS.md"
+}
+
+@test "bin/afs delegates to configured go cli bridge when present" {
+  cat > "$TEST_WORKDIR/fake-go-cli" <<'EOF'
+#!/bin/bash
+echo "go-cli-bridge:$*"
+exit 0
+EOF
+  chmod +x "$TEST_WORKDIR/fake-go-cli"
+
+  run env AGENT47_GO_CLI="$TEST_WORKDIR/fake-go-cli" "$ROOT_DIR/bin/afs" help
+  assert_success
+  assert_contains "$output" "go-cli-bridge:help"
+}
+
+@test "bin/afs ignores self-referential AGENT47_GO_CLI" {
+  run env AGENT47_GO_CLI="$ROOT_DIR/bin/afs" "$ROOT_DIR/bin/afs" help
+  assert_success
+  assert_contains "$output" "agent47 Agent CLI"
+}
+
+@test "bin/afs fails fast when explicit AGENT47_GO_CLI path is missing" {
+  run env AGENT47_GO_CLI="$TEST_WORKDIR/missing-go-cli" "$ROOT_DIR/bin/afs" help
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "AGENT47_GO_CLI points to a missing path"
+}
+
+@test "bin/afs uses configured repo cli when Go is unavailable" {
+  cat > "$TEST_WORKDIR/fake-repo-cli" <<'EOF'
+#!/bin/bash
+echo "repo-cli:$*"
+exit 0
+EOF
+  chmod +x "$TEST_WORKDIR/fake-repo-cli"
+
+  run env PATH="/usr/bin:/bin" AGENT47_REPO_CLI="$TEST_WORKDIR/fake-repo-cli" "$ROOT_DIR/bin/afs" help
+  assert_success
+  assert_contains "$output" "repo-cli:help"
+}
+
+@test "bin/afs fails fast when explicit AGENT47_REPO_CLI is not executable" {
+  printf '%s\n' '#!/bin/bash' > "$TEST_WORKDIR/not-executable-repo-cli"
+  run env PATH="/usr/bin:/bin" AGENT47_REPO_CLI="$TEST_WORKDIR/not-executable-repo-cli" "$ROOT_DIR/bin/afs" help
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "AGENT47_REPO_CLI is not executable"
+}
+
+@test "bin/afs does not use implicit repo binary fallback when Go is unavailable" {
+  temp_repo="$(mktemp -d "$TEST_TMP_ROOT/launcher-XXXXXX")"
+  mkdir -p "$temp_repo/bin"
+  cp "$ROOT_DIR/bin/afs" "$temp_repo/bin/afs"
+  chmod +x "$temp_repo/bin/afs"
+  cat > "$temp_repo/afs" <<'EOF'
+#!/bin/bash
+echo implicit-fallback
+exit 0
+EOF
+  chmod +x "$temp_repo/afs"
+
+  run "$temp_repo/bin/afs" help
+  [ "$status" -ne 0 ]
+  assert_not_contains "$output" "implicit-fallback"
 }
 
 @test "uninstall removes installed scripts" {

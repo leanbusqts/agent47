@@ -13,7 +13,8 @@ teardown() {
 @test "AGENTS template stays compact and includes required sections" {
   run wc -l "$ROOT_DIR/templates/AGENTS.md"
   assert_success
-  lines="$(echo "$output" | awk '{print $1}')"
+  local lines
+  lines="$(awk '{print $1}' <<<"$output")"
   [ "$lines" -le 300 ]
 
   run grep -F "## Filesystem And Approval Boundaries" "$ROOT_DIR/templates/AGENTS.md"
@@ -90,20 +91,26 @@ teardown() {
   done
 }
 
-@test "runtime managed and preserved target helpers expose the canonical contract" {
-  run bash -c "source '$ROOT_DIR/scripts/lib/managed-files.sh'; project_managed_targets"
-  assert_success
-  assert_contains "$output" "AGENTS.md"
-  assert_contains "$output" "rules/*.yaml"
-  assert_contains "$output" "skills/*"
-  assert_contains "$output" "skills/AVAILABLE_SKILLS.xml"
+@test "manifest alone exposes the canonical managed and preserved contract" {
+  managed="$(awk '
+    $0 == "[managed_targets]" { in_section=1; next }
+    /^\[/ && in_section { exit }
+    in_section && NF { print }
+  ' "$ROOT_DIR/templates/manifest.txt")"
+  preserved="$(awk '
+    $0 == "[preserved_targets]" { in_section=1; next }
+    /^\[/ && in_section { exit }
+    in_section && NF { print }
+  ' "$ROOT_DIR/templates/manifest.txt")"
 
-  run bash -c "source '$ROOT_DIR/scripts/lib/managed-files.sh'; project_preserved_files"
-  assert_success
-  assert_contains "$output" "README.md"
-  assert_contains "$output" "specs/spec.yml"
-  assert_contains "$output" "SNAPSHOT.md"
-  assert_contains "$output" "SPEC.md"
+  [[ "$managed" == *"AGENTS.md"* ]]
+  [[ "$managed" == *"rules/*.yaml"* ]]
+  [[ "$managed" == *"skills/*"* ]]
+  [[ "$managed" == *"skills/AVAILABLE_SKILLS.xml"* ]]
+  [[ "$preserved" == *"README.md"* ]]
+  [[ "$preserved" == *"specs/spec.yml"* ]]
+  [[ "$preserved" == *"SNAPSHOT.md"* ]]
+  [[ "$preserved" == *"SPEC.md"* ]]
 }
 
 @test "manifest required template files all exist" {
@@ -177,4 +184,26 @@ teardown() {
   run find "$ROOT_DIR/templates" -name '.DS_Store' -print
   assert_success
   [ -z "$output" ]
+}
+
+@test "docs expose the supported public command surface" {
+  for file in "$ROOT_DIR/README.md" "$ROOT_DIR/SPEC.md" "$ROOT_DIR/docs/usage.md"; do
+    run grep -F "afs doctor" "$file"
+    assert_success
+    run grep -F "afs add-agent" "$file"
+    assert_success
+    run grep -F "afs add-agent-prompt" "$file"
+    assert_success
+    run grep -F "afs add-ss-prompt" "$file"
+    assert_success
+    run grep -F "afs uninstall" "$file"
+    assert_success
+  done
+}
+
+@test "README lists unsupported legacy commands protected by tests" {
+  for command in "afs install" "afs upgrade" "afs templates" "afs check-update" "afs add-spec" "afs add-cli-prompt" "afs add-default-skills" "afs init-agent"; do
+    run grep -F "$command" "$ROOT_DIR/README.md"
+    assert_success
+  done
 }

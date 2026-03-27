@@ -1,0 +1,47 @@
+# Backend rules extend AGENTS.md and may reference security IDs from rules/.
+
+rules:
+  - topic: "architecture:error-contracts"
+    level: "high"
+    rule: "Service boundaries return explicit success/error results and do not leak raw exceptions."
+
+  - topic: "architecture:controller-flow"
+    level: "high"
+    rule: "Controllers and transport adapters handle transport concerns only and delegate business logic to services."
+
+  - topic: "architecture:layering"
+    level: "high"
+    rule: "Controllers/adapters must not access persistence or external integrations directly; services own orchestration."
+
+  - topic: "architecture:dependency-injection"
+    level: "high"
+    rule: "Use constructor or factory injection; do not instantiate collaborators inside business components."
+
+  - topic: "backend:input-validation"
+    level: "critical"
+    rule: "Validate external input with allow-lists and business rules at the backend boundary."
+    refs:
+      - "SEC-global-003"
+
+  - topic: "backend:authz-authn"
+    level: "critical"
+    rule: "Enforce authentication and authorization for sensitive operations and apply least privilege."
+
+  - topic: "backend:external-calls"
+    level: "high"
+    rule: "External calls define timeouts, bounded retries, and resilient fallbacks where appropriate."
+
+  - topic: "backend:query-safety"
+    level: "critical"
+    rule: "Use parameterized queries or safe persistence APIs."
+    refs:
+      - "SEC-java-kotlin-002"
+      - "SEC-py-002"
+
+  - topic: "backend:concurrency"
+    level: "critical"
+    rule: "Avoid shared mutable state in concurrent paths; prefer request-scoped or thread-safe coordination."
+
+  - topic: "dependencies:approval"
+    level: "high"
+    rule: "Backend dependency additions or version changes require explicit approval, version pinning, and maintenance justification."
