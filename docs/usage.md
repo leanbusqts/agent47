@@ -59,6 +59,7 @@ This bootstraps:
 - all curated `skills/*` discovered from the installed template tree
 - `skills/AVAILABLE_SKILLS.xml`
 - an empty `README.md` if missing
+- `specs/spec.yml` if missing
 
 Existing managed files are preserved unless you use `--force`.
 

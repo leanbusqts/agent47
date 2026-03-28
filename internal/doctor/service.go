@@ -37,6 +37,18 @@ var (
 		"security-swift.yaml",
 		"security-csharp.yaml",
 	}
+	requiredRuleTemplates = []string{
+		"rules-mobile.yaml",
+		"rules-frontend.yaml",
+		"rules-backend.yaml",
+		"security-global.yaml",
+		"security-shell.yaml",
+		"security-js-ts.yaml",
+		"security-py.yaml",
+		"security-java-kotlin.yaml",
+		"security-swift.yaml",
+		"security-csharp.yaml",
+	}
 	requiredManagedTargets = []string{
 		"AGENTS.md",
 		"rules/*.yaml",
@@ -48,6 +60,19 @@ var (
 		"specs/spec.yml",
 		"SNAPSHOT.md",
 		"SPEC.md",
+	}
+	requiredTemplateFiles = []string{
+		"AGENTS.md",
+		"manifest.txt",
+		"prompts/agent-prompt.txt",
+		"prompts/ss-prompt.txt",
+		"specs/spec.yml",
+	}
+	requiredTemplateDirs = []string{
+		"prompts",
+		"rules",
+		"skills",
+		"specs",
 	}
 )
 
@@ -113,7 +138,9 @@ func (s *Service) Run(ctx context.Context, cfg runtime.Config, opts Options) err
 	if info, err := os.Stat(templateDir); err == nil && info.IsDir() {
 		s.Out.OK("Templates installed")
 		hadWarn = s.checkTemplateManifest(templateDir) || hadWarn
-		hadWarn = s.checkPromptTemplate(templateDir) || hadWarn
+		hadWarn = s.checkRequiredTemplateFiles(templateDir) || hadWarn
+		hadWarn = s.checkRequiredTemplateDirs(templateDir) || hadWarn
+		hadWarn = s.checkRuleTemplates(templateDir) || hadWarn
 		hadWarn = s.checkSecurityTemplates(templateDir) || hadWarn
 		hadWarn = s.checkSecurityRuleIDs(templateDir) || hadWarn
 		hadWarn = s.checkAgentsSections(filepath.Join(templateDir, "AGENTS.md")) || hadWarn
@@ -290,11 +317,23 @@ func (s *Service) checkTemplateManifest(templateDir string) bool {
 		s.Out.Warn("Template manifest invalid")
 		return true
 	}
-	if !hasManifestTargets(m.ManagedTargets, requiredManagedTargets) {
+	if !matchesManifestTargets(m.ManagedTargets, requiredManagedTargets) {
 		s.Out.Warn("Template manifest contract invalid")
 		return true
 	}
-	if !hasManifestTargets(m.PreservedTargets, requiredPreservedTargets) {
+	if !matchesManifestTargets(m.PreservedTargets, requiredPreservedTargets) {
+		s.Out.Warn("Template manifest contract invalid")
+		return true
+	}
+	if !matchesManifestTargets(m.RuleTemplates, requiredRuleTemplates) {
+		s.Out.Warn("Template manifest contract invalid")
+		return true
+	}
+	if !matchesManifestTargets(m.RequiredTemplateFiles, requiredTemplateFiles) {
+		s.Out.Warn("Template manifest contract invalid")
+		return true
+	}
+	if !matchesManifestTargets(m.RequiredTemplateDirs, requiredTemplateDirs) {
 		s.Out.Warn("Template manifest contract invalid")
 		return true
 	}
@@ -302,7 +341,11 @@ func (s *Service) checkTemplateManifest(templateDir string) bool {
 	return false
 }
 
-func hasManifestTargets(actual, required []string) bool {
+func matchesManifestTargets(actual, required []string) bool {
+	if len(actual) != len(required) {
+		return false
+	}
+
 	set := map[string]bool{}
 	for _, item := range actual {
 		set[item] = true
@@ -315,14 +358,47 @@ func hasManifestTargets(actual, required []string) bool {
 	return true
 }
 
-func (s *Service) checkPromptTemplate(templateDir string) bool {
-	if _, err := os.Stat(filepath.Join(templateDir, "prompts", "agent-prompt.txt")); err == nil {
-		s.Out.OK("Prompt template present")
-		return false
-	} else {
-		s.Out.Warn("Prompt template missing")
-		return true
+func (s *Service) checkRequiredTemplateFiles(templateDir string) bool {
+	missing := false
+	for _, relPath := range requiredTemplateFiles {
+		if _, err := os.Stat(filepath.Join(templateDir, filepath.FromSlash(relPath))); err != nil {
+			s.Out.Warn("Missing template file: %s", relPath)
+			missing = true
+		}
 	}
+	if !missing {
+		s.Out.OK("Required template files present")
+	}
+	return missing
+}
+
+func (s *Service) checkRequiredTemplateDirs(templateDir string) bool {
+	missing := false
+	for _, relPath := range requiredTemplateDirs {
+		info, err := os.Stat(filepath.Join(templateDir, filepath.FromSlash(relPath)))
+		if err != nil || !info.IsDir() {
+			s.Out.Warn("Missing template dir: %s", relPath)
+			missing = true
+		}
+	}
+	if !missing {
+		s.Out.OK("Required template dirs present")
+	}
+	return missing
+}
+
+func (s *Service) checkRuleTemplates(templateDir string) bool {
+	missing := false
+	for _, file := range requiredRuleTemplates {
+		if _, err := os.Stat(filepath.Join(templateDir, "rules", file)); err != nil {
+			s.Out.Warn("Missing rule template: rules/%s", file)
+			missing = true
+		}
+	}
+	if !missing {
+		s.Out.OK("Rule templates present")
+	}
+	return missing
 }
 
 func (s *Service) checkSecurityTemplates(templateDir string) bool {

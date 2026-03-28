@@ -73,11 +73,9 @@ func TestRunWarnsWhenSkillsTemplatesMissing(t *testing.T) {
 	templateDir := filepath.Join(agentHome, "templates")
 	managedBin := filepath.Join(agentHome, "bin")
 
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), validDoctorManifest())
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "prompts", "agent-prompt.txt"), "agent prompt\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "AGENTS.md"), strings.Join(requiredSections, "\n")+"\n")
-	for _, file := range securityTemplateFiles {
-		mustWriteDoctorFile(t, filepath.Join(templateDir, "rules", file), "rules:\n  -\n    id: \"SEC-test-"+strings.TrimSuffix(file, ".yaml")+"\"\n")
+	mustSeedDoctorTemplates(t, templateDir)
+	if err := os.RemoveAll(filepath.Join(templateDir, "skills")); err != nil {
+		t.Fatal(err)
 	}
 
 	managedAfs := filepath.Join(managedBin, executableName("afs"))
@@ -130,13 +128,7 @@ func TestRunHealthyUnixConfiguration(t *testing.T) {
 	managedBin := filepath.Join(agentHome, "bin")
 	repoRoot := filepath.Join(baseDir, "repo")
 
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), validDoctorManifest())
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "prompts", "agent-prompt.txt"), "agent prompt\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "AGENTS.md"), strings.Join(requiredSections, "\n")+"\n")
-	for _, file := range securityTemplateFiles {
-		mustWriteDoctorFile(t, filepath.Join(templateDir, "rules", file), "rules:\n  -\n    id: \"SEC-test-"+strings.TrimSuffix(file, ".yaml")+"\"\n")
-	}
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
+	mustSeedDoctorTemplates(t, templateDir)
 	mustWriteDoctorExecutable(t, filepath.Join(repoRoot, "tests", "vendor", "bats", "bin", "bats"))
 
 	managedAfs := filepath.Join(managedBin, "afs")
@@ -218,8 +210,14 @@ func TestTemplateChecksWarnWhenFilesAreMissing(t *testing.T) {
 	if !service.checkTemplateManifest(templateDir) {
 		t.Fatal("expected missing manifest warning")
 	}
-	if !service.checkPromptTemplate(templateDir) {
-		t.Fatal("expected missing prompt warning")
+	if !service.checkRequiredTemplateFiles(templateDir) {
+		t.Fatal("expected missing template files warning")
+	}
+	if !service.checkRequiredTemplateDirs(templateDir) {
+		t.Fatal("expected missing template dirs warning")
+	}
+	if !service.checkRuleTemplates(templateDir) {
+		t.Fatal("expected missing rule templates warning")
 	}
 	if !service.checkSecurityTemplates(templateDir) {
 		t.Fatal("expected missing security template warning")
@@ -265,6 +263,96 @@ func TestCheckTemplateManifestWarnsWhenContractDrifts(t *testing.T) {
 	}
 }
 
+func TestCheckTemplateManifestWarnsWhenContractExpands(t *testing.T) {
+	templateDir := t.TempDir()
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), strings.Join([]string{
+		"[rule_templates]",
+		"security-global.yaml",
+		"[managed_targets]",
+		"AGENTS.md",
+		"rules/*.yaml",
+		"skills/*",
+		"skills/AVAILABLE_SKILLS.xml",
+		"docs/*",
+		"[preserved_targets]",
+		"README.md",
+		"specs/spec.yml",
+		"SNAPSHOT.md",
+		"SPEC.md",
+		"[required_template_files]",
+		"AGENTS.md",
+		"[required_template_dirs]",
+		"rules",
+	}, "\n")+"\n")
+	var stdout bytes.Buffer
+	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
+
+	if !service.checkTemplateManifest(templateDir) {
+		t.Fatal("expected manifest contract warning")
+	}
+	if !strings.Contains(stdout.String(), "Template manifest contract invalid") {
+		t.Fatalf("unexpected output: %s", stdout.String())
+	}
+}
+
+func TestCheckRequiredTemplateFilesWarnsWhenSSPromptMissing(t *testing.T) {
+	templateDir := t.TempDir()
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "AGENTS.md"), "agents\n")
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), "manifest\n")
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "prompts", "agent-prompt.txt"), "agent prompt\n")
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "specs", "spec.yml"), "summary: test\n")
+	var stdout bytes.Buffer
+	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
+
+	if !service.checkRequiredTemplateFiles(templateDir) {
+		t.Fatal("expected missing template files warning")
+	}
+	if !strings.Contains(stdout.String(), "Missing template file: prompts/ss-prompt.txt") {
+		t.Fatalf("unexpected output: %s", stdout.String())
+	}
+}
+
+func TestCheckRequiredTemplateDirsWarnsWhenSpecsDirMissing(t *testing.T) {
+	templateDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(templateDir, "prompts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(templateDir, "rules"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(templateDir, "skills"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
+
+	if !service.checkRequiredTemplateDirs(templateDir) {
+		t.Fatal("expected missing template dirs warning")
+	}
+	if !strings.Contains(stdout.String(), "Missing template dir: specs") {
+		t.Fatalf("unexpected output: %s", stdout.String())
+	}
+}
+
+func TestCheckRuleTemplatesWarnsWhenStackRuleMissing(t *testing.T) {
+	templateDir := t.TempDir()
+	for _, file := range requiredRuleTemplates {
+		if file == "rules-backend.yaml" {
+			continue
+		}
+		mustWriteDoctorFile(t, filepath.Join(templateDir, "rules", file), "rules:\n")
+	}
+	var stdout bytes.Buffer
+	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
+
+	if !service.checkRuleTemplates(templateDir) {
+		t.Fatal("expected missing rule template warning")
+	}
+	if !strings.Contains(stdout.String(), "Missing rule template: rules/rules-backend.yaml") {
+		t.Fatalf("unexpected output: %s", stdout.String())
+	}
+}
+
 func TestRunSkipsBatsCheckOutsideSourceRepo(t *testing.T) {
 	baseDir := t.TempDir()
 	homeDir := filepath.Join(baseDir, "home")
@@ -273,13 +361,7 @@ func TestRunSkipsBatsCheckOutsideSourceRepo(t *testing.T) {
 	templateDir := filepath.Join(agentHome, "templates")
 	managedBin := filepath.Join(agentHome, "bin")
 
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), validDoctorManifest())
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "prompts", "agent-prompt.txt"), "agent prompt\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "AGENTS.md"), strings.Join(requiredSections, "\n")+"\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
-	for _, file := range securityTemplateFiles {
-		mustWriteDoctorFile(t, filepath.Join(templateDir, "rules", file), "rules:\n  -\n    id: \"SEC-test-"+strings.TrimSuffix(file, ".yaml")+"\"\n")
-	}
+	mustSeedDoctorTemplates(t, templateDir)
 
 	managedAfs := filepath.Join(managedBin, executableName("afs"))
 	mustWriteDoctorExecutable(t, managedAfs)
@@ -319,13 +401,7 @@ func TestRunAcceptsBatsFromPath(t *testing.T) {
 	repoRoot := filepath.Join(baseDir, "repo")
 	batsDir := filepath.Join(baseDir, "bats-bin")
 
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), validDoctorManifest())
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "prompts", "agent-prompt.txt"), "agent prompt\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "AGENTS.md"), strings.Join(requiredSections, "\n")+"\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
-	for _, file := range securityTemplateFiles {
-		mustWriteDoctorFile(t, filepath.Join(templateDir, "rules", file), "rules:\n  -\n    id: \"SEC-test-"+strings.TrimSuffix(file, ".yaml")+"\"\n")
-	}
+	mustSeedDoctorTemplates(t, templateDir)
 	if err := os.MkdirAll(filepath.Join(repoRoot, "tests"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -421,13 +497,7 @@ func TestRunWarnsOnBrokenAfsSymlink(t *testing.T) {
 	userBin := filepath.Join(homeDir, "bin")
 	templateDir := filepath.Join(agentHome, "templates")
 	repoRoot := filepath.Join(baseDir, "repo")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), validDoctorManifest())
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "prompts", "agent-prompt.txt"), "agent prompt\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "AGENTS.md"), strings.Join(requiredSections, "\n")+"\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
-	for _, file := range securityTemplateFiles {
-		mustWriteDoctorFile(t, filepath.Join(templateDir, "rules", file), "rules:\n  -\n    id: \"SEC-test-"+strings.TrimSuffix(file, ".yaml")+"\"\n")
-	}
+	mustSeedDoctorTemplates(t, templateDir)
 	mustWriteDoctorExecutable(t, filepath.Join(repoRoot, "tests", "vendor", "bats", "bin", "bats"))
 	missingManaged := filepath.Join(agentHome, "bin", "afs")
 	if err := os.MkdirAll(userBin, 0o755); err != nil {
@@ -473,13 +543,7 @@ func TestRunWarnsWhenAfsSymlinkMissing(t *testing.T) {
 	templateDir := filepath.Join(agentHome, "templates")
 	managedBin := filepath.Join(agentHome, "bin")
 	repoRoot := filepath.Join(baseDir, "repo")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), validDoctorManifest())
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "prompts", "agent-prompt.txt"), "agent prompt\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "AGENTS.md"), strings.Join(requiredSections, "\n")+"\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
-	for _, file := range securityTemplateFiles {
-		mustWriteDoctorFile(t, filepath.Join(templateDir, "rules", file), "rules:\n  -\n    id: \"SEC-test-"+strings.TrimSuffix(file, ".yaml")+"\"\n")
-	}
+	mustSeedDoctorTemplates(t, templateDir)
 	mustWriteDoctorExecutable(t, filepath.Join(repoRoot, "tests", "vendor", "bats", "bin", "bats"))
 	managedAfs := filepath.Join(managedBin, "afs")
 	mustWriteDoctorExecutable(t, managedAfs)
@@ -517,13 +581,7 @@ func TestRunWarnsWhenBatsMissingInSourceRepo(t *testing.T) {
 	managedBin := filepath.Join(agentHome, "bin")
 	repoRoot := filepath.Join(baseDir, "repo")
 
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), validDoctorManifest())
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "prompts", "agent-prompt.txt"), "agent prompt\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "AGENTS.md"), strings.Join(requiredSections, "\n")+"\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
-	for _, file := range securityTemplateFiles {
-		mustWriteDoctorFile(t, filepath.Join(templateDir, "rules", file), "rules:\n  -\n    id: \"SEC-test-"+strings.TrimSuffix(file, ".yaml")+"\"\n")
-	}
+	mustSeedDoctorTemplates(t, templateDir)
 	if err := os.MkdirAll(filepath.Join(repoRoot, "tests"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -652,6 +710,24 @@ func mustWriteDoctorExecutable(t *testing.T, path string) {
 	}
 }
 
+func mustSeedDoctorTemplates(t *testing.T, templateDir string) {
+	t.Helper()
+
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), validDoctorManifest())
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "AGENTS.md"), strings.Join(requiredSections, "\n")+"\n")
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "prompts", "agent-prompt.txt"), "agent prompt\n")
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "prompts", "ss-prompt.txt"), "ss prompt\n")
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "specs", "spec.yml"), "summary: test\n")
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
+	for _, file := range requiredRuleTemplates {
+		body := "rules:\n"
+		if strings.HasPrefix(file, "security-") {
+			body = "rules:\n  -\n    id: \"SEC-test-" + strings.TrimSuffix(file, ".yaml") + "\"\n"
+		}
+		mustWriteDoctorFile(t, filepath.Join(templateDir, "rules", file), body)
+	}
+}
+
 func executableName(base string) string {
 	if runtime.GOOS == "windows" {
 		switch base {
@@ -667,7 +743,16 @@ func executableName(base string) string {
 func validDoctorManifest() string {
 	return strings.Join([]string{
 		"[rule_templates]",
+		"rules-mobile.yaml",
+		"rules-frontend.yaml",
+		"rules-backend.yaml",
 		"security-global.yaml",
+		"security-shell.yaml",
+		"security-js-ts.yaml",
+		"security-py.yaml",
+		"security-java-kotlin.yaml",
+		"security-swift.yaml",
+		"security-csharp.yaml",
 		"[managed_targets]",
 		"AGENTS.md",
 		"rules/*.yaml",
@@ -682,9 +767,12 @@ func validDoctorManifest() string {
 		"AGENTS.md",
 		"manifest.txt",
 		"prompts/agent-prompt.txt",
+		"prompts/ss-prompt.txt",
+		"specs/spec.yml",
 		"[required_template_dirs]",
 		"prompts",
 		"rules",
 		"skills",
+		"specs",
 	}, "\n") + "\n"
 }

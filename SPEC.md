@@ -108,6 +108,7 @@ Expected outcome:
 - write `rules/*.yaml` if absent
 - create `skills/*` and `skills/AVAILABLE_SKILLS.xml`
 - create an empty `README.md` if absent
+- create `specs/spec.yml` if absent
 - preserve existing managed files unless `--force` is used
 
 ### 5.4 Fresh reinstall of the managed scaffold

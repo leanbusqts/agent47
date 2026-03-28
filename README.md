@@ -49,6 +49,7 @@ On Windows, use:
 - curated `skills/*`
 - `skills/AVAILABLE_SKILLS.xml`
 - an empty `README.md` if missing
+- `specs/spec.yml` if missing
 
 `afs add-agent --force` performs a fresh install of the managed scaffold in the current project:
 

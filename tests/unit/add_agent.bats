@@ -26,6 +26,7 @@ teardown() {
   assert_file_exists "skills/analyze/SKILL.md"
   assert_file_exists "skills/AVAILABLE_SKILLS.xml"
   assert_file_exists "README.md"
+  assert_file_exists "specs/spec.yml"
 }
 
 @test "add-agent --only-skills instala solo skills" {
@@ -205,4 +206,14 @@ EOF
   [ ! -d "rules" ]
   [ ! -f "AGENTS.md" ]
   [ ! -f "README.md" ]
+}
+
+@test "add-agent preserves preexisting skills file on failure" {
+  echo "do-not-delete" > skills
+
+  run "$ROOT_DIR/bin/afs" add-agent
+  [ "$status" -ne 0 ]
+  run cat skills
+  assert_success
+  [ "$output" = "do-not-delete" ]
 }

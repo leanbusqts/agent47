@@ -1,6 +1,15 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [1.1.1] - 2026-03-27
+### Fixed
+- Hardened `afs add-agent` so it no longer risks deleting a preexisting non-directory `skills` path on bootstrap failure, and added regression coverage for that collision case.
+- Aligned bootstrap behavior with the product contract by creating `specs/spec.yml` when missing and preserving it across refreshes.
+- Strengthened `afs doctor` so it validates the full installed template payload contract, including stack rule templates, `prompts/ss-prompt.txt`, `templates/specs/spec.yml`, and exact manifest sections for required files and directories.
+
+### Changed
+- Updated README, SPEC, usage docs, and doctor/bootstrap test fixtures to reflect the current scaffold contract and stricter doctor output.
+
 ## [1.1.0] - 2026-03-26
 ### Changed
 - Migrated the public product runtime fully to the Go CLI under `cmd/afs` and `internal/*`, with `install.sh` and `install.ps1` acting as thin wrappers around the native install service.

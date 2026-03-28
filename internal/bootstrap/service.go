@@ -20,6 +20,8 @@ const (
 	projectSkillsDir = "skills"
 	projectAgents    = "AGENTS.md"
 	projectReadme    = "README.md"
+	projectSpecsDir  = "specs"
+	projectSpecFile  = "specs/spec.yml"
 )
 
 type Service struct {
@@ -39,6 +41,8 @@ type state struct {
 	stageRoot       string
 	backupRoot      string
 	createdReadme   bool
+	createdSpec     bool
+	createdSpecsDir bool
 	rulesDirCreated bool
 	replacedAgents  bool
 	replacedSkills  bool
@@ -147,6 +151,9 @@ func (s *Service) Run(ctx context.Context, opts Options) (err error) {
 	if err := s.commitReadme(opts.WorkDir, &st); err != nil {
 		return err
 	}
+	if err := s.commitSpec(opts.WorkDir, &st); err != nil {
+		return err
+	}
 
 	s.Out.OK("Agent environment ready")
 	return nil
@@ -165,6 +172,11 @@ func (s *Service) requireTemplates(m manifest.Manifest, opts Options) error {
 				s.Out.Err("Aborting: required templates missing.")
 				return err
 			}
+		}
+		if _, err := s.Loader.Source.Stat(projectSpecFile); err != nil {
+			s.Out.Err("Template not found: %s", projectSpecFile)
+			s.Out.Err("Aborting: required templates missing.")
+			return err
 		}
 	}
 
@@ -311,6 +323,10 @@ func (s *Service) commitSkills(workDir string, st *state) error {
 	stage := filepath.Join(st.stageRoot, projectSkillsDir)
 	backup := filepath.Join(st.backupRoot, projectSkillsDir)
 
+	if s.FS.Exists(target) && !s.FS.IsDir(target) {
+		return fmt.Errorf("%s exists and is not a directory", projectSkillsDir)
+	}
+
 	st.replacedSkills = true
 	if s.FS.IsDir(target) {
 		if err := os.Rename(target, backup); err != nil {
@@ -441,9 +457,43 @@ func (s *Service) commitReadme(workDir string, st *state) error {
 	return nil
 }
 
+func (s *Service) commitSpec(workDir string, st *state) error {
+	target := filepath.Join(workDir, projectSpecFile)
+	if s.FS.Exists(target) {
+		return nil
+	}
+
+	data, err := s.Loader.Source.ReadFile(projectSpecFile)
+	if err != nil {
+		return err
+	}
+
+	specsDir := filepath.Join(workDir, projectSpecsDir)
+	if !s.FS.IsDir(specsDir) {
+		if err := s.FS.MkdirAll(specsDir); err != nil {
+			return err
+		}
+		st.createdSpecsDir = true
+		s.Out.OK("Created directory: %s/", projectSpecsDir)
+	}
+
+	if err := s.FS.WriteFileAtomic(target, data, 0o644); err != nil {
+		return err
+	}
+	st.createdSpec = true
+	s.Out.OK("%s created", projectSpecFile)
+	return nil
+}
+
 func (s *Service) rollback(workDir string, st *state) error {
 	if st.createdReadme {
 		_ = os.Remove(filepath.Join(workDir, projectReadme))
+	}
+	if st.createdSpec {
+		_ = os.Remove(filepath.Join(workDir, projectSpecFile))
+	}
+	if st.createdSpecsDir {
+		_ = os.Remove(filepath.Join(workDir, projectSpecsDir))
 	}
 
 	if st.replacedAgents {

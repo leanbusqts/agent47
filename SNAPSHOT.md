@@ -10,12 +10,13 @@
 - **Runtime:** `afs` is implemented by the Go CLI under `cmd/afs` and `internal/*`
 - **Repo launcher:** `bin/afs` is a checkout launcher for development; it prefers `AGENT47_GO_CLI`, then `AGENT47_REPO_CLI`, and otherwise uses `go run`
 - **Installers:** `install.sh` and `install.ps1` are thin wrappers around the native install service
-- **Bootstrap:** `afs add-agent` scaffolds `AGENTS.md`, template rules, curated skills, and `skills/AVAILABLE_SKILLS.xml`
+- **Bootstrap:** `afs add-agent` scaffolds `AGENTS.md`, template rules, curated skills, `skills/AVAILABLE_SKILLS.xml`, and `specs/spec.yml` when missing
 - **Forced refresh:** `afs add-agent --force` performs a fresh install of the managed scaffold and removes stale managed rules and skills
 - **Preserved targets:** `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md` stay untouched during forced refresh
 - **Skills-only mode:** `afs add-agent --only-skills` manages only the skills tree; without `--force`, invalid existing skill files are preserved but omitted from `AVAILABLE_SKILLS.xml`
 - **Update checks:** `doctor --check-update` uses a remote `VERSION` when configured or the local git tracking ref when running from a checkout with an upstream branch; `doctor --check-update-force` performs `git fetch --quiet` first
 - **Doctor flags:** update flags and `--fail-on-warn` can be combined in a single invocation
+- **Doctor validation:** `afs doctor` now validates the installed manifest contract, required template files and directories, stack rule templates, security templates, and required `AGENTS.md` sections
 - **Prompt helper:** `add-ss-prompt` copies to a supported clipboard tool when available and otherwise prints to stdout
 - **Testing:** `make test`, `make go-test`, `make go-build`, `make lint-shell`, and `make smoke-install` are the current maintainer entrypoints
 
@@ -51,4 +52,4 @@
 
 ## 6. Last Updated
 
-- March 26, 2026
+- March 27, 2026

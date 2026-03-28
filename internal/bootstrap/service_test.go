@@ -163,6 +163,9 @@ func TestRunOnlySkillsSkipsRulesAndAgents(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(workDir, "rules")); !os.IsNotExist(err) {
 		t.Fatalf("did not expect rules directory, err=%v", err)
 	}
+	if _, err := os.Stat(filepath.Join(workDir, "specs")); !os.IsNotExist(err) {
+		t.Fatalf("did not expect specs directory, err=%v", err)
+	}
 }
 
 func TestRunOnlySkillsIgnoresBrokenManifest(t *testing.T) {
@@ -254,6 +257,7 @@ func TestRequireTemplatesFailsWhenSkillsTemplatesMissing(t *testing.T) {
 
 func TestRequireTemplatesFailsWhenAgentsTemplateMissing(t *testing.T) {
 	repoRoot := t.TempDir()
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "specs", "spec.yml"), "summary: template\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "rules", "rules-backend.yaml"), "rule\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
 	service, err := New(runtime.Config{
@@ -272,6 +276,7 @@ func TestRequireTemplatesFailsWhenAgentsTemplateMissing(t *testing.T) {
 func TestRequireTemplatesFailsWhenRuleTemplateMissing(t *testing.T) {
 	repoRoot := t.TempDir()
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "AGENTS.md"), "agents\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "specs", "spec.yml"), "summary: template\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
 	service, err := New(runtime.Config{
 		TemplateMode: runtime.TemplateModeFilesystem,
@@ -377,6 +382,32 @@ func TestCommitSkillsReplacesExistingTree(t *testing.T) {
 	}
 }
 
+func TestCommitSkillsFailsWhenTargetIsFile(t *testing.T) {
+	workDir := t.TempDir()
+	service := Service{FS: fsx.Service{}, Out: cli.NewOutput(&bytes.Buffer{}, &bytes.Buffer{})}
+	st := state{
+		stageRoot:  filepath.Join(t.TempDir(), "stage"),
+		backupRoot: filepath.Join(t.TempDir(), "backup"),
+	}
+	if err := os.MkdirAll(st.backupRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(workDir, "skills"), "user file\n")
+	writeTestFile(t, filepath.Join(st.stageRoot, "skills", "new", "SKILL.md"), "new\n")
+
+	err := service.commitSkills(workDir, &st)
+	if err == nil {
+		t.Fatal("expected commitSkills to fail")
+	}
+	if !strings.Contains(err.Error(), "skills exists and is not a directory") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if st.replacedSkills {
+		t.Fatal("did not expect replacedSkills flag")
+	}
+	assertTestFileContains(t, filepath.Join(workDir, "skills"), "user file")
+}
+
 func TestCommitAgentsForceReplacesExistingFile(t *testing.T) {
 	workDir := t.TempDir()
 	service := Service{FS: fsx.Service{}, Out: cli.NewOutput(&bytes.Buffer{}, &bytes.Buffer{})}
@@ -423,6 +454,49 @@ func TestCommitReadmePreservesExistingFile(t *testing.T) {
 	assertTestFileContains(t, filepath.Join(workDir, "README.md"), "existing")
 	if st.createdReadme {
 		t.Fatal("did not expect createdReadme flag")
+	}
+}
+
+func TestCommitSpecCreatesFileWhenMissing(t *testing.T) {
+	workDir := t.TempDir()
+	repoRoot := newBootstrapRepo(t, true)
+	service, err := New(runtime.Config{
+		TemplateMode: runtime.TemplateModeFilesystem,
+		RepoRoot:     repoRoot,
+	}, cli.NewOutput(&bytes.Buffer{}, &bytes.Buffer{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := state{}
+
+	if err := service.commitSpec(workDir, &st); err != nil {
+		t.Fatal(err)
+	}
+	assertTestFileContains(t, filepath.Join(workDir, "specs", "spec.yml"), "summary:")
+	if !st.createdSpec {
+		t.Fatal("expected createdSpec flag")
+	}
+}
+
+func TestCommitSpecPreservesExistingFile(t *testing.T) {
+	workDir := t.TempDir()
+	repoRoot := newBootstrapRepo(t, true)
+	service, err := New(runtime.Config{
+		TemplateMode: runtime.TemplateModeFilesystem,
+		RepoRoot:     repoRoot,
+	}, cli.NewOutput(&bytes.Buffer{}, &bytes.Buffer{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := state{}
+	writeTestFile(t, filepath.Join(workDir, "specs", "spec.yml"), "existing spec\n")
+
+	if err := service.commitSpec(workDir, &st); err != nil {
+		t.Fatal(err)
+	}
+	assertTestFileContains(t, filepath.Join(workDir, "specs", "spec.yml"), "existing spec")
+	if st.createdSpec {
+		t.Fatal("did not expect createdSpec flag")
 	}
 }
 
@@ -734,6 +808,7 @@ func newBootstrapRepo(t *testing.T, withSkills bool) string {
 	repoRoot := t.TempDir()
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "manifest.txt"), testManifestBody())
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "AGENTS.md"), "agents\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "specs", "spec.yml"), "summary: template\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "rules", "rules-backend.yaml"), "rule\n")
 	if withSkills {
 		writeTestFile(t, filepath.Join(repoRoot, "templates", "skills", "analyze", "SKILL.md"), validSkillBody("analyze"))
@@ -747,6 +822,7 @@ func newBootstrapRepoWithSkills(t *testing.T, skills map[string]string) string {
 	repoRoot := t.TempDir()
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "manifest.txt"), testManifestBody())
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "AGENTS.md"), "agents\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "specs", "spec.yml"), "summary: template\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "rules", "rules-backend.yaml"), "rule\n")
 	for name, body := range skills {
 		writeTestFile(t, filepath.Join(repoRoot, "templates", "skills", name, "SKILL.md"), body)
@@ -768,7 +844,10 @@ func testManifestBody() string {
 		"VERSION",
 		"[required_template_files]",
 		"AGENTS.md",
+		"specs/spec.yml",
 		"[required_template_dirs]",
 		"rules",
+		"skills",
+		"specs",
 	}, "\n") + "\n"
 }
