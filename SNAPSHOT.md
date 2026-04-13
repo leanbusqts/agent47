@@ -38,9 +38,9 @@
 - `internal/` - runtime packages for bootstrap, install, doctor, prompts, templates, manifest parsing, update checks, and platform handling
 - `templates/manifest.txt` - canonical managed/preserved target contract
 - `templates/` - scaffold payload copied into target repositories
-- `docs/usage.md` - operational guide
-- `docs/architecture.md` - runtime and repo structure summary
-- `docs/ownership.md` - ownership model for repo source vs scaffold payload
+- `README.md` - entrypoint, command surface, and high-level architecture
+- `RUNBOOK.md` - operational guide for using the CLI in depth
+- `SPEC.md` - current-state product contract
 - `scripts/lint-shell` - remaining shell maintainer script
 
 ## 5. Constraints And Risks
@@ -52,4 +52,4 @@
 
 ## 6. Last Updated
 
-- March 27, 2026
+- April 13, 2026

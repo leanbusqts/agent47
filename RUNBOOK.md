@@ -1,4 +1,6 @@
-# Usage Guide
+# RUNBOOK
+
+`RUNBOOK.md` is the operational guide for using `agent47` in practice. Use `README.md` for the entrypoint and high-level architecture, and `SPEC.md` for the formal product contract.
 
 ## Install
 
@@ -18,7 +20,7 @@ Windows:
 .\install.ps1 -NonInteractive
 ```
 
-Verify:
+Verify the local setup:
 
 ```bash
 afs doctor
@@ -35,16 +37,16 @@ make lint-shell
 make smoke-install
 ```
 
-`install.sh` and `install.ps1` are the public install entrypoints. There is no supported public `afs install`, `afs upgrade`, `afs templates`, `afs check-update`, `afs add-spec`, `afs add-cli-prompt`, `afs add-default-skills`, or `afs init-agent` command.
+`install.sh` and `install.ps1` are the supported public install entrypoints. There is no supported public `afs install`, `afs upgrade`, `afs templates`, `afs check-update`, `afs add-spec`, `afs add-cli-prompt`, `afs add-default-skills`, or `afs init-agent` command.
 
-## First steps
+## First Steps
 
 1. Install the tool locally.
 2. Verify the local setup with `afs doctor`.
 3. Enter the target project.
 4. Run `afs add-agent`.
 
-## Bootstrap a project
+## Bootstrap A Project
 
 Inside the target project:
 
@@ -63,7 +65,7 @@ This bootstraps:
 
 Existing managed files are preserved unless you use `--force`.
 
-## Refresh an older project
+## Refresh An Older Project
 
 If the project already has an older `agent47` scaffold:
 
@@ -88,7 +90,7 @@ This preserves:
 
 If you keep project-specific files under `rules/` or `skills/`, expect them to be replaced or removed by `--force`.
 
-## Skills-only mode
+## Skills-Only Mode
 
 ```bash
 afs add-agent --only-skills
@@ -107,7 +109,7 @@ Behavior differences:
 - without `--force`, existing invalid skill files are preserved but omitted from `AVAILABLE_SKILLS.xml`
 - with `--force`, the managed skills directory is replaced with the current template set
 
-## Prompt helpers
+## Prompt Helpers
 
 Refresh or create the general agent prompt:
 
@@ -124,7 +126,7 @@ afs add-ss-prompt
 
 When a supported clipboard tool is available, `afs add-ss-prompt` copies the prompt directly. Otherwise it prints the prompt to stdout.
 
-## Managed vs preserved files
+## Managed Vs Preserved Files
 
 Managed targets:
 
@@ -142,7 +144,14 @@ Preserved targets:
 
 Ownership is defined by `templates/manifest.txt`.
 
-## Update checks
+Practical implications:
+
+- Files under managed paths belong to the scaffold contract, not to ad hoc project customizations.
+- `afs add-agent` is conservative and preserves existing managed files.
+- `afs add-agent --force` is intentionally destructive inside managed paths.
+- Local custom files under `rules/` or `skills/` can be replaced or removed during `--force`.
+
+## Update Checks
 
 `afs doctor` skips update checks by default.
 
@@ -164,7 +173,7 @@ Behavior:
 - remote checks may be cached; git-tracking checks are evaluated fresh
 - `doctor` flags can be combined, for example `afs doctor --check-update --fail-on-warn`
 
-## Operational notes
+## Operational Notes
 
 - Unix-like installs write managed assets under `~/.agent47` and publish `afs` plus helper commands into `~/bin`
 - Windows installs default to `%LOCALAPPDATA%\agent47` and use the managed bin directory on PATH
@@ -173,7 +182,7 @@ Behavior:
 - checkout-based execution depends on Go unless you provide `AGENT47_GO_CLI` or an explicit `AGENT47_REPO_CLI`
 - `afs uninstall` removes published commands and managed runtime assets
 
-## Use with agent CLIs and IDEs
+## Use With Agent CLIs And IDEs
 
 `agent47` is a repository convention, not a vendor-specific integration.
 

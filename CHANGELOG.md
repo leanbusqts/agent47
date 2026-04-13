@@ -1,5 +1,8 @@
 # CHANGELOG
 ## [Unreleased]
+### Changed
+- Replaced `docs/usage.md` with root `RUNBOOK.md` as the primary operational guide for the CLI.
+- Folded the old `docs/architecture.md` content into `README.md` as a high-level architecture section and moved ownership guidance into `RUNBOOK.md` and `SPEC.md`.
 
 ## [1.1.1] - 2026-03-27
 ### Fixed
@@ -99,7 +102,7 @@
 - Added `afs add-agent --force` as the refresh path for older projects while preserving `README.md`, `specs/spec.yml`, and `SNAPSHOT.md`.
 - Reduced policy duplication by consolidating prompt usage around one general prompt and keeping `AGENTS.md` as the authoritative contract.
 - Refactored `bin/afs` into a thinner router backed by shared modules and hardened bootstrap scripts with strict shell mode to fail fast on copy/update errors.
-- Shortened `README.md` into an entry document and moved detailed operational and structural guidance into `docs/`.
+- Shortened `README.md` into an entry document and moved detailed operational and structural guidance into `docs/` at that time.
 
 ### Removed
 - Legacy prompt variants and the old `add-agent --with-skills --prompt` bootstrap flow.

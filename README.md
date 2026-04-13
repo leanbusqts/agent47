@@ -40,6 +40,12 @@ On Windows, use:
 .\install.ps1
 ```
 
+Verify the local install:
+
+```bash
+afs doctor
+```
+
 ## What `add-agent` writes
 
 `afs add-agent` bootstraps:
@@ -83,12 +89,43 @@ afs add-ss-prompt
 
 There is no supported public `afs install`, `afs upgrade`, `afs templates`, `afs check-update`, `afs add-spec`, `afs add-cli-prompt`, `afs add-default-skills`, or `afs init-agent` command.
 
-## Runtime notes
+## How It Works
 
-- The installed product runtime is the Go CLI under `cmd/afs` and `internal/*`.
-- `install.sh` and `install.ps1` are thin wrappers around the native install service.
-- Repo-local `bin/afs` is a launcher for checkout-based development.
-- `bin/afs` prefers an explicit compiled Go CLI via `AGENT47_GO_CLI`, then an explicit repo CLI via `AGENT47_REPO_CLI`, then `go run ./cmd/afs`. It no longer falls back to an implicit repo-root binary or to the legacy Bash runtime.
+`agent47` has two layers:
+
+1. A local CLI runtime installed on the machine and exposed through `afs`.
+2. A template payload under `templates/` that gets copied into target repos.
+
+High-level structure:
+
+```text
+agent47/
+|
++-- bin/afs              repo launcher for checkout-based development
++-- cmd/afs              native CLI entrypoint
++-- internal/            runtime packages
++-- install.sh           Unix-like install wrapper
++-- install.ps1          Windows install wrapper
++-- scripts/lint-shell   maintainer shell lint entrypoint
++-- templates/           canonical scaffold payload
++-- tests/               repo verification
++-- README.md
++-- RUNBOOK.md
++-- SNAPSHOT.md
++-- SPEC.md
+`-- PLAN.md
+```
+
+Responsibility split:
+
+- `bin/afs` is the repo-local launcher. It prefers `AGENT47_GO_CLI`, then `AGENT47_REPO_CLI`, then `go run ./cmd/afs`.
+- `cmd/afs` and `internal/*` implement command routing, install/uninstall, bootstrap, doctor, update checks, prompts, manifest handling, and skills generation.
+- `install.sh` and `install.ps1` are thin public wrappers over the native install flow.
+- `templates/manifest.txt` defines the managed and preserved target contract.
+- `templates/` is the canonical scaffold source copied into target repositories.
+
+Operational notes:
+
 - Installed templates live under `~/.agent47/templates` on Unix-like systems and under `%LOCALAPPDATA%\agent47\templates` by default on Windows.
 - On Unix-like systems, the installer publishes `~/bin/afs` plus helper commands. On Windows, it uses the managed bin directory directly.
 - `doctor` flags can be combined, for example `afs doctor --check-update --fail-on-warn`.
@@ -114,15 +151,15 @@ Notes:
 
 ## Documentation
 
-- [Usage Guide](docs/usage.md)
-- [Architecture](docs/architecture.md)
-- [Ownership](docs/ownership.md)
+- [RUNBOOK.md](RUNBOOK.md)
 - [AGENTS.md](AGENTS.md)
 - [SNAPSHOT.md](SNAPSHOT.md)
 - [SPEC.md](SPEC.md)
 
 Document roles:
 
+- `README.md`: entrypoint, command surface, and high-level architecture
+- `RUNBOOK.md`: operational guide for using the CLI in depth
 - `SNAPSHOT.md`: concise current-state summary
 - root `SPEC.md`: current-state product contract for `agent47`
 - `specs/spec.yml`: task-specific spec/plan artifact when work needs one

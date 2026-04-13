@@ -211,9 +211,8 @@ Commands intentionally outside the supported public surface:
 - `cmd/`
 - `internal/`
 - `scripts/`
-- `docs/`
 - `tests/`
-- root metadata such as `README.md`, `VERSION`, `SNAPSHOT.md`, `SPEC.md`, `PLAN.md`
+- root metadata such as `README.md`, `RUNBOOK.md`, `VERSION`, `SNAPSHOT.md`, `SPEC.md`, `PLAN.md`
 
 ### 7.2 Template payload
 
@@ -238,6 +237,21 @@ Defined by `templates/manifest.txt`:
   - `specs/spec.yml`
   - `SNAPSHOT.md`
   - `SPEC.md`
+
+### 7.4 Ownership model
+
+`agent47` has two ownership layers:
+
+1. the source repository that builds and verifies `agent47` itself
+2. the scaffold payload under `templates/` that gets copied into target projects
+
+Practical rules:
+
+- files under managed target paths belong to the scaffold contract
+- `afs add-agent` is conservative and preserves existing managed files
+- `afs add-agent --force` reconciles managed targets to the current manifest and template payload
+- local custom files under `rules/` or `skills/` can be replaced or removed during `--force`
+- project-owned docs such as `README.md`, root `SPEC.md`, and `SNAPSHOT.md` remain outside the default managed scaffold
 
 ## 8. Architecture
 
