@@ -366,7 +366,7 @@ func verifyInstalledAddSSPrompt(env *installedEnv) error {
 
 	originalEnv := env.baseEnv
 	env.baseEnv = withEnv(env.baseEnv,
-		"PATH="+clipboardBin+string(os.PathListSeparator)+getEnvValue(env.baseEnv, "PATH"),
+		"PATH="+clipboardBin+string(os.PathListSeparator)+"/bin",
 		"TARGET_FILE="+clipboardFile,
 	)
 	defer func() {
@@ -582,18 +582,16 @@ func withEnv(base []string, values ...string) []string {
 			result = append(result, value)
 			continue
 		}
-		replaced := false
-		for i, existing := range result {
+
+		filtered := result[:0]
+		for _, existing := range result {
 			existingKey, _, existingOK := strings.Cut(existing, "=")
 			if existingOK && existingKey == key {
-				result[i] = value
-				replaced = true
-				break
+				continue
 			}
+			filtered = append(filtered, existing)
 		}
-		if !replaced {
-			result = append(result, value)
-		}
+		result = append(filtered, value)
 	}
 	return result
 }

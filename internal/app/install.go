@@ -2,10 +2,12 @@ package app
 
 import (
 	"context"
+	"errors"
 	"os"
 
 	"github.com/leanbusqts/agent47/internal/install"
 	"github.com/leanbusqts/agent47/internal/runtime"
+	"github.com/leanbusqts/agent47/internal/templates"
 )
 
 const internalInstallCommand = "__agent47_internal_install"
@@ -34,6 +36,11 @@ func (r *Root) runInstallInternal(ctx context.Context, cfg runtime.Config, args 
 		return 1
 	}
 	if err := service.Install(ctx, cfg, opts); err != nil {
+		var missingTemplateErr templates.MissingTemplateError
+		if errors.As(err, &missingTemplateErr) {
+			r.out.Err("Required install asset missing: %s", missingTemplateErr.Path)
+			return 1
+		}
 		r.out.Err("%v", err)
 		return 1
 	}

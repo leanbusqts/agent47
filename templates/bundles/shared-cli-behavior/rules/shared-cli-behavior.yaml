@@ -1,0 +1,12 @@
+rules:
+  - topic: "cli:behavior"
+    level: "high"
+    rule: "Keep command output stable, explicit, and friendly to automation."
+
+  - topic: "cli:mutation-preview"
+    level: "high"
+    rule: "Prefer preview or dry-run output before mutating repository state."
+
+  - topic: "cli:exit-contract"
+    level: "high"
+    rule: "Treat exit codes and stderr wording as part of the public contract."

@@ -1,0 +1,6 @@
+[rule_templates]
+rules-cli.yaml
+
+[required_template_files]
+rules/rules-cli.yaml
+skills/cli-design/SKILL.md

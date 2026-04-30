@@ -1,8 +1,26 @@
 # CHANGELOG
 ## [Unreleased]
+
+## [1.2.0] - 2026-04-29
+### Added
+- Added `afs analyze` with concise, verbose, evidence, and JSON output backed by the new repository analysis and install-resolution services.
+- Added bundle-native template assembly under `templates/base/` and `templates/bundles/`, including project bundles for frontend, backend, mobile, cli, scripts, infra, monorepo-tooling, desktop, and plugin, plus shared bundles for CLI behavior and testing.
+- Added generated skills indexes at `skills/AVAILABLE_SKILLS.json` and `skills/SUMMARY.md` alongside the existing XML catalog.
+
 ### Changed
-- Replaced `docs/usage.md` with root `RUNBOOK.md` as the primary operational guide for the CLI.
-- Folded the old `docs/architecture.md` content into `README.md` as a high-level architecture section and moved ownership guidance into `RUNBOOK.md` and `SPEC.md`.
+- Made `afs add-agent` analysis-driven, with preview/dry-run flows, `--yes`, explicit bundle selection, adaptive bundle resolution, and assembled-contract bootstrap behavior.
+- Migrated the scaffold payload from the legacy flat `templates/` tree to the bundle-native layout while preserving the manifest-driven ownership contract.
+- Expanded `afs doctor` and install verification to validate bundle assembly, assembled template payload, and the newer managed skills indexes.
+- Updated `README.md`, `RUNBOOK.md`, `SNAPSHOT.md`, and `SPEC.md` to describe the bundle-native runtime and current command surface.
+
+### Fixed
+- Hardened `--force` migration semantics so stale managed rules and skills are removed according to the resolved assembled contract while preserved project files remain untouched.
+- Improved bootstrap and prompt error handling with clearer typed template and bundle-manifest failures.
+- Tightened policy and installed-artifact verification so docs, manifests, skills indexes, and bundle-owned templates stay aligned with runtime behavior.
+
+### Removed
+- Removed the legacy flat template payload files in favor of `templates/base/` plus `templates/bundles/`.
+- Removed deprecated historical planning files `PLAN.md` and `SPEC_IMPROVEMENTS.md` from the active repository surface.
 
 ## [1.1.1] - 2026-03-27
 ### Fixed

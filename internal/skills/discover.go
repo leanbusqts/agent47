@@ -1,19 +1,21 @@
 package skills
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"path"
 	"sort"
-	"strings"
 
 	"github.com/leanbusqts/agent47/internal/templates"
 )
 
 type Skill struct {
-	Name        string
-	Description string
-	Location    string
+	Name          string   `json:"name"`
+	Description   string   `json:"description"`
+	Compatibility string   `json:"compatibility,omitempty"`
+	Metadata      Metadata `json:"metadata,omitempty"`
+	Location      string   `json:"location"`
 }
 
 type Service struct{}
@@ -45,9 +47,11 @@ func (Service) Discover(src templates.Source, root string) ([]Skill, error) {
 		}
 
 		discovered = append(discovered, Skill{
-			Name:        fm.Name,
-			Description: fm.Description,
-			Location:    skillPath,
+			Name:          fm.Name,
+			Description:   fm.Description,
+			Compatibility: fm.Compatibility,
+			Metadata:      fm.Metadata,
+			Location:      skillPath,
 		})
 	}
 
@@ -63,5 +67,5 @@ func (Service) Discover(src templates.Source, root string) ([]Skill, error) {
 }
 
 func isNotExist(err error) bool {
-	return err != nil && (strings.Contains(err.Error(), "no such file") || strings.Contains(err.Error(), "file does not exist") || err == fs.ErrNotExist)
+	return errors.Is(err, fs.ErrNotExist)
 }

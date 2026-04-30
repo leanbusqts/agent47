@@ -1,0 +1,8 @@
+rules:
+  - topic: "workspace:ownership"
+    level: "high"
+    rule: "Keep workspace ownership boundaries explicit. Changes to shared tooling should describe which packages, apps, or tasks are affected."
+
+  - topic: "workspace:task-graph"
+    level: "high"
+    rule: "Treat the task graph as part of the product contract. Build, test, and lint entrypoints should stay deterministic across packages."

@@ -1,0 +1,8 @@
+rules:
+  - topic: "desktop:platform-boundaries"
+    level: "high"
+    rule: "Keep operating-system integrations at explicit boundaries. UI code, local services, and shell/process interactions should not blur into one layer."
+
+  - topic: "desktop:packaging"
+    level: "high"
+    rule: "When changing desktop packaging, update signing, distribution, and upgrade assumptions together rather than in isolation."

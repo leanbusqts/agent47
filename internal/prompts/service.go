@@ -2,7 +2,9 @@ package prompts
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os/exec"
 	"path/filepath"
 
@@ -36,7 +38,10 @@ func (s *Service) AddAgentPrompt(workDir string, force bool) error {
 
 	data, err := s.Loader.Source.ReadFile("prompts/agent-prompt.txt")
 	if err != nil {
-		return fmt.Errorf("Template not found: agent-prompt.txt")
+		if errors.Is(err, fs.ErrNotExist) {
+			return templates.MissingTemplateError{Path: "prompts/agent-prompt.txt"}
+		}
+		return fmt.Errorf("read prompt template prompts/agent-prompt.txt: %w", err)
 	}
 
 	promptsDir := filepath.Join(workDir, "prompts")
@@ -70,7 +75,10 @@ func (s *Service) AddAgentPrompt(workDir string, force bool) error {
 func (s *Service) AddSSPrompt() error {
 	data, err := s.Loader.Source.ReadFile("prompts/ss-prompt.txt")
 	if err != nil {
-		return fmt.Errorf("Template not found: ss-prompt.txt")
+		if errors.Is(err, fs.ErrNotExist) {
+			return templates.MissingTemplateError{Path: "prompts/ss-prompt.txt"}
+		}
+		return fmt.Errorf("read prompt template prompts/ss-prompt.txt: %w", err)
 	}
 
 	for _, candidate := range clipboardCommands {

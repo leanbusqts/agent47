@@ -1,0 +1,12 @@
+rules:
+  - topic: "testing:behavioral-coverage"
+    level: "high"
+    rule: "Add tests for the happy path, error handling, and edge cases when behavior changes."
+
+  - topic: "testing:contract-regression"
+    level: "high"
+    rule: "Cover user-visible contracts such as output, manifest shape, and file ownership."
+
+  - topic: "testing:automation"
+    level: "medium"
+    rule: "Prefer deterministic tests that can run locally without remote services."

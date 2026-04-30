@@ -1,0 +1,8 @@
+rules:
+  - topic: "infra:change-safety"
+    level: "high"
+    rule: "Treat infrastructure changes as high-risk operations. Make blast radius, rollback steps, and environment scope explicit before applying changes."
+
+  - topic: "infra:state-and-secrets"
+    level: "high"
+    rule: "Keep infrastructure state handling, credentials, and secret references explicit. Never hardcode secrets or rely on undocumented local state."

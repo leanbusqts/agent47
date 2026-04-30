@@ -8,6 +8,8 @@ It standardizes a portable repo contract around:
 - `rules/*.yaml`
 - curated `skills/*`
 - `skills/AVAILABLE_SKILLS.xml`
+- `skills/AVAILABLE_SKILLS.json`
+- `skills/SUMMARY.md`
 - prompt helpers
 - `specs/spec.yml` as a template artifact for non-trivial planning work
 
@@ -25,6 +27,7 @@ Bootstrap a target repo:
 
 ```bash
 cd /path/to/project
+afs analyze
 afs add-agent
 ```
 
@@ -48,27 +51,80 @@ afs doctor
 
 ## What `add-agent` writes
 
-`afs add-agent` bootstraps:
+`afs analyze` inspects the current repository and reports the resolved install set without writing files.
+
+`afs add-agent` now analyzes the repo first, previews the selected bundles, and then bootstraps a conservative scaffold.
+
+For empty or low-signal repos, the default install is the base bundle:
 
 - `AGENTS.md`
-- all template `rules/*.yaml`
-- curated `skills/*`
+- `rules/security-global.yaml`
+- `rules/security-shell.yaml`
+- universal workflow `skills/*`
 - `skills/AVAILABLE_SKILLS.xml`
+- `skills/AVAILABLE_SKILLS.json`
+- `skills/SUMMARY.md`
+- `prompts/agent-prompt.txt`
+- `prompts/ss-prompt.txt`
 - an empty `README.md` if missing
 - `specs/spec.yml` if missing
 
-`afs add-agent --force` performs a fresh install of the managed scaffold in the current project:
+Higher-confidence repo types add project-specific rules and skills on top of that base bundle.
+
+Supported automatic bundle composition currently includes:
+
+- `cli` + `scripts`
+- `cli` + `monorepo-tooling`
+- `desktop` + `plugin`
+
+`afs add-agent --force` performs a fresh install of the resolved scaffold in the current project:
 
 - replaces `AGENTS.md`
-- reconciles `rules/*.yaml`
+- reconciles selected `rules/*.yaml`
 - replaces `skills/*`
-- regenerates `skills/AVAILABLE_SKILLS.xml`
-- removes stale managed rules and skills no longer shipped by the current templates
+- regenerates the managed skills indexes
+- removes stale managed rules and skills no longer selected by the current install set
 - preserves `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md`
 
 Because `rules/*.yaml` and `skills/*` are managed paths, local custom files under those paths can be replaced or removed during `--force`.
 
-`afs add-agent --only-skills` refreshes only skills. Without `--force`, existing invalid skill files are preserved but omitted from `AVAILABLE_SKILLS.xml`.
+`afs add-agent --only-skills` refreshes only skills. Without `--force`, existing invalid skill files are preserved but omitted from the generated skills indexes.
+
+## Example Flows
+
+Empty or low-signal repo:
+
+```bash
+afs analyze
+afs add-agent --preview
+afs add-agent --yes
+```
+
+CLI repo with scripts:
+
+```bash
+afs analyze
+afs add-agent --preview --bundle cli --bundle scripts
+afs add-agent --yes
+```
+
+Unresolved conflict fallback:
+
+```bash
+afs analyze --verbose
+afs add-agent --preview
+```
+
+Legacy scaffold migration:
+
+```bash
+afs add-agent --force --yes
+```
+
+Skills metadata contract:
+
+- `SKILL.md` uses Agent Skills-style metadata under `metadata:`
+- metadata keys support both kebab-case and snake_case in the current parser
 
 ## Public commands
 
@@ -79,10 +135,19 @@ afs doctor
 afs doctor --check-update
 afs doctor --check-update-force
 afs doctor --check-update --fail-on-warn
+afs analyze
+afs analyze --json
+afs analyze --verbose
+afs analyze --evidence
 afs add-agent
 afs add-agent --force
 afs add-agent --only-skills
 afs add-agent --only-skills --force
+afs add-agent --preview
+afs add-agent --dry-run
+afs add-agent --yes
+afs add-agent --bundle cli --bundle scripts
+afs add-agent --exclude-bundle scripts
 afs add-agent-prompt [--force]
 afs add-ss-prompt
 ```
@@ -107,13 +172,12 @@ agent47/
 +-- install.sh           Unix-like install wrapper
 +-- install.ps1          Windows install wrapper
 +-- scripts/lint-shell   maintainer shell lint entrypoint
-+-- templates/           canonical scaffold payload
++-- templates/           bundle-native scaffold source (`base/` + `bundles/`)
 +-- tests/               repo verification
 +-- README.md
 +-- RUNBOOK.md
 +-- SNAPSHOT.md
 +-- SPEC.md
-`-- PLAN.md
 ```
 
 Responsibility split:
@@ -121,8 +185,8 @@ Responsibility split:
 - `bin/afs` is the repo-local launcher. It prefers `AGENT47_GO_CLI`, then `AGENT47_REPO_CLI`, then `go run ./cmd/afs`.
 - `cmd/afs` and `internal/*` implement command routing, install/uninstall, bootstrap, doctor, update checks, prompts, manifest handling, and skills generation.
 - `install.sh` and `install.ps1` are thin public wrappers over the native install flow.
-- `templates/manifest.txt` defines the managed and preserved target contract.
-- `templates/` is the canonical scaffold source copied into target repositories.
+- `templates/manifest.txt` keeps the managed and preserved target contract, while `templates/base/manifest.txt` plus `templates/bundles/*/manifest.txt` drive the assembled runtime payload.
+- `templates/base/` provides the shared scaffold payload and `templates/bundles/` provides project-specific deltas.
 
 Operational notes:
 

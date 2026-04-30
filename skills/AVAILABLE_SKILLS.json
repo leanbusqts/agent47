@@ -1,0 +1,337 @@
+{
+  "skills": [
+    {
+      "name": "analyze",
+      "description": "Understand the current state, flows, and issues before making changes.",
+      "compatibility": "Designed for skills-compatible coding agents.",
+      "metadata": {
+        "agents": [
+          "universal",
+          "codex"
+        ],
+        "applies_to": [
+          "frontend",
+          "backend",
+          "cli",
+          "scripts",
+          "mobile"
+        ],
+        "category": [
+          "analysis"
+        ],
+        "priority": [
+          "core"
+        ],
+        "repo_shapes": [
+          "app",
+          "library",
+          "cli",
+          "scripts",
+          "monorepo"
+        ],
+        "tags": [
+          "analysis",
+          "discovery",
+          "diagnostics"
+        ]
+      },
+      "location": "skills/analyze/SKILL.md"
+    },
+    {
+      "name": "cli-design",
+      "description": "Design or refine command surfaces, output contracts, and preview flows for CLI tools.",
+      "compatibility": "Designed for skills-compatible coding agents.",
+      "metadata": {
+        "agents": [
+          "universal",
+          "codex"
+        ],
+        "applies_to": [
+          "cli",
+          "scripts"
+        ],
+        "category": [
+          "cli"
+        ],
+        "priority": [
+          "suggested"
+        ],
+        "repo_shapes": [
+          "cli",
+          "scripts",
+          "monorepo"
+        ],
+        "stack_signals": [
+          "cobra",
+          "urfave-cli",
+          "shell"
+        ],
+        "tags": [
+          "cli",
+          "ux",
+          "output-contracts"
+        ]
+      },
+      "location": "skills/cli-design/SKILL.md"
+    },
+    {
+      "name": "implement",
+      "description": "Deliver a scoped change that meets the stated requirements with minimal surface area.",
+      "compatibility": "Designed for skills-compatible coding agents.",
+      "metadata": {
+        "agents": [
+          "universal",
+          "codex"
+        ],
+        "applies_to": [
+          "frontend",
+          "backend",
+          "cli",
+          "scripts",
+          "mobile"
+        ],
+        "category": [
+          "implementation"
+        ],
+        "priority": [
+          "core"
+        ],
+        "repo_shapes": [
+          "app",
+          "library",
+          "cli",
+          "scripts",
+          "monorepo"
+        ],
+        "tags": [
+          "implementation",
+          "feature",
+          "delivery"
+        ]
+      },
+      "location": "skills/implement/SKILL.md"
+    },
+    {
+      "name": "optimize",
+      "description": "Improve performance or resource usage with evidence and clear trade-offs.",
+      "compatibility": "Designed for skills-compatible coding agents.",
+      "metadata": {
+        "agents": [
+          "universal",
+          "codex"
+        ],
+        "applies_to": [
+          "frontend",
+          "backend",
+          "cli",
+          "scripts",
+          "mobile"
+        ],
+        "category": [
+          "performance"
+        ],
+        "priority": [
+          "suggested"
+        ],
+        "repo_shapes": [
+          "app",
+          "library",
+          "cli",
+          "scripts",
+          "monorepo"
+        ],
+        "tags": [
+          "performance",
+          "efficiency",
+          "cost"
+        ]
+      },
+      "location": "skills/optimize/SKILL.md"
+    },
+    {
+      "name": "plan",
+      "description": "Create a concise plan with risks and checkpoints before executing any changes.",
+      "compatibility": "Designed for skills-compatible coding agents.",
+      "metadata": {
+        "agents": [
+          "universal",
+          "codex"
+        ],
+        "applies_to": [
+          "frontend",
+          "backend",
+          "cli",
+          "scripts",
+          "mobile"
+        ],
+        "category": [
+          "planning"
+        ],
+        "priority": [
+          "core"
+        ],
+        "repo_shapes": [
+          "app",
+          "library",
+          "cli",
+          "scripts",
+          "monorepo"
+        ],
+        "tags": [
+          "planning",
+          "checkpoints",
+          "risk"
+        ]
+      },
+      "location": "skills/plan/SKILL.md"
+    },
+    {
+      "name": "refactor",
+      "description": "Improve structure and clarity without changing externally visible behavior.",
+      "compatibility": "Designed for skills-compatible coding agents.",
+      "metadata": {
+        "agents": [
+          "universal",
+          "codex"
+        ],
+        "applies_to": [
+          "frontend",
+          "backend",
+          "cli",
+          "scripts",
+          "mobile"
+        ],
+        "category": [
+          "refactor"
+        ],
+        "priority": [
+          "suggested"
+        ],
+        "repo_shapes": [
+          "app",
+          "library",
+          "cli",
+          "scripts",
+          "monorepo"
+        ],
+        "tags": [
+          "cleanup",
+          "structure",
+          "maintainability"
+        ]
+      },
+      "location": "skills/refactor/SKILL.md"
+    },
+    {
+      "name": "review",
+      "description": "Inspect changes for correctness, risks, and regressions before accepting them.",
+      "compatibility": "Designed for skills-compatible coding agents.",
+      "metadata": {
+        "agents": [
+          "universal",
+          "codex"
+        ],
+        "applies_to": [
+          "frontend",
+          "backend",
+          "cli",
+          "scripts",
+          "mobile"
+        ],
+        "category": [
+          "review"
+        ],
+        "priority": [
+          "core"
+        ],
+        "repo_shapes": [
+          "app",
+          "library",
+          "cli",
+          "scripts",
+          "monorepo"
+        ],
+        "tags": [
+          "review",
+          "regression",
+          "correctness"
+        ]
+      },
+      "location": "skills/review/SKILL.md"
+    },
+    {
+      "name": "spec-clarify",
+      "description": "Ask targeted questions to clarify scope, edge cases, and acceptance before coding.",
+      "compatibility": "Designed for skills-compatible coding agents.",
+      "metadata": {
+        "agents": [
+          "universal",
+          "codex"
+        ],
+        "applies_to": [
+          "frontend",
+          "backend",
+          "cli",
+          "scripts",
+          "mobile"
+        ],
+        "category": [
+          "clarification"
+        ],
+        "priority": [
+          "core"
+        ],
+        "repo_shapes": [
+          "app",
+          "library",
+          "cli",
+          "scripts",
+          "monorepo"
+        ],
+        "tags": [
+          "requirements",
+          "scope",
+          "ambiguity"
+        ]
+      },
+      "location": "skills/spec-clarify/SKILL.md"
+    },
+    {
+      "name": "troubleshoot",
+      "description": "Isolate root causes and propose targeted fixes with clear validation steps.",
+      "compatibility": "Designed for skills-compatible coding agents.",
+      "metadata": {
+        "agents": [
+          "universal",
+          "codex"
+        ],
+        "applies_to": [
+          "frontend",
+          "backend",
+          "cli",
+          "scripts",
+          "mobile"
+        ],
+        "category": [
+          "troubleshooting"
+        ],
+        "priority": [
+          "core"
+        ],
+        "repo_shapes": [
+          "app",
+          "library",
+          "cli",
+          "scripts",
+          "monorepo"
+        ],
+        "tags": [
+          "debugging",
+          "incident",
+          "root-cause"
+        ]
+      },
+      "location": "skills/troubleshoot/SKILL.md"
+    }
+  ]
+}

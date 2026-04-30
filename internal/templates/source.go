@@ -9,3 +9,7 @@ type Source interface {
 	ReadDir(path string) ([]fs.DirEntry, error)
 	Stat(path string) (fs.FileInfo, error)
 }
+
+type LoaderSource interface {
+	Source
+}

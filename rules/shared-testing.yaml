@@ -1,0 +1,8 @@
+rules:
+  - topic: "testing:coverage-shape"
+    level: "high"
+    rule: "Add or update tests in the order happy path, failure path, edge cases. Coverage should reflect the risk of the change rather than raw file count."
+
+  - topic: "testing:determinism"
+    level: "high"
+    rule: "Keep local test commands deterministic and isolated. Avoid hidden environment coupling, clock sensitivity, or cross-test state leakage."

@@ -11,9 +11,16 @@ type availableSkills struct {
 }
 
 type xmlSkill struct {
-	Name        string `xml:"name"`
-	Description string `xml:"description"`
-	Location    string `xml:"location"`
+	Name          string             `xml:"name"`
+	Description   string             `xml:"description"`
+	Compatibility string             `xml:"compatibility,omitempty"`
+	Metadata      []xmlMetadataEntry `xml:"metadata>entry,omitempty"`
+	Location      string             `xml:"location"`
+}
+
+type xmlMetadataEntry struct {
+	Key    string   `xml:"key,attr"`
+	Values []string `xml:"value"`
 }
 
 func (Service) GenerateAvailableSkillsXML(skills []Skill) ([]byte, error) {
@@ -21,12 +28,20 @@ func (Service) GenerateAvailableSkillsXML(skills []Skill) ([]byte, error) {
 		Skills: make([]xmlSkill, 0, len(skills)),
 	}
 
-	for _, skill := range skills {
-		doc.Skills = append(doc.Skills, xmlSkill{
-			Name:        skill.Name,
-			Description: skill.Description,
-			Location:    skill.Location,
-		})
+	for _, skill := range orderedSkills(skills) {
+		entry := xmlSkill{
+			Name:          skill.Name,
+			Description:   skill.Description,
+			Compatibility: skill.Compatibility,
+			Location:      skill.Location,
+		}
+		for _, key := range skill.Metadata.Keys() {
+			entry.Metadata = append(entry.Metadata, xmlMetadataEntry{
+				Key:    key,
+				Values: append([]string(nil), skill.Metadata[key]...),
+			})
+		}
+		doc.Skills = append(doc.Skills, entry)
 	}
 
 	var buf bytes.Buffer

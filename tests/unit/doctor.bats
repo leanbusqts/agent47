@@ -101,7 +101,7 @@ EOF
   run "$ROOT_DIR/bin/afs" doctor
   assert_success
   assert_contains "$output" "afs in PATH, but not the managed launcher"
-  assert_contains "$output" "afs symlink in ~/bin is broken or points to a non-executable target"
+  assert_contains "$output" "afs symlink in ~/bin points to the wrong executable"
 }
 
 @test "doctor --fail-on-warn exits non-zero when warnings are present" {

@@ -1,0 +1,14 @@
+rules:
+  - topic: "scripts:composition"
+    level: "high"
+    rule: "Keep scripts small, composable, and explicit about inputs, outputs, and filesystem side effects."
+
+  - topic: "scripts:portability"
+    level: "high"
+    rule: "Prefer portable shell constructs or guard platform-specific behavior with capability checks."
+    refs:
+      - "SEC-shell-005"
+
+  - topic: "scripts:verification"
+    level: "high"
+    rule: "Critical script paths should have targeted verification for success, failure handling, and rollback behavior."

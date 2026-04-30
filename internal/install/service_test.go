@@ -368,7 +368,7 @@ func TestCopyTemplateTreeCopiesNestedFiles(t *testing.T) {
 	}
 
 	dst := filepath.Join(t.TempDir(), "copied")
-	if err := service.copyTemplateTree("rules", dst); err != nil {
+	if err := service.copyTemplateTree(service.Loader.RawSource, "base/rules", dst); err != nil {
 		t.Fatal(err)
 	}
 	assertExists(t, filepath.Join(dst, "rules-backend.yaml"))
@@ -381,7 +381,7 @@ func TestCopyTemplateTreeFailsForMissingSource(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := service.copyTemplateTree("missing-dir", filepath.Join(t.TempDir(), "dst")); err == nil {
+	if err := service.copyTemplateTree(service.Loader.RawSource, "missing-dir", filepath.Join(t.TempDir(), "dst")); err == nil {
 		t.Fatal("expected missing template copy failure")
 	}
 }

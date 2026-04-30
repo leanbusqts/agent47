@@ -1,0 +1,5 @@
+[rule_templates]
+rules-plugin.yaml
+
+[required_template_files]
+rules/rules-plugin.yaml

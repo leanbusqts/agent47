@@ -1,0 +1,8 @@
+rules:
+  - topic: "plugin:host-contract"
+    level: "high"
+    rule: "Treat plugin entrypoints, manifests, and host APIs as compatibility contracts. Validate changes against the host lifecycle and expected capabilities."
+
+  - topic: "plugin:isolation"
+    level: "high"
+    rule: "Keep plugin-specific state, permissions, and side effects isolated from the host and from other plugins."

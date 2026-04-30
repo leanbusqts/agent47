@@ -19,6 +19,8 @@ This root `SPEC.md` describes the current product contract and technical behavio
    - `rules/*.yaml`
    - `skills/*`
    - `skills/AVAILABLE_SKILLS.xml`
+   - `skills/AVAILABLE_SKILLS.json`
+   - `skills/SUMMARY.md`
    - prompt helpers
    - `specs/spec.yml` as an available template artifact
 
@@ -100,16 +102,29 @@ Update-check behavior:
 
 Public command:
 
-- `afs add-agent`
+- `afs analyze [--json|--verbose|--evidence]`
+- `afs add-agent [--preview|--dry-run]`
 
 Expected outcome:
 
+- `afs analyze` inspects the repository, resolves the install set, and never writes files
+- `afs add-agent` runs the same analysis and resolution flow before writing
 - write `AGENTS.md` if absent
-- write `rules/*.yaml` if absent
-- create `skills/*` and `skills/AVAILABLE_SKILLS.xml`
+- write the resolved `rules/*.yaml` if absent
+- create the resolved `skills/*` and managed skills indexes
+- create `prompts/agent-prompt.txt` and `prompts/ss-prompt.txt` if absent
 - create an empty `README.md` if absent
 - create `specs/spec.yml` if absent
 - preserve existing managed files unless `--force` is used
+
+Default resolution behavior:
+
+- low-signal repos install the base bundle only
+- unresolved project-type conflicts install the base bundle only and print an explicit warning
+- the base bundle includes `AGENTS.md`, shell/global security rules, universal skills, prompt helpers, and `specs/spec.yml`
+- supported project bundles currently include frontend, backend, mobile, cli, scripts, infra, monorepo-tooling, desktop, and plugin
+- supported automatic bundle composition currently includes `cli` + `scripts`, `cli` + `monorepo-tooling`, and `desktop` + `plugin`
+- in interactive TTY environments, `afs add-agent` asks for confirmation before writing unless `--yes` is supplied
 
 ### 5.4 Fresh reinstall of the managed scaffold
 
@@ -120,10 +135,10 @@ Public command:
 Expected outcome:
 
 - replace `AGENTS.md`
-- reconcile `rules/*.yaml` against current templates
-- replace `skills/*`
-- regenerate `skills/AVAILABLE_SKILLS.xml`
-- remove stale managed rules and skills no longer shipped by current templates
+- reconcile resolved `rules/*.yaml` against the selected install set
+- replace `skills/*` with the selected install set
+- regenerate the managed skills indexes
+- remove stale managed rules and skills no longer selected by the current install set
 - preserve:
   - `README.md`
   - `specs/spec.yml`
@@ -143,10 +158,11 @@ Public commands:
 
 Expected outcome:
 
-- manage only `skills/*` and `skills/AVAILABLE_SKILLS.xml`
+- manage only `skills/*` and the managed skills indexes
 - do not touch `AGENTS.md` or `rules/*.yaml`
-- without `--force`, preserve existing invalid skill files and omit them from `AVAILABLE_SKILLS.xml`
+- without `--force`, preserve existing invalid skill files and omit them from the generated skills indexes
 - with `--force`, replace the managed skills directory with the template set
+- the same validated skill set is rendered into the XML, JSON, and Markdown summary indexes
 
 ### 5.6 Prompt helpers
 
@@ -180,7 +196,8 @@ Supported user-facing commands:
 - `afs help`
 - `afs uninstall`
 - `afs doctor [--check-update|--check-update-force|--fail-on-warn]`
-- `afs add-agent [--force] [--only-skills]`
+- `afs analyze [--json|--verbose|--evidence]`
+- `afs add-agent [--force] [--only-skills] [--preview|--dry-run] [--yes] [--bundle <name>] [--exclude-bundle <name>]`
 - `afs add-agent-prompt [--force]`
 - `afs add-ss-prompt`
 - `./install.sh [--force] [--non-interactive]`
@@ -212,16 +229,18 @@ Commands intentionally outside the supported public surface:
 - `internal/`
 - `scripts/`
 - `tests/`
-- root metadata such as `README.md`, `RUNBOOK.md`, `VERSION`, `SNAPSHOT.md`, `SPEC.md`, `PLAN.md`
+- root metadata such as `README.md`, `RUNBOOK.md`, `VERSION`, `SNAPSHOT.md`, and `SPEC.md`
 
 ### 7.2 Template payload
 
-- `templates/AGENTS.md`
+- `templates/base/AGENTS.md`
 - `templates/manifest.txt`
-- `templates/rules/*.yaml`
-- `templates/skills/*/SKILL.md`
-- `templates/prompts/*.txt`
-- `templates/specs/spec.yml`
+- `templates/base/rules/*.yaml`
+- `templates/bundles/*/rules/*.yaml`
+- `templates/base/skills/*/SKILL.md`
+- `templates/bundles/*/skills/*/SKILL.md`
+- `templates/base/prompts/*.txt`
+- `templates/base/specs/spec.yml`
 
 ### 7.3 Managed target contract
 
@@ -232,6 +251,8 @@ Defined by `templates/manifest.txt`:
   - `rules/*.yaml`
   - `skills/*`
   - `skills/AVAILABLE_SKILLS.xml`
+  - `skills/AVAILABLE_SKILLS.json`
+  - `skills/SUMMARY.md`
 - preserved targets:
   - `README.md`
   - `specs/spec.yml`

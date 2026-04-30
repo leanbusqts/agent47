@@ -1,0 +1,5 @@
+[rule_templates]
+shared-testing.yaml
+
+[required_template_files]
+rules/shared-testing.yaml

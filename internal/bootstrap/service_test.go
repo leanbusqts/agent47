@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,9 @@ import (
 	"github.com/leanbusqts/agent47/internal/cli"
 	"github.com/leanbusqts/agent47/internal/fsx"
 	"github.com/leanbusqts/agent47/internal/manifest"
+	"github.com/leanbusqts/agent47/internal/resolve"
 	"github.com/leanbusqts/agent47/internal/runtime"
+	"github.com/leanbusqts/agent47/internal/templates"
 )
 
 func TestPrepareStateHonorsStageRootOverride(t *testing.T) {
@@ -157,6 +160,8 @@ func TestRunOnlySkillsSkipsRulesAndAgents(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertTestFileContains(t, filepath.Join(workDir, "skills", "AVAILABLE_SKILLS.xml"), "skills")
+	assertTestFileContains(t, filepath.Join(workDir, "skills", "AVAILABLE_SKILLS.json"), "\"skills\"")
+	assertTestFileContains(t, filepath.Join(workDir, "skills", "SUMMARY.md"), "# Available Skills")
 	if _, err := os.Stat(filepath.Join(workDir, "AGENTS.md")); !os.IsNotExist(err) {
 		t.Fatalf("did not expect AGENTS.md, err=%v", err)
 	}
@@ -185,6 +190,8 @@ func TestRunOnlySkillsIgnoresBrokenManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertTestFileContains(t, filepath.Join(workDir, "skills", "AVAILABLE_SKILLS.xml"), "analyze")
+	assertTestFileContains(t, filepath.Join(workDir, "skills", "AVAILABLE_SKILLS.json"), "\"analyze\"")
+	assertTestFileContains(t, filepath.Join(workDir, "skills", "SUMMARY.md"), "## analyze")
 }
 
 func TestRunUsesCurrentDirectoryWhenWorkDirEmpty(t *testing.T) {
@@ -210,6 +217,8 @@ func TestRunUsesCurrentDirectoryWhenWorkDirEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertTestFileContains(t, filepath.Join(workDir, "skills", "AVAILABLE_SKILLS.xml"), "skills")
+	assertTestFileContains(t, filepath.Join(workDir, "skills", "AVAILABLE_SKILLS.json"), "\"skills\"")
+	assertTestFileContains(t, filepath.Join(workDir, "skills", "SUMMARY.md"), "# Available Skills")
 }
 
 func TestRunRollsBackAndCleansStageRootOnFailure(t *testing.T) {
@@ -237,6 +246,61 @@ func TestRunRollsBackAndCleansStageRootOnFailure(t *testing.T) {
 	}
 }
 
+func TestRunFailsWhenBundleAssemblyHasConflictingContent(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "manifest.txt"), validAssemblyManifestBody())
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "base", "manifest.txt"), validAssemblyManifestBody())
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "base", "AGENTS.md"), "agents\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "base", "specs", "spec.yml"), "summary: template\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "base", "rules", "shared-cli-behavior.yaml"), "base\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "base", "skills", "analyze", "SKILL.md"), validSkillBody("analyze"))
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "bundles", "project-cli", "manifest.txt"), strings.Join([]string{
+		"[rule_templates]",
+		"rules-cli.yaml",
+		"[managed_targets]",
+		"rules/*.yaml",
+		"skills/*",
+		"[preserved_targets]",
+		"README.md",
+		"specs/spec.yml",
+		"SNAPSHOT.md",
+		"SPEC.md",
+		"[required_template_files]",
+		"rules/rules-cli.yaml",
+		"[required_template_dirs]",
+		"rules",
+	}, "\n")+"\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "bundles", "project-cli", "rules", "rules-cli.yaml"), "cli\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "bundles", "shared-cli-behavior", "manifest.txt"), strings.Join([]string{
+		"[rule_templates]",
+		"shared-cli-behavior.yaml",
+		"[required_template_files]",
+		"rules/shared-cli-behavior.yaml",
+	}, "\n")+"\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "bundles", "shared-cli-behavior", "rules", "shared-cli-behavior.yaml"), "shared\n")
+
+	service, err := New(runtime.Config{
+		TemplateMode: runtime.TemplateModeFilesystem,
+		RepoRoot:     repoRoot,
+	}, cli.NewOutput(&bytes.Buffer{}, &bytes.Buffer{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = service.Run(context.Background(), Options{
+		WorkDir: t.TempDir(),
+		InstallSet: resolve.InstallSet{
+			Bundles: []string{"base", "project-cli", "shared-cli-behavior"},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected assembly conflict failure")
+	}
+	if !strings.Contains(err.Error(), "assembly conflict for rules/shared-cli-behavior.yaml") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRequireTemplatesFailsWhenSkillsTemplatesMissing(t *testing.T) {
 	service, err := New(runtime.Config{
 		TemplateMode: runtime.TemplateModeFilesystem,
@@ -246,11 +310,12 @@ func TestRequireTemplatesFailsWhenSkillsTemplatesMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = service.requireTemplates(manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, Options{})
+	err = service.requireTemplates(service.Loader.Source, manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, Options{})
 	if err == nil {
 		t.Fatal("expected missing skills templates error")
 	}
-	if !strings.Contains(err.Error(), "missing skills templates") {
+	var missing templates.MissingTemplateError
+	if !errors.As(err, &missing) || missing.Path != "skills" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -268,7 +333,7 @@ func TestRequireTemplatesFailsWhenAgentsTemplateMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := service.requireTemplates(manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, Options{}); err == nil {
+	if err := service.requireTemplates(service.Loader.Source, manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, Options{}); err == nil {
 		t.Fatal("expected missing AGENTS template error")
 	}
 }
@@ -286,7 +351,7 @@ func TestRequireTemplatesFailsWhenRuleTemplateMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := service.requireTemplates(manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, Options{}); err == nil {
+	if err := service.requireTemplates(service.Loader.Source, manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, Options{}); err == nil {
 		t.Fatal("expected missing rule template error")
 	}
 }
@@ -469,7 +534,7 @@ func TestCommitSpecCreatesFileWhenMissing(t *testing.T) {
 	}
 	st := state{}
 
-	if err := service.commitSpec(workDir, &st); err != nil {
+	if err := service.commitSpec(service.Loader.Source, workDir, &st); err != nil {
 		t.Fatal(err)
 	}
 	assertTestFileContains(t, filepath.Join(workDir, "specs", "spec.yml"), "summary:")
@@ -491,7 +556,7 @@ func TestCommitSpecPreservesExistingFile(t *testing.T) {
 	st := state{}
 	writeTestFile(t, filepath.Join(workDir, "specs", "spec.yml"), "existing spec\n")
 
-	if err := service.commitSpec(workDir, &st); err != nil {
+	if err := service.commitSpec(service.Loader.Source, workDir, &st); err != nil {
 		t.Fatal(err)
 	}
 	assertTestFileContains(t, filepath.Join(workDir, "specs", "spec.yml"), "existing spec")
@@ -540,7 +605,7 @@ func TestCopyTemplateDirCopiesNestedFiles(t *testing.T) {
 	}
 
 	dst := filepath.Join(t.TempDir(), "copied")
-	if err := service.copyTemplateDir("skills", dst); err != nil {
+	if err := service.copyTemplateDir(service.Loader.Source, "skills", dst); err != nil {
 		t.Fatal(err)
 	}
 	assertTestFileContains(t, filepath.Join(dst, "analyze", "SKILL.md"), "name: analyze")
@@ -556,7 +621,7 @@ func TestCopyTemplateDirFailsWhenSourceMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := service.copyTemplateDir("missing", filepath.Join(t.TempDir(), "dst")); err == nil {
+	if err := service.copyTemplateDir(service.Loader.Source, "missing", filepath.Join(t.TempDir(), "dst")); err == nil {
 		t.Fatal("expected copy failure for missing source")
 	}
 }
@@ -577,12 +642,14 @@ func TestStageSkillsPreservesInvalidExistingSkillWhenForceDisabled(t *testing.T)
 	writeTestFile(t, filepath.Join(workDir, "skills", "analyze", "SKILL.md"), "invalid\n")
 	st := state{stageRoot: filepath.Join(t.TempDir(), "stage")}
 
-	if err := service.stageSkills(Options{WorkDir: workDir}, &st); err != nil {
+	if err := service.stageSkills(service.Loader.Source, Options{WorkDir: workDir}, &st); err != nil {
 		t.Fatal(err)
 	}
 	assertTestFileContains(t, filepath.Join(st.stageRoot, "skills", "analyze", "SKILL.md"), "invalid")
 	assertTestFileContains(t, filepath.Join(st.stageRoot, "skills", "build", "SKILL.md"), "name: build")
 	assertTestFileContains(t, filepath.Join(st.stageRoot, "skills", "AVAILABLE_SKILLS.xml"), "build")
+	assertTestFileContains(t, filepath.Join(st.stageRoot, "skills", "AVAILABLE_SKILLS.json"), "\"build\"")
+	assertTestFileContains(t, filepath.Join(st.stageRoot, "skills", "SUMMARY.md"), "## build")
 }
 
 func TestStageSkillsRestoresTemplateWhenSkillFileMissing(t *testing.T) {
@@ -602,7 +669,7 @@ func TestStageSkillsRestoresTemplateWhenSkillFileMissing(t *testing.T) {
 	}
 	st := state{stageRoot: filepath.Join(t.TempDir(), "stage")}
 
-	if err := service.stageSkills(Options{WorkDir: workDir}, &st); err != nil {
+	if err := service.stageSkills(service.Loader.Source, Options{WorkDir: workDir}, &st); err != nil {
 		t.Fatal(err)
 	}
 	assertTestFileContains(t, filepath.Join(st.stageRoot, "skills", "analyze", "SKILL.md"), "name: analyze")
@@ -623,11 +690,13 @@ func TestStageSkillsPreservesCustomSkillsWhenForceDisabled(t *testing.T) {
 	writeTestFile(t, filepath.Join(workDir, "skills", "custom-tool", "SKILL.md"), validSkillBody("custom-tool"))
 	st := state{stageRoot: filepath.Join(t.TempDir(), "stage")}
 
-	if err := service.stageSkills(Options{WorkDir: workDir}, &st); err != nil {
+	if err := service.stageSkills(service.Loader.Source, Options{WorkDir: workDir}, &st); err != nil {
 		t.Fatal(err)
 	}
 	assertTestFileContains(t, filepath.Join(st.stageRoot, "skills", "custom-tool", "SKILL.md"), "name: custom-tool")
 	assertTestFileContains(t, filepath.Join(st.stageRoot, "skills", "AVAILABLE_SKILLS.xml"), "custom-tool")
+	assertTestFileContains(t, filepath.Join(st.stageRoot, "skills", "AVAILABLE_SKILLS.json"), "\"custom-tool\"")
+	assertTestFileContains(t, filepath.Join(st.stageRoot, "skills", "SUMMARY.md"), "## custom-tool")
 }
 
 func TestStageSkillsFailsWhenForceEnabledAndTemplateInvalid(t *testing.T) {
@@ -643,7 +712,7 @@ func TestStageSkillsFailsWhenForceEnabledAndTemplateInvalid(t *testing.T) {
 	}
 	st := state{stageRoot: filepath.Join(t.TempDir(), "stage")}
 
-	if err := service.stageSkills(Options{WorkDir: t.TempDir(), Force: true}, &st); err == nil {
+	if err := service.stageSkills(service.Loader.Source, Options{WorkDir: t.TempDir(), Force: true}, &st); err == nil {
 		t.Fatal("expected invalid template failure")
 	}
 }
@@ -659,7 +728,7 @@ func TestStageRulesAndAgentsCopiesManifestTargets(t *testing.T) {
 	}
 	st := state{stageRoot: filepath.Join(t.TempDir(), "stage")}
 
-	if err := service.stageRulesAndAgents(manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, &st); err != nil {
+	if err := service.stageRulesAndAgents(service.Loader.Source, manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, &st); err != nil {
 		t.Fatal(err)
 	}
 	assertTestFileContains(t, filepath.Join(st.stageRoot, "rules", "rules-backend.yaml"), "rule")
@@ -679,7 +748,7 @@ func TestStageRulesAndAgentsFailsWhenAgentsTemplateMissing(t *testing.T) {
 	}
 	st := state{stageRoot: filepath.Join(t.TempDir(), "stage")}
 
-	if err := service.stageRulesAndAgents(manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, &st); err == nil {
+	if err := service.stageRulesAndAgents(service.Loader.Source, manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, &st); err == nil {
 		t.Fatal("expected missing AGENTS template failure")
 	}
 }
@@ -697,7 +766,7 @@ func TestStageRulesAndAgentsFailsWhenRuleTemplateMissing(t *testing.T) {
 	}
 	st := state{stageRoot: filepath.Join(t.TempDir(), "stage")}
 
-	if err := service.stageRulesAndAgents(manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, &st); err == nil {
+	if err := service.stageRulesAndAgents(service.Loader.Source, manifest.Manifest{RuleTemplates: []string{"rules-backend.yaml"}}, &st); err == nil {
 		t.Fatal("expected missing rule template failure")
 	}
 }
@@ -844,6 +913,37 @@ func testManifestBody() string {
 		"VERSION",
 		"[required_template_files]",
 		"AGENTS.md",
+		"specs/spec.yml",
+		"[required_template_dirs]",
+		"rules",
+		"skills",
+		"specs",
+	}, "\n") + "\n"
+}
+
+func validAssemblyManifestBody() string {
+	return strings.Join([]string{
+		"[rule_templates]",
+		"rules-backend.yaml",
+		"rules-frontend.yaml",
+		"rules-mobile.yaml",
+		"security-global.yaml",
+		"security-shell.yaml",
+		"[managed_targets]",
+		"AGENTS.md",
+		"rules/*.yaml",
+		"skills/*",
+		"skills/AVAILABLE_SKILLS.xml",
+		"skills/AVAILABLE_SKILLS.json",
+		"skills/SUMMARY.md",
+		"[preserved_targets]",
+		"README.md",
+		"specs/spec.yml",
+		"SNAPSHOT.md",
+		"SPEC.md",
+		"[required_template_files]",
+		"AGENTS.md",
+		"manifest.txt",
 		"specs/spec.yml",
 		"[required_template_dirs]",
 		"rules",

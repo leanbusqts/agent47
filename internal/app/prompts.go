@@ -2,10 +2,12 @@ package app
 
 import (
 	"context"
+	"errors"
 	"os"
 
 	"github.com/leanbusqts/agent47/internal/prompts"
 	"github.com/leanbusqts/agent47/internal/runtime"
+	"github.com/leanbusqts/agent47/internal/templates"
 )
 
 func (r *Root) runAddAgentPrompt(ctx context.Context, cfg runtime.Config, args []string) int {
@@ -33,6 +35,11 @@ func (r *Root) runAddAgentPrompt(ctx context.Context, cfg runtime.Config, args [
 		return 1
 	}
 	if err := service.AddAgentPrompt(workDir, force); err != nil {
+		var missingTemplateErr templates.MissingTemplateError
+		if errors.As(err, &missingTemplateErr) {
+			r.out.Err("Template not found: %s", filepathBase(missingTemplateErr.Path))
+			return 1
+		}
 		r.out.Err("%v", err)
 		return 1
 	}
@@ -52,8 +59,22 @@ func (r *Root) runAddSSPrompt(ctx context.Context, cfg runtime.Config, args []st
 		return 1
 	}
 	if err := service.AddSSPrompt(); err != nil {
+		var missingTemplateErr templates.MissingTemplateError
+		if errors.As(err, &missingTemplateErr) {
+			r.out.Err("Template not found: %s", filepathBase(missingTemplateErr.Path))
+			return 1
+		}
 		r.out.Err("%v", err)
 		return 1
 	}
 	return 0
+}
+
+func filepathBase(path string) string {
+	for i := len(path) - 1; i >= 0; i-- {
+		if path[i] == '/' || path[i] == '\\' {
+			return path[i+1:]
+		}
+	}
+	return path
 }

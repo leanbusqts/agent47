@@ -15,7 +15,7 @@ import (
 func TestWithEnvOverridesExistingValues(t *testing.T) {
 	base := []string{"PATH=/a", "HOME=/home"}
 	got := withEnv(base, "PATH=/b", "NEW=value")
-	want := []string{"PATH=/b", "HOME=/home", "NEW=value"}
+	want := []string{"HOME=/home", "PATH=/b", "NEW=value"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected env: got %v want %v", got, want)
 	}

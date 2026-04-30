@@ -1,0 +1,12 @@
+rules:
+  - topic: "workspace:boundaries"
+    level: "high"
+    rule: "Keep workspace boundaries explicit and avoid cross-package writes without a clear contract."
+
+  - topic: "workspace:task-routing"
+    level: "high"
+    rule: "Prefer top-level task orchestration and explicit package entrypoints over hidden automation."
+
+  - topic: "workspace:tooling-safety"
+    level: "medium"
+    rule: "Keep workspace tooling predictable, deterministic, and easy to audit."

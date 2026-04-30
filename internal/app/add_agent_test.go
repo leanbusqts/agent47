@@ -10,6 +10,7 @@ import (
 
 	"github.com/leanbusqts/agent47/internal/cli"
 	"github.com/leanbusqts/agent47/internal/runtime"
+	"github.com/leanbusqts/agent47/internal/templates"
 )
 
 func TestRunAddAgentCreatesCoreFiles(t *testing.T) {
@@ -20,10 +21,13 @@ func TestRunAddAgentCreatesCoreFiles(t *testing.T) {
 	}
 
 	assertFileExists(t, filepath.Join(env.workDir, "AGENTS.md"))
-	assertFileExists(t, filepath.Join(env.workDir, "rules", "rules-backend.yaml"))
+	assertFileExists(t, filepath.Join(env.workDir, "rules", "security-global.yaml"))
+	assertFileExists(t, filepath.Join(env.workDir, "rules", "security-shell.yaml"))
 	assertFileExists(t, filepath.Join(env.workDir, "skills", "analyze", "SKILL.md"))
+	assertFileExists(t, filepath.Join(env.workDir, "skills", "review", "SKILL.md"))
 	assertFileExists(t, filepath.Join(env.workDir, "skills", "AVAILABLE_SKILLS.xml"))
 	assertFileExists(t, filepath.Join(env.workDir, "README.md"))
+	assertFileExists(t, filepath.Join(env.workDir, "prompts", "agent-prompt.txt"))
 }
 
 func TestRunAddAgentOnlySkills(t *testing.T) {
@@ -54,12 +58,14 @@ func TestRunAddAgentForcePreservesProjectFilesAndRefreshesManagedArea(t *testing
 	}
 
 	assertFileContains(t, filepath.Join(env.workDir, "AGENTS.md"), "single source of operating policy")
-	assertFileContains(t, filepath.Join(env.workDir, "rules", "rules-backend.yaml"), "Controllers and transport adapters handle transport concerns only")
+	assertNotExists(t, filepath.Join(env.workDir, "rules", "rules-backend.yaml"))
 	assertNotExists(t, filepath.Join(env.workDir, "rules", "custom-rule.yaml"))
+	assertFileContains(t, filepath.Join(env.workDir, "rules", "security-global.yaml"), "Never hardcode secrets")
 	assertNotExists(t, filepath.Join(env.workDir, "skills", "custom-skill"))
 	assertFileContains(t, filepath.Join(env.workDir, "skills", "analyze", "SKILL.md"), "name: analyze")
 	assertFileContains(t, filepath.Join(env.workDir, "README.md"), "custom readme")
 	assertFileContains(t, filepath.Join(env.workDir, "SPEC.md"), "custom product spec")
+	assertFileExists(t, filepath.Join(env.workDir, "prompts", "agent-prompt.txt"))
 }
 
 func TestRunAddAgentForceRollsBackOnInvalidSkillTemplate(t *testing.T) {
@@ -67,7 +73,7 @@ func TestRunAddAgentForceRollsBackOnInvalidSkillTemplate(t *testing.T) {
 	mustWriteFile(t, filepath.Join(env.workDir, "AGENTS.md"), "existing agents\n")
 	mustWriteFile(t, filepath.Join(env.workDir, "rules", "rules-backend.yaml"), "existing rule\n")
 	mustWriteFile(t, filepath.Join(env.workDir, "skills", "analyze", "SKILL.md"), "existing skill\n")
-	mustWriteFile(t, filepath.Join(env.repoRoot, "templates", "skills", "analyze", "SKILL.md"), "not-valid-frontmatter\n")
+	mustWriteFile(t, filepath.Join(env.repoRoot, "templates", "base", "skills", "analyze", "SKILL.md"), "not-valid-frontmatter\n")
 
 	status, _, stderr := env.run(t, "add-agent", "--force")
 	if status == 0 {
@@ -98,9 +104,95 @@ func TestRunAddAgentOnlySkillsPreservesInvalidExistingSkillWithoutForce(t *testi
 	assertFileExists(t, filepath.Join(env.workDir, "skills", "AVAILABLE_SKILLS.xml"))
 }
 
+func TestRunAddAgentPreviewShowsConflictFallback(t *testing.T) {
+	env := newAddAgentEnv(t)
+	mustWriteFile(t, filepath.Join(env.workDir, "package.json"), `{"dependencies":{"react":"1.0.0","express":"1.0.0"}}`)
+	if err := os.MkdirAll(filepath.Join(env.workDir, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(env.workDir, "api"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	status, stdout, stderr := env.run(t, "add-agent", "--preview")
+	if status != 0 {
+		t.Fatalf("expected status 0, got %d: %s", status, stderr)
+	}
+	if !strings.Contains(stdout, "Multiple project types detected with no supported automatic composition") {
+		t.Fatalf("expected conflict warning, got %s", stdout)
+	}
+	if !strings.Contains(stdout, "bundles: base") {
+		t.Fatalf("expected base fallback, got %s", stdout)
+	}
+}
+
+func TestRunAddAgentRejectsIncompatibleExplicitBundles(t *testing.T) {
+	env := newAddAgentEnv(t)
+
+	status, _, stderr := env.run(t, "add-agent", "--preview", "--bundle", "frontend", "--bundle", "backend")
+	if status == 0 {
+		t.Fatal("expected non-zero status")
+	}
+	if !strings.Contains(stderr, "explicit bundle selection is incompatible") {
+		t.Fatalf("expected incompatible bundle error, got %s", stderr)
+	}
+}
+
+func TestRunAddAgentAllowsCompatibleExplicitBundles(t *testing.T) {
+	env := newAddAgentEnv(t)
+
+	status, stdout, stderr := env.run(t, "add-agent", "--preview", "--bundle", "cli", "--bundle", "scripts")
+	if status != 0 {
+		t.Fatalf("expected status 0, got %d: %s", status, stderr)
+	}
+	if !strings.Contains(stdout, "bundles: base, project-cli, project-scripts, shared-cli-behavior, shared-testing") {
+		t.Fatalf("expected compatible bundle preview, got %s", stdout)
+	}
+}
+
 func TestNormalizeBootstrapErrorHandlesNil(t *testing.T) {
 	if got := normalizeBootstrapError(nil); got != "" {
 		t.Fatalf("expected empty string, got %q", got)
+	}
+}
+
+func TestNormalizeBootstrapErrorAddsConflictGuidance(t *testing.T) {
+	got := normalizeBootstrapError(templates.AssemblyConflictError{
+		Path:   "rules/shared.yaml",
+		Detail: "base and project-cli provide different content",
+	})
+	if !strings.Contains(got, "Use a supported bundle composition or remove one of the conflicting bundles.") {
+		t.Fatalf("expected actionable conflict guidance, got %q", got)
+	}
+}
+
+func TestNormalizeBootstrapErrorAddsMissingTemplateGuidance(t *testing.T) {
+	got := normalizeBootstrapError(templates.MissingTemplateError{Path: "rules/rules-cli.yaml"})
+	if !strings.Contains(got, "Template not found: rules/rules-cli.yaml") {
+		t.Fatalf("expected template path, got %q", got)
+	}
+	if !strings.Contains(got, "Restore the missing template asset") {
+		t.Fatalf("expected actionable guidance, got %q", got)
+	}
+}
+
+func TestNormalizeBootstrapErrorAddsSkillsGuidance(t *testing.T) {
+	got := normalizeBootstrapError(templates.MissingTemplateError{Path: "skills"})
+	if !strings.Contains(got, "Skills templates are missing.") {
+		t.Fatalf("expected skills guidance, got %q", got)
+	}
+}
+
+func TestNormalizeBootstrapErrorAddsInvalidBundleManifestGuidance(t *testing.T) {
+	got := normalizeBootstrapError(templates.InvalidBundleManifestError{
+		Path:   "bundles/project-cli/manifest.txt",
+		Detail: "manifest has no entries",
+	})
+	if !strings.Contains(got, "invalid bundle manifest bundles/project-cli/manifest.txt") {
+		t.Fatalf("expected invalid bundle manifest detail, got %q", got)
+	}
+	if !strings.Contains(got, "Restore the bundle manifest contents or exclude that bundle") {
+		t.Fatalf("expected actionable bundle guidance, got %q", got)
 	}
 }
 

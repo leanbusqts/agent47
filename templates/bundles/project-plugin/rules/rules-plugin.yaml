@@ -1,0 +1,12 @@
+rules:
+  - topic: "plugin:host-compatibility"
+    level: "high"
+    rule: "Keep plugin behavior aligned with the host application's extension contract."
+
+  - topic: "plugin:api-surface"
+    level: "high"
+    rule: "Treat public plugin APIs as stable contracts and avoid breaking changes without migration notes."
+
+  - topic: "plugin:release-safety"
+    level: "medium"
+    rule: "Make plugin packaging and release changes explicit and reversible."

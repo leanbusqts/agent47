@@ -56,6 +56,18 @@ func (s *Service) Install(ctx context.Context, cfg runtime.Config, opts InstallO
 	if err != nil {
 		return err
 	}
+	bundleIDs, err := templates.DiscoverBundleIDs(s.Loader.RawSource)
+	if err != nil {
+		return err
+	}
+	if err := templates.ValidateAssembly(s.Loader.RawSource, bundleIDs); err != nil {
+		return err
+	}
+	assembledManifest, err := templates.AssembleManifest(s.Loader.RawSource, bundleIDs)
+	if err != nil {
+		return err
+	}
+	m = assembledManifest
 
 	if err := s.preflight(m, cfg); err != nil {
 		return err
@@ -190,17 +202,17 @@ func (s *Service) preflight(m manifest.Manifest, cfg runtime.Config) error {
 	}
 	for _, file := range m.RequiredTemplateFiles {
 		if _, err := s.Loader.Source.Stat(file); err != nil {
-			return fmt.Errorf("Required install asset missing: %s", file)
+			return templates.MissingTemplateError{Path: file}
 		}
 	}
 	for _, dir := range m.RequiredTemplateDirs {
 		if info, err := s.Loader.Source.Stat(dir); err != nil || !info.IsDir() {
-			return fmt.Errorf("Required install asset missing: %s", dir)
+			return templates.MissingTemplateError{Path: dir}
 		}
 	}
 	for _, file := range m.RuleTemplates {
 		if _, err := s.Loader.Source.Stat(filepath.ToSlash(filepath.Join("rules", file))); err != nil {
-			return fmt.Errorf("Required install asset missing: rules/%s", file)
+			return templates.MissingTemplateError{Path: filepath.ToSlash(filepath.Join("rules", file))}
 		}
 	}
 	return nil
@@ -400,7 +412,7 @@ func (s *Service) replaceTemplateDir(target string, force bool) error {
 	}
 	defer os.RemoveAll(stageDir)
 
-	if err := s.copyTemplateTree(".", stageDir); err != nil {
+	if err := s.copyTemplateTree(s.Loader.RawSource, ".", stageDir); err != nil {
 		return err
 	}
 
@@ -414,8 +426,8 @@ func (s *Service) replaceTemplateDir(target string, force bool) error {
 	return nil
 }
 
-func (s *Service) copyTemplateTree(srcPath, dstPath string) error {
-	entries, err := s.Loader.Source.ReadDir(srcPath)
+func (s *Service) copyTemplateTree(src templates.Source, srcPath, dstPath string) error {
+	entries, err := src.ReadDir(srcPath)
 	if err != nil {
 		return err
 	}
@@ -426,12 +438,12 @@ func (s *Service) copyTemplateTree(srcPath, dstPath string) error {
 		childSrc := filepath.ToSlash(filepath.Join(srcPath, entry.Name()))
 		childDst := filepath.Join(dstPath, entry.Name())
 		if entry.IsDir() {
-			if err := s.copyTemplateTree(childSrc, childDst); err != nil {
+			if err := s.copyTemplateTree(src, childSrc, childDst); err != nil {
 				return err
 			}
 			continue
 		}
-		data, err := s.Loader.Source.ReadFile(childSrc)
+		data, err := src.ReadFile(childSrc)
 		if err != nil {
 			return err
 		}

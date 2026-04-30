@@ -1,0 +1,26 @@
+Project summary
+  type: infra
+  confidence: medium
+  repo shape: single-package
+
+Install set
+  bundles: base, project-infra
+  note: Resolved bundles from detected project types and technologies.
+
+Detected technologies
+  infra (medium)
+
+Rules
+  rules-infra.yaml
+  security-global.yaml
+  security-shell.yaml
+
+Skills
+  analyze
+  implement
+  plan
+  review
+  spec-clarify
+  troubleshoot
+
+Evidence

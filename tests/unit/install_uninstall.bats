@@ -14,9 +14,9 @@ teardown() {
   PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh" --force
   assert_success
   assert_file_exists "$AGENT47_HOME/bin/afs"
-  assert_file_exists "$AGENT47_HOME/templates/AGENTS.md"
-  assert_file_exists "$AGENT47_HOME/templates/specs/spec.yml"
-  assert_file_exists "$AGENT47_HOME/templates/rules/security-shell.yaml"
+  assert_file_exists "$AGENT47_HOME/templates/base/AGENTS.md"
+  assert_file_exists "$AGENT47_HOME/templates/base/specs/spec.yml"
+  assert_file_exists "$AGENT47_HOME/templates/base/rules/security-shell.yaml"
   [ ! -d "$AGENT47_HOME/scripts/lib" ]
   [ ! -e "$AGENT47_HOME/scripts/add-agent" ]
   [ ! -e "$AGENT47_HOME/scripts/add-agent-prompt" ]
@@ -165,7 +165,8 @@ teardown() {
 
 @test "install fails if manifest contract drops managed or preserved targets" {
   temp_repo="$(make_test_repo_copy)"
-  run bash -c 'cat > "$1/templates/manifest.txt" <<'"'"'EOF'"'"'
+  run bash -c 'for manifest_path in "$1/templates/manifest.txt" "$1/templates/base/manifest.txt"; do
+cat > "$manifest_path" <<'"'"'EOF'"'"'
 [rule_templates]
 rules-mobile.yaml
 
@@ -187,6 +188,7 @@ rules
 skills
 specs
 EOF
+done
 PATH="$HOME/bin:$PATH" AGENT47_REPO_ROOT="$1" "$2/install.sh" --non-interactive
 ' _ "$temp_repo" "$ROOT_DIR"
   [ "$status" -ne 0 ]
@@ -282,7 +284,7 @@ PATH="$HOME/bin:$PATH" AGENT47_REPO_ROOT="$1" "$2/install.sh" --non-interactive
 
 @test "install fails fast when a core install asset is missing" {
   temp_repo="$(make_test_repo_copy)"
-  mv "$temp_repo/templates/AGENTS.md" "$temp_repo/templates/AGENTS.md.bak"
+  mv "$temp_repo/templates/base/AGENTS.md" "$temp_repo/templates/base/AGENTS.md.bak"
 
   PATH="$HOME/bin:$PATH" run env AGENT47_REPO_ROOT="$temp_repo" "$ROOT_DIR/install.sh"
   [ "$status" -ne 0 ]
@@ -298,11 +300,12 @@ PATH="$HOME/bin:$PATH" AGENT47_REPO_ROOT="$1" "$2/install.sh" --non-interactive
   fail_marker="$TEST_WORKDIR/fail-dir-swap-once"
 
   mkdir -p "$temp_agent47_home/templates"
-  echo "old template" > "$temp_agent47_home/templates/AGENTS.md"
+  mkdir -p "$temp_agent47_home/templates/base"
+  echo "old template" > "$temp_agent47_home/templates/base/AGENTS.md"
 
   run bash -c "HOME=\"$temp_home\" AGENT47_HOME=\"$temp_agent47_home\" AGENT47_ENABLE_TEST_HOOKS=true AGENT47_FAIL_DIR_SWAP_TARGET=\"$canonical_temp_agent47_home/templates\" AGENT47_FAIL_DIR_SWAP_MARKER=\"$fail_marker\" PATH=\"\$HOME/bin:/usr/bin:/bin\" \"$ROOT_DIR/install.sh\" --force --non-interactive"
   [ "$status" -ne 0 ]
-  run cat "$temp_agent47_home/templates/AGENTS.md"
+  run cat "$temp_agent47_home/templates/base/AGENTS.md"
   assert_success
   [ "$output" = "old template" ]
 }
@@ -317,7 +320,8 @@ PATH="$HOME/bin:$PATH" AGENT47_REPO_ROOT="$1" "$2/install.sh" --non-interactive
 
   mkdir -p "$temp_agent47_home/bin" "$temp_agent47_home/templates"
   printf '%s\n' old-launcher > "$temp_agent47_home/bin/afs"
-  echo "old template" > "$temp_agent47_home/templates/AGENTS.md"
+  mkdir -p "$temp_agent47_home/templates/base"
+  echo "old template" > "$temp_agent47_home/templates/base/AGENTS.md"
 
   run bash -c "HOME=\"$temp_home\" AGENT47_HOME=\"$temp_agent47_home\" AGENT47_ENABLE_TEST_HOOKS=true AGENT47_FAIL_DIR_SWAP_TARGET=\"$canonical_temp_agent47_home/templates\" AGENT47_FAIL_DIR_SWAP_MARKER=\"$fail_marker\" PATH=\"\$HOME/bin:/usr/bin:/bin\" \"$ROOT_DIR/install.sh\" --force --non-interactive"
   [ "$status" -ne 0 ]

@@ -1,0 +1,15 @@
+rules:
+  - topic: "infra:change-safety"
+    level: "high"
+    rule: "Keep deployment and environment changes explicit, reviewable, and reversible."
+
+  - topic: "infra:shell-safety"
+    level: "high"
+    rule: "Prefer explicit shell commands, quote expansions, and avoid untrusted command construction."
+    refs:
+      - "SEC-shell-001"
+      - "SEC-shell-002"
+
+  - topic: "infra:dependency-discipline"
+    level: "high"
+    rule: "Treat dependency additions and version changes as intentional, approved changes."

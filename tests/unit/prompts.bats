@@ -44,8 +44,10 @@ teardown() {
   temp_repo="$(make_test_repo_copy)"
   run bash -c '
     set -euo pipefail
-    mv "$1/templates/prompts/agent-prompt.txt" "$1/templates/prompts/agent-prompt.txt.bak"
-    trap '"'"'mv "$1/templates/prompts/agent-prompt.txt.bak" "$1/templates/prompts/agent-prompt.txt"'"'"' EXIT
+    mv "$1/templates/base/prompts/agent-prompt.txt" "$1/templates/base/prompts/agent-prompt.txt.bak"
+    trap '"'"'
+      mv "$1/templates/base/prompts/agent-prompt.txt.bak" "$1/templates/base/prompts/agent-prompt.txt"
+    '"'"' EXIT
     cd "$2"
     AGENT47_REPO_ROOT="$1" "$3/bin/afs" add-agent-prompt
   ' _ "$temp_repo" "$PWD" "$ROOT_DIR"

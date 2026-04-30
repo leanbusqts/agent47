@@ -1,0 +1,16 @@
+rules:
+  - topic: "cli:command-surface"
+    level: "high"
+    rule: "Document the supported command surface, keep help output accurate, and treat exit codes as part of the public contract."
+
+  - topic: "cli:tty-behavior"
+    level: "high"
+    rule: "Keep TTY and non-TTY behavior explicit; output should remain readable in logs and automation."
+
+  - topic: "cli:install-lifecycle"
+    level: "high"
+    rule: "Installation, refresh, update, and uninstall flows must be explicit, testable, and safe to retry."
+
+  - topic: "cli:preview-before-mutation"
+    level: "high"
+    rule: "When commands modify repository state, prefer a preview or dry-run path that explains planned changes before mutation."

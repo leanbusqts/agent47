@@ -1,0 +1,8 @@
+rules:
+  - topic: "cli:stdout-stderr"
+    level: "high"
+    rule: "Keep stdout for primary results and stderr for diagnostics. This contract must remain stable in automation and non-interactive runs."
+
+  - topic: "cli:exit-codes"
+    level: "high"
+    rule: "Treat exit codes as part of the supported interface. Document or preserve success, usage, and failure semantics when changing commands."

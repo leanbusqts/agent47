@@ -10,18 +10,20 @@ import (
 	"github.com/leanbusqts/agent47/internal/cli"
 	"github.com/leanbusqts/agent47/internal/fsx"
 	"github.com/leanbusqts/agent47/internal/manifest"
+	"github.com/leanbusqts/agent47/internal/resolve"
 	"github.com/leanbusqts/agent47/internal/runtime"
 	"github.com/leanbusqts/agent47/internal/skills"
 	"github.com/leanbusqts/agent47/internal/templates"
 )
 
 const (
-	projectRulesDir  = "rules"
-	projectSkillsDir = "skills"
-	projectAgents    = "AGENTS.md"
-	projectReadme    = "README.md"
-	projectSpecsDir  = "specs"
-	projectSpecFile  = "specs/spec.yml"
+	projectRulesDir   = "rules"
+	projectSkillsDir  = "skills"
+	projectAgents     = "AGENTS.md"
+	projectReadme     = "README.md"
+	projectPromptsDir = "prompts"
+	projectSpecsDir   = "specs"
+	projectSpecFile   = "specs/spec.yml"
 )
 
 type Service struct {
@@ -33,21 +35,25 @@ type Service struct {
 type Options struct {
 	Force      bool
 	OnlySkills bool
+	Yes        bool
 	WorkDir    string
+	InstallSet resolve.InstallSet
 }
 
 type state struct {
-	root            string
-	stageRoot       string
-	backupRoot      string
-	createdReadme   bool
-	createdSpec     bool
-	createdSpecsDir bool
-	rulesDirCreated bool
-	replacedAgents  bool
-	replacedSkills  bool
-	writtenRules    []string
-	removedStale    []string
+	root              string
+	stageRoot         string
+	backupRoot        string
+	createdReadme     bool
+	createdSpec       bool
+	createdSpecsDir   bool
+	createdPromptsDir bool
+	rulesDirCreated   bool
+	replacedAgents    bool
+	replacedSkills    bool
+	createdPrompts    []string
+	writtenRules      []string
+	removedStale      []string
 }
 
 func New(cfg runtime.Config, out cli.Output) (*Service, error) {
@@ -65,6 +71,8 @@ func New(cfg runtime.Config, out cli.Output) (*Service, error) {
 
 func (s *Service) Run(ctx context.Context, opts Options) (err error) {
 	var m manifest.Manifest
+	var effectiveManifest manifest.Manifest
+	source := s.Loader.Source
 
 	if opts.WorkDir == "" {
 		opts.WorkDir, err = os.Getwd()
@@ -88,9 +96,30 @@ func (s *Service) Run(ctx context.Context, opts Options) (err error) {
 		if err != nil {
 			return err
 		}
+		if len(opts.InstallSet.Bundles) > 0 {
+			if err := templates.ValidateAssembly(s.Loader.RawSource, opts.InstallSet.Bundles); err != nil {
+				return err
+			}
+			m, err = templates.AssembleManifest(s.Loader.RawSource, opts.InstallSet.Bundles)
+			if err != nil {
+				return err
+			}
+			source = s.Loader.BundleSource(opts.InstallSet.Bundles)
+		}
+	}
+	if !opts.OnlySkills && len(opts.InstallSet.Rules) == 0 && len(opts.InstallSet.Skills) == 0 {
+		opts.InstallSet = resolve.InstallSet{
+			BaseBundle: true,
+			Rules:      append([]string{}, m.RuleTemplates...),
+			Prompts:    []string{"agent-prompt.txt", "ss-prompt.txt"},
+		}
+	}
+	effectiveManifest = m
+	if !opts.OnlySkills {
+		effectiveManifest = resolve.AssembleManifest(m, opts.InstallSet)
 	}
 
-	if err := s.requireTemplates(m, opts); err != nil {
+	if err := s.requireTemplates(source, effectiveManifest, opts); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
@@ -108,7 +137,7 @@ func (s *Service) Run(ctx context.Context, opts Options) (err error) {
 		_ = os.RemoveAll(st.root)
 	}()
 
-	if err := s.stageSkills(opts, &st); err != nil {
+	if err := s.stageSkills(source, opts, &st); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
@@ -116,7 +145,7 @@ func (s *Service) Run(ctx context.Context, opts Options) (err error) {
 	}
 
 	if !opts.OnlySkills {
-		if err := s.stageRulesAndAgents(m, &st); err != nil {
+		if err := s.stageRulesAndAgents(source, effectiveManifest, &st); err != nil {
 			return err
 		}
 		if err := ctx.Err(); err != nil {
@@ -136,7 +165,7 @@ func (s *Service) Run(ctx context.Context, opts Options) (err error) {
 		return nil
 	}
 
-	if err := s.commitRules(opts.WorkDir, m, opts, &st); err != nil {
+	if err := s.commitRules(opts.WorkDir, effectiveManifest, opts, &st); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
@@ -151,7 +180,10 @@ func (s *Service) Run(ctx context.Context, opts Options) (err error) {
 	if err := s.commitReadme(opts.WorkDir, &st); err != nil {
 		return err
 	}
-	if err := s.commitSpec(opts.WorkDir, &st); err != nil {
+	if err := s.commitSpec(source, opts.WorkDir, &st); err != nil {
+		return err
+	}
+	if err := s.commitPrompts(source, opts.WorkDir, opts.InstallSet, &st); err != nil {
 		return err
 	}
 
@@ -159,29 +191,33 @@ func (s *Service) Run(ctx context.Context, opts Options) (err error) {
 	return nil
 }
 
-func (s *Service) requireTemplates(m manifest.Manifest, opts Options) error {
+func (s *Service) requireTemplates(src templates.Source, m manifest.Manifest, opts Options) error {
 	if !opts.OnlySkills {
-		if _, err := s.Loader.Source.Stat(projectAgents); err != nil {
-			s.Out.Err("Template not found: %s", projectAgents)
-			s.Out.Err("Aborting: required templates missing.")
-			return err
+		if _, err := src.Stat(projectAgents); err != nil {
+			return templates.MissingTemplateError{Path: projectAgents}
 		}
 		for _, file := range m.RuleTemplates {
-			if _, err := s.Loader.Source.Stat(filepath.ToSlash(filepath.Join(projectRulesDir, file))); err != nil {
-				s.Out.Err("Template not found: %s", file)
-				s.Out.Err("Aborting: required templates missing.")
-				return err
+			if _, err := src.Stat(filepath.ToSlash(filepath.Join(projectRulesDir, file))); err != nil {
+				return templates.MissingTemplateError{Path: filepath.ToSlash(filepath.Join(projectRulesDir, file))}
 			}
 		}
-		if _, err := s.Loader.Source.Stat(projectSpecFile); err != nil {
-			s.Out.Err("Template not found: %s", projectSpecFile)
-			s.Out.Err("Aborting: required templates missing.")
-			return err
+		if _, err := src.Stat(projectSpecFile); err != nil {
+			return templates.MissingTemplateError{Path: projectSpecFile}
+		}
+		for _, file := range m.RequiredTemplateFiles {
+			switch {
+			case file == "manifest.txt":
+				continue
+			case filepath.Dir(file) == projectPromptsDir:
+				if _, err := src.Stat(file); err != nil {
+					return templates.MissingTemplateError{Path: file}
+				}
+			}
 		}
 	}
 
-	if _, err := s.Loader.Source.Stat(projectSkillsDir); err != nil {
-		return fmt.Errorf("missing skills templates: %w", err)
+	if _, err := src.Stat(projectSkillsDir); err != nil {
+		return templates.MissingTemplateError{Path: projectSkillsDir}
 	}
 
 	return nil
@@ -214,7 +250,7 @@ func (s *Service) prepareState(workDir string) (state, error) {
 	}, nil
 }
 
-func (s *Service) stageSkills(opts Options, st *state) error {
+func (s *Service) stageSkills(src templates.Source, opts Options, st *state) error {
 	stageSkillsDir := filepath.Join(st.stageRoot, projectSkillsDir)
 	if err := os.MkdirAll(stageSkillsDir, 0o755); err != nil {
 		return err
@@ -228,25 +264,35 @@ func (s *Service) stageSkills(opts Options, st *state) error {
 	}
 
 	service := skills.Service{}
-	discovered, err := service.Discover(s.Loader.Source, projectSkillsDir)
+	discovered, err := service.Discover(src, projectSkillsDir)
 	if err != nil {
 		s.Out.Err("%s", err)
 		return err
 	}
 
+	selectedSkills := make(map[string]bool)
+	for _, name := range opts.InstallSet.Skills {
+		selectedSkills[name] = true
+	}
+
 	for _, skill := range discovered {
-		stageSkillDir := filepath.Join(stageSkillsDir, filepath.Base(filepath.Dir(skill.Location)))
+		skillName := filepath.Base(filepath.Dir(skill.Location))
+		if len(selectedSkills) > 0 && !selectedSkills[skillName] {
+			continue
+		}
+
+		stageSkillDir := filepath.Join(stageSkillsDir, skillName)
 		if err := os.RemoveAll(stageSkillDir); err != nil {
 			return err
 		}
 
-		existingSkillDir := filepath.Join(workSkillsDir, filepath.Base(filepath.Dir(skill.Location)))
+		existingSkillDir := filepath.Join(workSkillsDir, skillName)
 		if !opts.Force && s.FS.IsDir(existingSkillDir) {
 			if err := s.FS.CopyDir(existingSkillDir, stageSkillDir); err != nil {
 				return err
 			}
 		} else {
-			if err := s.copyTemplateDir(filepath.Dir(skill.Location), stageSkillDir); err != nil {
+			if err := s.copyTemplateDir(src, filepath.Dir(skill.Location), stageSkillDir); err != nil {
 				return err
 			}
 		}
@@ -254,7 +300,7 @@ func (s *Service) stageSkills(opts Options, st *state) error {
 		skillPath := filepath.Join(stageSkillDir, "SKILL.md")
 		body, err := os.ReadFile(skillPath)
 		if err != nil {
-			templateBody, readErr := s.Loader.Source.ReadFile(skill.Location)
+			templateBody, readErr := src.ReadFile(skill.Location)
 			if readErr != nil {
 				return readErr
 			}
@@ -264,13 +310,13 @@ func (s *Service) stageSkills(opts Options, st *state) error {
 			body = templateBody
 		}
 
-		skillLocation := filepath.ToSlash(filepath.Join(projectSkillsDir, filepath.Base(filepath.Dir(skill.Location)), "SKILL.md"))
+		skillLocation := filepath.ToSlash(filepath.Join(projectSkillsDir, skillName, "SKILL.md"))
 		if _, err := skills.Validate(skillLocation, body); err != nil {
 			if opts.Force {
-				s.Out.Err("Invalid skill template: %s", filepath.Base(filepath.Dir(skill.Location)))
+				s.Out.Err("Invalid skill template: %s", skillName)
 				return err
 			}
-			s.Out.Warn("Invalid SKILL.md for %s; preserving existing content", filepath.Base(filepath.Dir(skill.Location)))
+			s.Out.Warn("Invalid SKILL.md for %s; preserving existing content", skillName)
 			continue
 		}
 	}
@@ -289,19 +335,33 @@ func (s *Service) stageSkills(opts Options, st *state) error {
 	if err := s.FS.WriteFileAtomic(filepath.Join(stageSkillsDir, "AVAILABLE_SKILLS.xml"), xmlData, 0o644); err != nil {
 		return err
 	}
+	jsonData, err := service.GenerateAvailableSkillsJSON(stagedSkills)
+	if err != nil {
+		return err
+	}
+	if err := s.FS.WriteFileAtomic(filepath.Join(stageSkillsDir, "AVAILABLE_SKILLS.json"), jsonData, 0o644); err != nil {
+		return err
+	}
+	summaryData, err := service.GenerateAvailableSkillsSummaryMarkdown(stagedSkills)
+	if err != nil {
+		return err
+	}
+	if err := s.FS.WriteFileAtomic(filepath.Join(stageSkillsDir, "SUMMARY.md"), summaryData, 0o644); err != nil {
+		return err
+	}
 
 	s.Out.OK("Skills setup complete.")
 	return nil
 }
 
-func (s *Service) stageRulesAndAgents(m manifest.Manifest, st *state) error {
+func (s *Service) stageRulesAndAgents(src templates.Source, m manifest.Manifest, st *state) error {
 	stageRulesDir := filepath.Join(st.stageRoot, projectRulesDir)
 	if err := os.MkdirAll(stageRulesDir, 0o755); err != nil {
 		return err
 	}
 
 	for _, file := range m.RuleTemplates {
-		data, err := s.Loader.Source.ReadFile(filepath.ToSlash(filepath.Join(projectRulesDir, file)))
+		data, err := src.ReadFile(filepath.ToSlash(filepath.Join(projectRulesDir, file)))
 		if err != nil {
 			return err
 		}
@@ -310,7 +370,7 @@ func (s *Service) stageRulesAndAgents(m manifest.Manifest, st *state) error {
 		}
 	}
 
-	agentsData, err := s.Loader.Source.ReadFile(projectAgents)
+	agentsData, err := src.ReadFile(projectAgents)
 	if err != nil {
 		return err
 	}
@@ -457,13 +517,13 @@ func (s *Service) commitReadme(workDir string, st *state) error {
 	return nil
 }
 
-func (s *Service) commitSpec(workDir string, st *state) error {
+func (s *Service) commitSpec(src templates.Source, workDir string, st *state) error {
 	target := filepath.Join(workDir, projectSpecFile)
 	if s.FS.Exists(target) {
 		return nil
 	}
 
-	data, err := s.Loader.Source.ReadFile(projectSpecFile)
+	data, err := src.ReadFile(projectSpecFile)
 	if err != nil {
 		return err
 	}
@@ -485,6 +545,40 @@ func (s *Service) commitSpec(workDir string, st *state) error {
 	return nil
 }
 
+func (s *Service) commitPrompts(src templates.Source, workDir string, set resolve.InstallSet, st *state) error {
+	if len(set.Prompts) == 0 {
+		return nil
+	}
+
+	promptsDir := filepath.Join(workDir, projectPromptsDir)
+	if !s.FS.IsDir(promptsDir) {
+		if err := s.FS.MkdirAll(promptsDir); err != nil {
+			return err
+		}
+		st.createdPromptsDir = true
+		s.Out.OK("Created directory: %s/", projectPromptsDir)
+	}
+
+	for _, prompt := range set.Prompts {
+		target := filepath.Join(promptsDir, prompt)
+		if s.FS.Exists(target) {
+			continue
+		}
+
+		data, err := src.ReadFile(filepath.ToSlash(filepath.Join(projectPromptsDir, prompt)))
+		if err != nil {
+			return err
+		}
+		if err := s.FS.WriteFileAtomic(target, data, 0o644); err != nil {
+			return err
+		}
+		st.createdPrompts = append(st.createdPrompts, prompt)
+		s.Out.OK("Created prompt: %s", filepath.ToSlash(filepath.Join(projectPromptsDir, prompt)))
+	}
+
+	return nil
+}
+
 func (s *Service) rollback(workDir string, st *state) error {
 	if st.createdReadme {
 		_ = os.Remove(filepath.Join(workDir, projectReadme))
@@ -494,6 +588,12 @@ func (s *Service) rollback(workDir string, st *state) error {
 	}
 	if st.createdSpecsDir {
 		_ = os.Remove(filepath.Join(workDir, projectSpecsDir))
+	}
+	for _, prompt := range st.createdPrompts {
+		_ = os.Remove(filepath.Join(workDir, projectPromptsDir, prompt))
+	}
+	if st.createdPromptsDir {
+		_ = os.Remove(filepath.Join(workDir, projectPromptsDir))
 	}
 
 	if st.replacedAgents {
@@ -542,12 +642,12 @@ func (s *Service) rollback(workDir string, st *state) error {
 	return nil
 }
 
-func (s *Service) copyTemplateDir(srcPath, dstPath string) error {
+func (s *Service) copyTemplateDir(src templates.Source, srcPath, dstPath string) error {
 	if err := os.MkdirAll(dstPath, 0o755); err != nil {
 		return err
 	}
 
-	entries, err := s.Loader.Source.ReadDir(srcPath)
+	entries, err := src.ReadDir(srcPath)
 	if err != nil {
 		return err
 	}
@@ -556,13 +656,13 @@ func (s *Service) copyTemplateDir(srcPath, dstPath string) error {
 		childSrc := filepath.ToSlash(filepath.Join(srcPath, entry.Name()))
 		childDst := filepath.Join(dstPath, entry.Name())
 		if entry.IsDir() {
-			if err := s.copyTemplateDir(childSrc, childDst); err != nil {
+			if err := s.copyTemplateDir(src, childSrc, childDst); err != nil {
 				return err
 			}
 			continue
 		}
 
-		data, err := s.Loader.Source.ReadFile(childSrc)
+		data, err := src.ReadFile(childSrc)
 		if err != nil {
 			return err
 		}
@@ -611,9 +711,11 @@ func (s *Service) collectAvailableSkillsXMLSkills(stageSkillsDir string, force b
 		}
 
 		discovered = append(discovered, skills.Skill{
-			Name:        fm.Name,
-			Description: fm.Description,
-			Location:    filepath.ToSlash(filepath.Join(projectSkillsDir, entry.Name(), "SKILL.md")),
+			Name:          fm.Name,
+			Description:   fm.Description,
+			Compatibility: fm.Compatibility,
+			Metadata:      fm.Metadata,
+			Location:      filepath.ToSlash(filepath.Join(projectSkillsDir, entry.Name(), "SKILL.md")),
 		})
 	}
 

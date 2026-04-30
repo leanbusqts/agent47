@@ -35,6 +35,8 @@ func (r *Root) Run(ctx context.Context, cfg runtime.Config, args []string) int {
 		return 0
 	case "add-agent":
 		return r.runAddAgent(ctx, cfg, args[1:])
+	case "analyze":
+		return r.runAnalyze(ctx, cfg, args[1:])
 	case "doctor":
 		return r.runDoctor(ctx, cfg, args[1:])
 	case "add-agent-prompt":
@@ -60,11 +62,17 @@ func (r *Root) printHelp(version string) {
 	r.out.Printf("  afs doctor [--check-update|--check-update-force|--fail-on-warn]\n")
 	r.out.Printf("\n")
 	r.out.Printf("Project commands:\n")
+	r.out.Printf("  afs analyze [--json] [--verbose] [--evidence]\n")
 	r.out.Printf("  afs add-agent                 bootstrap project scaffolding\n")
 	r.out.Printf("  afs add-agent --force         refresh managed scaffolding\n")
 	r.out.Printf("  afs add-agent --only-skills   install only skills\n")
 	r.out.Printf("  afs add-agent --only-skills --force\n")
 	r.out.Printf("                               refresh only skills\n")
+	r.out.Printf("  afs add-agent --preview\n")
+	r.out.Printf("  afs add-agent --dry-run\n")
+	r.out.Printf("  afs add-agent --yes\n")
+	r.out.Printf("  afs add-agent --bundle <name> [--bundle <name>]\n")
+	r.out.Printf("  afs add-agent --exclude-bundle <name>\n")
 	r.out.Printf("  afs add-agent-prompt [--force]\n")
 	r.out.Printf("  afs add-ss-prompt\n")
 }

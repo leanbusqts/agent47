@@ -44,7 +44,8 @@ make smoke-install
 1. Install the tool locally.
 2. Verify the local setup with `afs doctor`.
 3. Enter the target project.
-4. Run `afs add-agent`.
+4. Run `afs analyze` if you want to inspect the resolved install set first.
+5. Run `afs add-agent`.
 
 ## Bootstrap A Project
 
@@ -54,16 +55,59 @@ Inside the target project:
 afs add-agent
 ```
 
-This bootstraps:
+`afs analyze` is read-only. It reports detected project types, confidence, and the install set that `add-agent` would use.
+
+```bash
+afs analyze
+afs analyze --json
+afs analyze --verbose
+```
+
+`afs add-agent` analyzes the repo first and then bootstraps:
 
 - `AGENTS.md`
-- all template `rules/*.yaml`
-- all curated `skills/*` discovered from the installed template tree
+- the resolved `rules/*.yaml` set for the detected project type
+- the resolved curated `skills/*`
 - `skills/AVAILABLE_SKILLS.xml`
+- `skills/AVAILABLE_SKILLS.json`
+- `skills/SUMMARY.md`
+- `prompts/agent-prompt.txt`
+- `prompts/ss-prompt.txt`
 - an empty `README.md` if missing
 - `specs/spec.yml` if missing
 
 Existing managed files are preserved unless you use `--force`.
+
+Useful inspection modes:
+
+```bash
+afs add-agent --preview
+afs add-agent --dry-run
+afs add-agent --bundle cli --bundle scripts --preview
+```
+
+In interactive terminals, `afs add-agent` asks for confirmation before writing. Use `--yes` to skip that confirmation.
+
+Common example flows:
+
+```bash
+# Empty or low-signal repo
+afs analyze
+afs add-agent --preview
+afs add-agent --yes
+
+# CLI repo with scripts
+afs analyze
+afs add-agent --preview --bundle cli --bundle scripts
+afs add-agent --yes
+
+# Unresolved conflict
+afs analyze --verbose
+afs add-agent --preview
+
+# Legacy scaffold migration
+afs add-agent --force --yes
+```
 
 ## Refresh An Older Project
 
@@ -76,10 +120,10 @@ afs add-agent --force
 This is a fresh install of the managed scaffold in the current project. It:
 
 - replaces `AGENTS.md`
-- reconciles `rules/*.yaml`
+- reconciles the resolved `rules/*.yaml`
 - replaces `skills/*`
-- regenerates `skills/AVAILABLE_SKILLS.xml`
-- removes stale managed rules and skills no longer shipped by the templates
+- regenerates the managed skills indexes
+- removes stale managed rules and skills no longer selected for the resolved bundle set
 
 This preserves:
 
@@ -101,13 +145,16 @@ This mode only manages:
 
 - `skills/*`
 - `skills/AVAILABLE_SKILLS.xml`
+- `skills/AVAILABLE_SKILLS.json`
+- `skills/SUMMARY.md`
 
 It does not touch `AGENTS.md` or `rules/*.yaml`.
 
 Behavior differences:
 
-- without `--force`, existing invalid skill files are preserved but omitted from `AVAILABLE_SKILLS.xml`
+- without `--force`, existing invalid skill files are preserved but omitted from the generated skills indexes
 - with `--force`, the managed skills directory is replaced with the current template set
+- the same validated skill set is rendered into the XML, JSON, and Markdown indexes
 
 ## Prompt Helpers
 
@@ -134,6 +181,8 @@ Managed targets:
 - `rules/*.yaml`
 - `skills/*`
 - `skills/AVAILABLE_SKILLS.xml`
+- `skills/AVAILABLE_SKILLS.json`
+- `skills/SUMMARY.md`
 
 Preserved targets:
 
@@ -190,7 +239,7 @@ Recommended workflow:
 
 1. Open the repository root.
 2. Ensure the agent reads `AGENTS.md`.
-3. Let `AGENTS.md` drive the next reads, including relevant `rules/*.yaml` or, in template-source repos like `agent47`, `templates/rules/*.yaml`.
+3. Let `AGENTS.md` drive the next reads, including relevant `rules/*.yaml` or, in template-source repos like `agent47`, `templates/base/rules/*.yaml` plus the relevant `templates/bundles/*/rules/*.yaml`.
 4. Use `specs/spec.yml` only when work actually needs a written spec or plan.
 
 Minimal instruction text for tools that do not discover repo policy reliably:

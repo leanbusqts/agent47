@@ -2,7 +2,7 @@ package doctor
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +16,12 @@ import (
 	"github.com/leanbusqts/agent47/internal/templates"
 	"github.com/leanbusqts/agent47/internal/update"
 )
+
+type WarningsError struct{}
+
+func (WarningsError) Error() string {
+	return "doctor reported warnings"
+}
 
 var (
 	requiredSections = []string{
@@ -38,9 +44,21 @@ var (
 		"security-csharp.yaml",
 	}
 	requiredRuleTemplates = []string{
+		"security-global.yaml",
+		"security-shell.yaml",
+	}
+	catalogRuleTemplates = []string{
+		"rules-cli.yaml",
+		"rules-scripts.yaml",
 		"rules-mobile.yaml",
 		"rules-frontend.yaml",
 		"rules-backend.yaml",
+		"rules-infra.yaml",
+		"rules-monorepo-tooling.yaml",
+		"rules-desktop.yaml",
+		"rules-plugin.yaml",
+		"shared-cli-behavior.yaml",
+		"shared-testing.yaml",
 		"security-global.yaml",
 		"security-shell.yaml",
 		"security-js-ts.yaml",
@@ -54,6 +72,8 @@ var (
 		"rules/*.yaml",
 		"skills/*",
 		"skills/AVAILABLE_SKILLS.xml",
+		"skills/AVAILABLE_SKILLS.json",
+		"skills/SUMMARY.md",
 	}
 	requiredPreservedTargets = []string{
 		"README.md",
@@ -138,19 +158,20 @@ func (s *Service) Run(ctx context.Context, cfg runtime.Config, opts Options) err
 	if info, err := os.Stat(templateDir); err == nil && info.IsDir() {
 		s.Out.OK("Templates installed")
 		hadWarn = s.checkTemplateManifest(templateDir) || hadWarn
+		hadWarn = s.checkBundleAssembly(templateDir) || hadWarn
 		hadWarn = s.checkRequiredTemplateFiles(templateDir) || hadWarn
 		hadWarn = s.checkRequiredTemplateDirs(templateDir) || hadWarn
 		hadWarn = s.checkRuleTemplates(templateDir) || hadWarn
 		hadWarn = s.checkSecurityTemplates(templateDir) || hadWarn
 		hadWarn = s.checkSecurityRuleIDs(templateDir) || hadWarn
-		hadWarn = s.checkAgentsSections(filepath.Join(templateDir, "AGENTS.md")) || hadWarn
+		hadWarn = s.checkAgentsSections(layoutPath(templateDir, "AGENTS.md")) || hadWarn
 	} else {
 		hadWarn = true
 		s.Out.Warn("Templates missing")
 		s.Out.Info(install.ReinstallHint(cfg))
 	}
 
-	skillsDir := filepath.Join(templateDir, "skills")
+	skillsDir := layoutPath(templateDir, "skills")
 	if info, err := os.Stat(skillsDir); err == nil && info.IsDir() {
 		s.Out.OK("Skills templates (.md) present")
 	} else {
@@ -184,6 +205,10 @@ func (s *Service) Run(ctx context.Context, cfg runtime.Config, opts Options) err
 		}
 	} else if symlinkMatches(userAfs, managedAfs) {
 		s.Out.OK("afs symlink present in ~/bin")
+	} else if isSymlink(userAfs) && resolvesExecutable(userAfs) {
+		hadWarn = true
+		s.Out.Warn("afs symlink in ~/bin points to the wrong executable")
+		s.Out.Info(install.ReinstallHint(cfg))
 	} else if isSymlink(userAfs) {
 		hadWarn = true
 		s.Out.Warn("afs symlink in ~/bin is broken or points to a non-executable target")
@@ -217,7 +242,7 @@ func (s *Service) Run(ctx context.Context, cfg runtime.Config, opts Options) err
 			return err
 		}
 		if opts.FailOnWarn && hadWarn {
-			return errors.New("doctor reported warnings")
+			return WarningsError{}
 		}
 		return nil
 	}
@@ -225,7 +250,7 @@ func (s *Service) Run(ctx context.Context, cfg runtime.Config, opts Options) err
 	s.Out.Info("Skipping update check by default")
 	s.Out.Info("Run: afs doctor --check-update")
 	if opts.FailOnWarn && hadWarn {
-		return errors.New("doctor reported warnings")
+		return WarningsError{}
 	}
 	return nil
 }
@@ -275,6 +300,18 @@ func helperMatches(name, managedTarget, userTarget string) bool {
 		}
 	}
 	return false
+}
+
+func resolvesExecutable(path string) bool {
+	resolved, err := resolvePath(path)
+	if err != nil {
+		return false
+	}
+	info, err := os.Stat(resolved)
+	if err != nil || info.IsDir() {
+		return false
+	}
+	return info.Mode()&0o111 != 0
 }
 
 func symlinkMatches(linkPath, expectedTarget string) bool {
@@ -341,6 +378,60 @@ func (s *Service) checkTemplateManifest(templateDir string) bool {
 	return false
 }
 
+func (s *Service) checkBundleAssembly(templateDir string) bool {
+	rawSource := templates.NewFilesystemSource(templateDir)
+	if _, err := rawSource.Stat("base/manifest.txt"); err != nil {
+		s.Out.Warn("Base manifest missing")
+		return true
+	}
+	bundleIDs, err := templates.DiscoverBundleIDs(rawSource)
+	if err != nil {
+		s.Out.Warn("Bundle manifest discovery failed")
+		return true
+	}
+	if err := templates.ValidateAssembly(rawSource, bundleIDs); err != nil {
+		s.Out.Warn("Bundle assembly invalid: %v", err)
+		return true
+	}
+	assembledManifest, err := templates.AssembleManifest(rawSource, bundleIDs)
+	if err != nil {
+		s.Out.Warn("Bundle manifests invalid: %v", err)
+		return true
+	}
+	if err := validateAssembledTemplateSource(templates.AssembleSource(rawSource, bundleIDs), assembledManifest); err != nil {
+		s.Out.Warn("Bundle assembly invalid: %v", err)
+		return true
+	}
+	s.Out.OK("Bundle manifests and assembly valid")
+	return false
+}
+
+func validateAssembledTemplateSource(src templates.Source, m manifest.Manifest) error {
+	for _, relPath := range m.RequiredTemplateFiles {
+		if relPath == "manifest.txt" {
+			continue
+		}
+		if _, err := src.Stat(relPath); err != nil {
+			return err
+		}
+	}
+	for _, dirPath := range m.RequiredTemplateDirs {
+		info, err := src.Stat(dirPath)
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("%s is not a directory", dirPath)
+		}
+	}
+	for _, rule := range m.RuleTemplates {
+		if _, err := src.Stat(filepath.ToSlash(filepath.Join("rules", rule))); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func matchesManifestTargets(actual, required []string) bool {
 	if len(actual) != len(required) {
 		return false
@@ -361,7 +452,7 @@ func matchesManifestTargets(actual, required []string) bool {
 func (s *Service) checkRequiredTemplateFiles(templateDir string) bool {
 	missing := false
 	for _, relPath := range requiredTemplateFiles {
-		if _, err := os.Stat(filepath.Join(templateDir, filepath.FromSlash(relPath))); err != nil {
+		if _, err := os.Stat(layoutPath(templateDir, relPath)); err != nil {
 			s.Out.Warn("Missing template file: %s", relPath)
 			missing = true
 		}
@@ -375,7 +466,7 @@ func (s *Service) checkRequiredTemplateFiles(templateDir string) bool {
 func (s *Service) checkRequiredTemplateDirs(templateDir string) bool {
 	missing := false
 	for _, relPath := range requiredTemplateDirs {
-		info, err := os.Stat(filepath.Join(templateDir, filepath.FromSlash(relPath)))
+		info, err := os.Stat(layoutPath(templateDir, relPath))
 		if err != nil || !info.IsDir() {
 			s.Out.Warn("Missing template dir: %s", relPath)
 			missing = true
@@ -389,8 +480,8 @@ func (s *Service) checkRequiredTemplateDirs(templateDir string) bool {
 
 func (s *Service) checkRuleTemplates(templateDir string) bool {
 	missing := false
-	for _, file := range requiredRuleTemplates {
-		if _, err := os.Stat(filepath.Join(templateDir, "rules", file)); err != nil {
+	for _, file := range catalogRuleTemplates {
+		if _, err := os.Stat(ruleTemplatePath(templateDir, file)); err != nil {
 			s.Out.Warn("Missing rule template: rules/%s", file)
 			missing = true
 		}
@@ -404,7 +495,7 @@ func (s *Service) checkRuleTemplates(templateDir string) bool {
 func (s *Service) checkSecurityTemplates(templateDir string) bool {
 	missing := false
 	for _, file := range securityTemplateFiles {
-		if _, err := os.Stat(filepath.Join(templateDir, "rules", file)); err != nil {
+		if _, err := os.Stat(filepath.Join(templateDir, "base", "rules", file)); err != nil {
 			s.Out.Warn("Missing security template: rules/%s", file)
 			missing = true
 		}
@@ -416,7 +507,7 @@ func (s *Service) checkSecurityTemplates(templateDir string) bool {
 }
 
 func (s *Service) checkSecurityRuleIDs(templateDir string) bool {
-	ruleFiles, _ := filepath.Glob(filepath.Join(templateDir, "rules", "security-*.yaml"))
+	ruleFiles, _ := filepath.Glob(filepath.Join(templateDir, "base", "rules", "security-*.yaml"))
 	seen := map[string]bool{}
 	dupes := map[string]bool{}
 	for _, file := range ruleFiles {
@@ -463,4 +554,39 @@ func (s *Service) checkAgentsSections(agentsFile string) bool {
 	}
 	s.Out.OK("AGENTS required sections present")
 	return false
+}
+
+func layoutPath(templateDir, relPath string) string {
+	if filepath.ToSlash(relPath) == "manifest.txt" {
+		return filepath.Join(templateDir, "manifest.txt")
+	}
+	return filepath.Join(templateDir, "base", filepath.FromSlash(relPath))
+}
+
+func ruleTemplatePath(templateDir, file string) string {
+	switch file {
+	case "rules-cli.yaml":
+		return filepath.Join(templateDir, "bundles", "project-cli", "rules", file)
+	case "rules-scripts.yaml":
+		return filepath.Join(templateDir, "bundles", "project-scripts", "rules", file)
+	case "rules-mobile.yaml":
+		return filepath.Join(templateDir, "bundles", "project-mobile", "rules", file)
+	case "rules-frontend.yaml":
+		return filepath.Join(templateDir, "bundles", "project-frontend", "rules", file)
+	case "rules-backend.yaml":
+		return filepath.Join(templateDir, "bundles", "project-backend", "rules", file)
+	case "rules-infra.yaml":
+		return filepath.Join(templateDir, "bundles", "project-infra", "rules", file)
+	case "rules-monorepo-tooling.yaml":
+		return filepath.Join(templateDir, "bundles", "project-monorepo-tooling", "rules", file)
+	case "rules-desktop.yaml":
+		return filepath.Join(templateDir, "bundles", "project-desktop", "rules", file)
+	case "rules-plugin.yaml":
+		return filepath.Join(templateDir, "bundles", "project-plugin", "rules", file)
+	case "shared-cli-behavior.yaml":
+		return filepath.Join(templateDir, "bundles", "shared-cli-behavior", "rules", file)
+	case "shared-testing.yaml":
+		return filepath.Join(templateDir, "bundles", "shared-testing", "rules", file)
+	}
+	return filepath.Join(templateDir, "base", "rules", file)
 }

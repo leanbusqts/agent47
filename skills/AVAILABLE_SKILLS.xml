@@ -2,41 +2,334 @@
   <skill>
     <name>analyze</name>
     <description>Understand the current state, flows, and issues before making changes.</description>
+    <compatibility>Designed for skills-compatible coding agents.</compatibility>
+    <metadata>
+      <entry key="agents">
+        <value>universal</value>
+        <value>codex</value>
+      </entry>
+      <entry key="applies_to">
+        <value>frontend</value>
+        <value>backend</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>mobile</value>
+      </entry>
+      <entry key="category">
+        <value>analysis</value>
+      </entry>
+      <entry key="priority">
+        <value>core</value>
+      </entry>
+      <entry key="repo_shapes">
+        <value>app</value>
+        <value>library</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>monorepo</value>
+      </entry>
+      <entry key="tags">
+        <value>analysis</value>
+        <value>discovery</value>
+        <value>diagnostics</value>
+      </entry>
+    </metadata>
     <location>skills/analyze/SKILL.md</location>
+  </skill>
+  <skill>
+    <name>cli-design</name>
+    <description>Design or refine command surfaces, output contracts, and preview flows for CLI tools.</description>
+    <compatibility>Designed for skills-compatible coding agents.</compatibility>
+    <metadata>
+      <entry key="agents">
+        <value>universal</value>
+        <value>codex</value>
+      </entry>
+      <entry key="applies_to">
+        <value>cli</value>
+        <value>scripts</value>
+      </entry>
+      <entry key="category">
+        <value>cli</value>
+      </entry>
+      <entry key="priority">
+        <value>suggested</value>
+      </entry>
+      <entry key="repo_shapes">
+        <value>cli</value>
+        <value>scripts</value>
+        <value>monorepo</value>
+      </entry>
+      <entry key="stack_signals">
+        <value>cobra</value>
+        <value>urfave-cli</value>
+        <value>shell</value>
+      </entry>
+      <entry key="tags">
+        <value>cli</value>
+        <value>ux</value>
+        <value>output-contracts</value>
+      </entry>
+    </metadata>
+    <location>skills/cli-design/SKILL.md</location>
   </skill>
   <skill>
     <name>implement</name>
     <description>Deliver a scoped change that meets the stated requirements with minimal surface area.</description>
+    <compatibility>Designed for skills-compatible coding agents.</compatibility>
+    <metadata>
+      <entry key="agents">
+        <value>universal</value>
+        <value>codex</value>
+      </entry>
+      <entry key="applies_to">
+        <value>frontend</value>
+        <value>backend</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>mobile</value>
+      </entry>
+      <entry key="category">
+        <value>implementation</value>
+      </entry>
+      <entry key="priority">
+        <value>core</value>
+      </entry>
+      <entry key="repo_shapes">
+        <value>app</value>
+        <value>library</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>monorepo</value>
+      </entry>
+      <entry key="tags">
+        <value>implementation</value>
+        <value>feature</value>
+        <value>delivery</value>
+      </entry>
+    </metadata>
     <location>skills/implement/SKILL.md</location>
   </skill>
   <skill>
     <name>optimize</name>
     <description>Improve performance or resource usage with evidence and clear trade-offs.</description>
+    <compatibility>Designed for skills-compatible coding agents.</compatibility>
+    <metadata>
+      <entry key="agents">
+        <value>universal</value>
+        <value>codex</value>
+      </entry>
+      <entry key="applies_to">
+        <value>frontend</value>
+        <value>backend</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>mobile</value>
+      </entry>
+      <entry key="category">
+        <value>performance</value>
+      </entry>
+      <entry key="priority">
+        <value>suggested</value>
+      </entry>
+      <entry key="repo_shapes">
+        <value>app</value>
+        <value>library</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>monorepo</value>
+      </entry>
+      <entry key="tags">
+        <value>performance</value>
+        <value>efficiency</value>
+        <value>cost</value>
+      </entry>
+    </metadata>
     <location>skills/optimize/SKILL.md</location>
   </skill>
   <skill>
     <name>plan</name>
     <description>Create a concise plan with risks and checkpoints before executing any changes.</description>
+    <compatibility>Designed for skills-compatible coding agents.</compatibility>
+    <metadata>
+      <entry key="agents">
+        <value>universal</value>
+        <value>codex</value>
+      </entry>
+      <entry key="applies_to">
+        <value>frontend</value>
+        <value>backend</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>mobile</value>
+      </entry>
+      <entry key="category">
+        <value>planning</value>
+      </entry>
+      <entry key="priority">
+        <value>core</value>
+      </entry>
+      <entry key="repo_shapes">
+        <value>app</value>
+        <value>library</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>monorepo</value>
+      </entry>
+      <entry key="tags">
+        <value>planning</value>
+        <value>checkpoints</value>
+        <value>risk</value>
+      </entry>
+    </metadata>
     <location>skills/plan/SKILL.md</location>
   </skill>
   <skill>
     <name>refactor</name>
     <description>Improve structure and clarity without changing externally visible behavior.</description>
+    <compatibility>Designed for skills-compatible coding agents.</compatibility>
+    <metadata>
+      <entry key="agents">
+        <value>universal</value>
+        <value>codex</value>
+      </entry>
+      <entry key="applies_to">
+        <value>frontend</value>
+        <value>backend</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>mobile</value>
+      </entry>
+      <entry key="category">
+        <value>refactor</value>
+      </entry>
+      <entry key="priority">
+        <value>suggested</value>
+      </entry>
+      <entry key="repo_shapes">
+        <value>app</value>
+        <value>library</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>monorepo</value>
+      </entry>
+      <entry key="tags">
+        <value>cleanup</value>
+        <value>structure</value>
+        <value>maintainability</value>
+      </entry>
+    </metadata>
     <location>skills/refactor/SKILL.md</location>
   </skill>
   <skill>
     <name>review</name>
     <description>Inspect changes for correctness, risks, and regressions before accepting them.</description>
+    <compatibility>Designed for skills-compatible coding agents.</compatibility>
+    <metadata>
+      <entry key="agents">
+        <value>universal</value>
+        <value>codex</value>
+      </entry>
+      <entry key="applies_to">
+        <value>frontend</value>
+        <value>backend</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>mobile</value>
+      </entry>
+      <entry key="category">
+        <value>review</value>
+      </entry>
+      <entry key="priority">
+        <value>core</value>
+      </entry>
+      <entry key="repo_shapes">
+        <value>app</value>
+        <value>library</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>monorepo</value>
+      </entry>
+      <entry key="tags">
+        <value>review</value>
+        <value>regression</value>
+        <value>correctness</value>
+      </entry>
+    </metadata>
     <location>skills/review/SKILL.md</location>
   </skill>
   <skill>
     <name>spec-clarify</name>
     <description>Ask targeted questions to clarify scope, edge cases, and acceptance before coding.</description>
+    <compatibility>Designed for skills-compatible coding agents.</compatibility>
+    <metadata>
+      <entry key="agents">
+        <value>universal</value>
+        <value>codex</value>
+      </entry>
+      <entry key="applies_to">
+        <value>frontend</value>
+        <value>backend</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>mobile</value>
+      </entry>
+      <entry key="category">
+        <value>clarification</value>
+      </entry>
+      <entry key="priority">
+        <value>core</value>
+      </entry>
+      <entry key="repo_shapes">
+        <value>app</value>
+        <value>library</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>monorepo</value>
+      </entry>
+      <entry key="tags">
+        <value>requirements</value>
+        <value>scope</value>
+        <value>ambiguity</value>
+      </entry>
+    </metadata>
     <location>skills/spec-clarify/SKILL.md</location>
   </skill>
   <skill>
     <name>troubleshoot</name>
     <description>Isolate root causes and propose targeted fixes with clear validation steps.</description>
+    <compatibility>Designed for skills-compatible coding agents.</compatibility>
+    <metadata>
+      <entry key="agents">
+        <value>universal</value>
+        <value>codex</value>
+      </entry>
+      <entry key="applies_to">
+        <value>frontend</value>
+        <value>backend</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>mobile</value>
+      </entry>
+      <entry key="category">
+        <value>troubleshooting</value>
+      </entry>
+      <entry key="priority">
+        <value>core</value>
+      </entry>
+      <entry key="repo_shapes">
+        <value>app</value>
+        <value>library</value>
+        <value>cli</value>
+        <value>scripts</value>
+        <value>monorepo</value>
+      </entry>
+      <entry key="tags">
+        <value>debugging</value>
+        <value>incident</value>
+        <value>root-cause</value>
+      </entry>
+    </metadata>
     <location>skills/troubleshoot/SKILL.md</location>
   </skill>
 </available_skills>

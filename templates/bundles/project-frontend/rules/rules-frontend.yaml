@@ -1,0 +1,41 @@
+# Frontend rules extend AGENTS.md and may reference security IDs from rules/.
+
+rules:
+  - topic: "architecture:server-logic"
+    level: "high"
+    rule: "Keep business logic on the backend/BFF when possible; clients should consume computed results."
+    refs:
+      - "SEC-js-ts-003"
+
+  - topic: "architecture:services"
+    level: "high"
+    rule: "Encapsulate integrations and orchestration behind service modules instead of calling them directly from UI components."
+
+  - topic: "architecture:components"
+    level: "high"
+    rule: "Separate presentation from data/state orchestration; keep UI units focused."
+
+  - topic: "frontend:validation"
+    level: "high"
+    rule: "Validate and normalize input close to the UI boundary, but rely on server-side enforcement for security."
+    refs:
+      - "SEC-global-003"
+      - "SEC-js-ts-003"
+
+  - topic: "frontend:ssr-csp"
+    level: "high"
+    rule: "Preserve SSR/BFF boundaries and CSP-conscious rendering patterns; avoid introducing inline script or unsafe rendering shortcuts."
+    refs:
+      - "SEC-js-ts-001"
+
+  - topic: "observability:tracking"
+    level: "medium"
+    rule: "Use the standard tracking/logging mechanisms provided by the stack and include the right context."
+
+  - topic: "dependencies:approval"
+    level: "high"
+    rule: "Frontend dependency additions or version changes require explicit approval and should prefer existing stack libraries."
+
+  - topic: "preferences:typing"
+    level: "low"
+    rule: "Prefer explicit types and clear data shapes; avoid `any` unless there is a strong reason."

@@ -2,6 +2,8 @@ package prompts
 
 import (
 	"bytes"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -9,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/leanbusqts/agent47/internal/cli"
+	"github.com/leanbusqts/agent47/internal/templates"
 	runtimecfg "github.com/leanbusqts/agent47/internal/runtime"
 )
 
@@ -187,6 +190,31 @@ func TestAddSSPromptPrefersPbcopyOverLaterClipboardTools(t *testing.T) {
 	}
 }
 
+func TestAddAgentPromptReturnsMissingTemplateErrorOnlyForNotExist(t *testing.T) {
+	service := Service{
+		Loader: &templates.Loader{Source: failingSource{err: fs.ErrNotExist}},
+		Out:    cli.NewOutput(&bytes.Buffer{}, &bytes.Buffer{}),
+	}
+
+	err := service.AddAgentPrompt(t.TempDir(), false)
+	var missing templates.MissingTemplateError
+	if !errors.As(err, &missing) {
+		t.Fatalf("expected missing template error, got %v", err)
+	}
+}
+
+func TestAddAgentPromptPreservesUnexpectedReadFailures(t *testing.T) {
+	service := Service{
+		Loader: &templates.Loader{Source: failingSource{err: errors.New("boom")}},
+		Out:    cli.NewOutput(&bytes.Buffer{}, &bytes.Buffer{}),
+	}
+
+	err := service.AddAgentPrompt(t.TempDir(), false)
+	if err == nil || !strings.Contains(err.Error(), "read prompt template prompts/agent-prompt.txt") {
+		t.Fatalf("expected wrapped read error, got %v", err)
+	}
+}
+
 func clipboardTestTool() (string, string) {
 	if runtime.GOOS == "windows" {
 		return "clip", "@echo off\r\nmore > \"%TARGET_FILE%\"\r\n"
@@ -201,3 +229,13 @@ func writeClipboardTool(t *testing.T, path string, body string) {
 		t.Fatal(err)
 	}
 }
+
+type failingSource struct {
+	err error
+}
+
+func (s failingSource) ReadFile(string) ([]byte, error) { return nil, s.err }
+func (s failingSource) ReadDir(string) ([]fs.DirEntry, error) {
+	return nil, s.err
+}
+func (s failingSource) Stat(string) (fs.FileInfo, error) { return nil, s.err }

@@ -16,6 +16,14 @@ type Manifest struct {
 }
 
 func Parse(data []byte) (Manifest, error) {
+	return parse(data, true)
+}
+
+func ParsePartial(data []byte) (Manifest, error) {
+	return parse(data, false)
+}
+
+func parse(data []byte, validate bool) (Manifest, error) {
 	var result Manifest
 	sections := map[string]*[]string{
 		"rule_templates":          &result.RuleTemplates,
@@ -52,6 +60,10 @@ func Parse(data []byte) (Manifest, error) {
 
 	if err := scanner.Err(); err != nil {
 		return Manifest{}, err
+	}
+
+	if !validate {
+		return result, nil
 	}
 
 	return result, result.Validate()

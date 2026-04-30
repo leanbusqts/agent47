@@ -10,31 +10,48 @@ teardown() {
   teardown_workdir
 }
 
+template_rule_path() {
+  local rule_file="$1"
+  if [ -f "$ROOT_DIR/templates/base/rules/$rule_file" ]; then
+    printf '%s\n' "$ROOT_DIR/templates/base/rules/$rule_file"
+    return 0
+  fi
+
+  local bundle_file
+  for bundle_file in "$ROOT_DIR"/templates/bundles/*/rules/"$rule_file"; do
+    [ -f "$bundle_file" ] || continue
+    printf '%s\n' "$bundle_file"
+    return 0
+  done
+
+  return 1
+}
+
 @test "AGENTS template stays compact and includes required sections" {
-  run wc -l "$ROOT_DIR/templates/AGENTS.md"
+  run wc -l "$ROOT_DIR/templates/base/AGENTS.md"
   assert_success
   local lines
   lines="$(awk '{print $1}' <<<"$output")"
   [ "$lines" -le 300 ]
 
-  run grep -F "## Filesystem And Approval Boundaries" "$ROOT_DIR/templates/AGENTS.md"
+  run grep -F "## Filesystem And Approval Boundaries" "$ROOT_DIR/templates/base/AGENTS.md"
   assert_success
-  run grep -F "### Always" "$ROOT_DIR/templates/AGENTS.md"
+  run grep -F "### Always" "$ROOT_DIR/templates/base/AGENTS.md"
   assert_success
-  run grep -F "### Ask" "$ROOT_DIR/templates/AGENTS.md"
+  run grep -F "### Ask" "$ROOT_DIR/templates/base/AGENTS.md"
   assert_success
-  run grep -F "### Never" "$ROOT_DIR/templates/AGENTS.md"
+  run grep -F "### Never" "$ROOT_DIR/templates/base/AGENTS.md"
   assert_success
-  run grep -F "## Dependency Policy" "$ROOT_DIR/templates/AGENTS.md"
+  run grep -F "## Dependency Policy" "$ROOT_DIR/templates/base/AGENTS.md"
   assert_success
 }
 
 @test "current prompt templates exist and legacy split prompts do not" {
-  assert_file_exists "$ROOT_DIR/templates/prompts/agent-prompt.txt"
-  assert_file_exists "$ROOT_DIR/templates/prompts/ss-prompt.txt"
-  [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-base.txt" ]
-  [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-skills.txt" ]
-  [ ! -f "$ROOT_DIR/templates/prompts/agent-prompt-sdd.txt" ]
+  assert_file_exists "$ROOT_DIR/templates/base/prompts/agent-prompt.txt"
+  assert_file_exists "$ROOT_DIR/templates/base/prompts/ss-prompt.txt"
+  [ ! -f "$ROOT_DIR/templates/base/prompts/agent-prompt-base.txt" ]
+  [ ! -f "$ROOT_DIR/templates/base/prompts/agent-prompt-skills.txt" ]
+  [ ! -f "$ROOT_DIR/templates/base/prompts/agent-prompt-sdd.txt" ]
 }
 
 @test "template manifest exists with required sections" {
@@ -51,10 +68,11 @@ teardown() {
   assert_success
 }
 
-@test "manifest rule templates all exist in templates/rules" {
+@test "manifest rule templates all exist in base or bundle-owned rules" {
   while IFS= read -r rule_file; do
     [ -n "$rule_file" ] || continue
-    assert_file_exists "$ROOT_DIR/templates/rules/$rule_file"
+    run template_rule_path "$rule_file"
+    assert_success
   done < <(awk '
     $0 == "[rule_templates]" { in_section=1; next }
     /^\[/ && in_section { exit }
@@ -80,7 +98,7 @@ teardown() {
 }
 
 @test "manifest managed and preserved targets match runtime contract" {
-  for target in AGENTS.md 'rules/*.yaml' 'skills/*' 'skills/AVAILABLE_SKILLS.xml'; do
+  for target in AGENTS.md 'rules/*.yaml' 'skills/*' 'skills/AVAILABLE_SKILLS.xml' 'skills/AVAILABLE_SKILLS.json' 'skills/SUMMARY.md'; do
     run grep -Fx "$target" "$ROOT_DIR/templates/manifest.txt"
     assert_success
   done
@@ -107,6 +125,8 @@ teardown() {
   [[ "$managed" == *"rules/*.yaml"* ]]
   [[ "$managed" == *"skills/*"* ]]
   [[ "$managed" == *"skills/AVAILABLE_SKILLS.xml"* ]]
+  [[ "$managed" == *"skills/AVAILABLE_SKILLS.json"* ]]
+  [[ "$managed" == *"skills/SUMMARY.md"* ]]
   [[ "$preserved" == *"README.md"* ]]
   [[ "$preserved" == *"specs/spec.yml"* ]]
   [[ "$preserved" == *"SNAPSHOT.md"* ]]
@@ -116,7 +136,11 @@ teardown() {
 @test "manifest required template files all exist" {
   while IFS= read -r rel_path; do
     [ -n "$rel_path" ] || continue
-    assert_file_exists "$ROOT_DIR/templates/$rel_path"
+    if [ "$rel_path" = "manifest.txt" ]; then
+      assert_file_exists "$ROOT_DIR/templates/manifest.txt"
+      continue
+    fi
+    assert_file_exists "$ROOT_DIR/templates/base/$rel_path"
   done < <(awk '
     $0 == "[required_template_files]" { in_section=1; next }
     /^\[/ && in_section { exit }
@@ -127,7 +151,7 @@ teardown() {
 @test "manifest required template dirs all exist" {
   while IFS= read -r rel_path; do
     [ -n "$rel_path" ] || continue
-    assert_dir_exists "$ROOT_DIR/templates/$rel_path"
+    assert_dir_exists "$ROOT_DIR/templates/base/$rel_path"
   done < <(awk '
     $0 == "[required_template_dirs]" { in_section=1; next }
     /^\[/ && in_section { exit }
@@ -137,18 +161,18 @@ teardown() {
 
 @test "repo root AGENTS exists and matches the template" {
   assert_file_exists "$ROOT_DIR/AGENTS.md"
-  run cmp -s "$ROOT_DIR/AGENTS.md" "$ROOT_DIR/templates/AGENTS.md"
+  run cmp -s "$ROOT_DIR/AGENTS.md" "$ROOT_DIR/templates/base/AGENTS.md"
   assert_success
 }
 
 @test "security templates expose unique SEC ids" {
-  run sh -c "grep -ho 'id:[[:space:]]*\"SEC-[^\"]*\"' '$ROOT_DIR'/templates/rules/security-*.yaml | sed -E 's/.*\"(SEC-[^\"]*)\"/\\1/' | sort | uniq -d"
+  run sh -c "grep -ho 'id:[[:space:]]*\"SEC-[^\"]*\"' '$ROOT_DIR'/templates/base/rules/security-*.yaml | sed -E 's/.*\"(SEC-[^\"]*)\"/\\1/' | sort | uniq -d"
   assert_success
   [ -z "$output" ]
 }
 
 @test "security templates include severity and applies_to" {
-  for file in "$ROOT_DIR"/templates/rules/security-*.yaml; do
+  for file in "$ROOT_DIR"/templates/base/rules/security-*.yaml; do
     run grep -F "severity:" "$file"
     assert_success
     run grep -F "applies_to:" "$file"
@@ -157,24 +181,24 @@ teardown() {
 }
 
 @test "stack rules reference security ids instead of copying security topics" {
-  run grep -F "refs:" "$ROOT_DIR/templates/rules/rules-backend.yaml"
+  run grep -F "refs:" "$ROOT_DIR/templates/base/rules/rules-backend.yaml"
   assert_success
-  run grep -F "refs:" "$ROOT_DIR/templates/rules/rules-frontend.yaml"
+  run grep -F "refs:" "$ROOT_DIR/templates/base/rules/rules-frontend.yaml"
   assert_success
-  run grep -F 'applies_to: "backend|mobile"' "$ROOT_DIR/templates/rules/security-java-kotlin.yaml"
+  run grep -F 'applies_to: "backend|mobile"' "$ROOT_DIR/templates/base/rules/security-java-kotlin.yaml"
   assert_success
-  run grep -F 'applies_to: "backend|mobile"' "$ROOT_DIR/templates/rules/security-csharp.yaml"
+  run grep -F 'applies_to: "backend|mobile"' "$ROOT_DIR/templates/base/rules/security-csharp.yaml"
   assert_success
-  run grep -F 'applies_to: "shell"' "$ROOT_DIR/templates/rules/security-shell.yaml"
+  run grep -F 'applies_to: "shell"' "$ROOT_DIR/templates/base/rules/security-shell.yaml"
   assert_success
 }
 
 @test "dependency approval policy is present across AGENTS and stack rules" {
-  run grep -F "dependencies:approval" "$ROOT_DIR/templates/rules/rules-backend.yaml"
+  run grep -F "dependencies:approval" "$ROOT_DIR/templates/base/rules/rules-backend.yaml"
   assert_success
-  run grep -F "dependencies:approval" "$ROOT_DIR/templates/rules/rules-frontend.yaml"
+  run grep -F "dependencies:approval" "$ROOT_DIR/templates/base/rules/rules-frontend.yaml"
   assert_success
-  run grep -F "mobile:dependencies" "$ROOT_DIR/templates/rules/rules-mobile.yaml"
+  run grep -F "mobile:dependencies" "$ROOT_DIR/templates/base/rules/rules-mobile.yaml"
   assert_success
   run grep -F "New dependencies or dependency changes require approval" "$ROOT_DIR/AGENTS.md"
   assert_success

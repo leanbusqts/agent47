@@ -8,10 +8,15 @@ import (
 )
 
 type EmbeddedSource struct {
+	root string
 }
 
 func NewEmbeddedSource() (*EmbeddedSource, error) {
-	return &EmbeddedSource{}, nil
+	return NewEmbeddedSourceAt("templates")
+}
+
+func NewEmbeddedSourceAt(root string) (*EmbeddedSource, error) {
+	return &EmbeddedSource{root: clean(root)}, nil
 }
 
 func (s *EmbeddedSource) ReadFile(filePath string) ([]byte, error) {
@@ -29,9 +34,9 @@ func (s *EmbeddedSource) Stat(targetPath string) (fs.FileInfo, error) {
 func (s *EmbeddedSource) resolve(value string) string {
 	cleaned := clean(value)
 	if cleaned == "." {
-		return "templates"
+		return s.root
 	}
-	return path.Join("templates", cleaned)
+	return path.Join(s.root, cleaned)
 }
 
 func clean(value string) string {

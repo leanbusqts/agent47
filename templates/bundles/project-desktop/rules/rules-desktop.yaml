@@ -1,0 +1,12 @@
+rules:
+  - topic: "desktop:lifecycle"
+    level: "high"
+    rule: "Keep desktop app lifecycle, updates, and packaging flows explicit and testable."
+
+  - topic: "desktop:state"
+    level: "high"
+    rule: "Keep state ownership and UI event handling clear across desktop boundaries."
+
+  - topic: "desktop:integration-testing"
+    level: "medium"
+    rule: "Cover platform-specific integration paths with deterministic local tests where possible."
