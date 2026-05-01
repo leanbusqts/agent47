@@ -39,7 +39,26 @@ teardown() {
   assert_file_exists "skills/SUMMARY.md"
 }
 
-@test "add-agent discovers skill templates dynamically" {
+@test "add-agent --only-skills --preview no escribe archivos" {
+  run "$ROOT_DIR/bin/afs" add-agent --only-skills --preview
+  assert_success
+  assert_contains "$output" "mode: only-skills"
+  [ ! -d "skills" ]
+  [ ! -f "AGENTS.md" ]
+  [ ! -d "rules" ]
+}
+
+@test "add-agent --only-skills respeta bundles explicitos" {
+  run "$ROOT_DIR/bin/afs" add-agent --only-skills --bundle cli --yes
+  assert_success
+  assert_file_exists "skills/cli-design/SKILL.md"
+  [ ! -d "skills/optimize" ]
+  [ ! -d "skills/refactor" ]
+  [ ! -f "AGENTS.md" ]
+  [ ! -d "rules" ]
+}
+
+@test "add-agent --only-skills ignores unselected discovered skills without breaking indexes" {
   temp_repo="$(make_test_repo_copy)"
   mkdir -p "$temp_repo/templates/base/skills/custom-skill"
   cat > "$temp_repo/templates/base/skills/custom-skill/SKILL.md" <<'EOF'
@@ -53,13 +72,10 @@ EOF
 
   run env AGENT47_REPO_ROOT="$temp_repo" "$ROOT_DIR/bin/afs" add-agent --only-skills
   assert_success
-  assert_file_exists "skills/custom-skill/SKILL.md"
-  run grep -F "<name>custom-skill</name>" skills/AVAILABLE_SKILLS.xml
-  assert_success
-  run grep -F '"name": "custom-skill"' skills/AVAILABLE_SKILLS.json
-  assert_success
-  run grep -F "## custom-skill" skills/SUMMARY.md
-  assert_success
+  [ ! -d "skills/custom-skill" ]
+  assert_file_exists "skills/AVAILABLE_SKILLS.xml"
+  assert_file_exists "skills/AVAILABLE_SKILLS.json"
+  assert_file_exists "skills/SUMMARY.md"
 }
 
 @test "add-agent --force updates managed files and preserves user project files" {
@@ -108,6 +124,27 @@ EOF
   [ "$status" -ne 0 ]
   run grep -q "keep rule" rules/rules-backend.yaml
   assert_success
+}
+
+@test "add-agent --only-skills --force preview refleja reemplazo real de skills" {
+  mkdir -p skills/analyze skills/custom-skill
+  echo "custom" > skills/analyze/SKILL.md
+  echo "remove me" > skills/notes.txt
+  cat > skills/custom-skill/SKILL.md <<'EOF'
+---
+name: custom-skill
+description: Local custom skill.
+---
+EOF
+
+  run "$ROOT_DIR/bin/afs" add-agent --only-skills --force --preview
+  assert_success
+  assert_contains "$output" "update:"
+  assert_contains "$output" "skills/"
+  assert_contains "$output" "skills/analyze/"
+  assert_contains "$output" "remove on --force:"
+  assert_contains "$output" "skills/notes.txt"
+  assert_contains "$output" "skills/custom-skill"
 }
 
 @test "add-agent --force removes stale managed yaml rules" {

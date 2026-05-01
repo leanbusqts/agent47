@@ -1,6 +1,7 @@
 package analyze
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -64,9 +65,9 @@ func (Service) Analyze(root string) (AnalysisResult, error) {
 		RepoShape:    detectRepoShape(signals),
 		ProjectTypes: detectProjectTypes(signals),
 		Technologies: detectTechnologies(signals),
-		Evidence:     sortEvidence(signals.evidence),
 		ManagedState: detectManagedState(signals),
 	}
+	result.Evidence = sortEvidence(append(append([]EvidenceItem{}, signals.evidence...), classificationEvidence(result.ProjectTypes, result.Technologies)...))
 
 	result.Confidence = overallConfidence(result.ProjectTypes, result.Technologies, signals)
 	result.LowSignal = len(result.ProjectTypes) == 0
@@ -86,6 +87,9 @@ type repoSignals struct {
 	files           map[string]bool
 	dirs            map[string]bool
 	extCounts       map[string]int
+	coreFiles       map[string]bool
+	coreDirs        map[string]bool
+	coreExtCounts   map[string]int
 	packageJSON     string
 	goMod           string
 	evidence        []EvidenceItem
@@ -101,9 +105,12 @@ type repoSignals struct {
 
 func scan(root string) (repoSignals, error) {
 	signals := repoSignals{
-		files:     make(map[string]bool),
-		dirs:      make(map[string]bool),
-		extCounts: make(map[string]int),
+		files:         make(map[string]bool),
+		dirs:          make(map[string]bool),
+		extCounts:     make(map[string]int),
+		coreFiles:     make(map[string]bool),
+		coreDirs:      make(map[string]bool),
+		coreExtCounts: make(map[string]int),
 	}
 
 	entries, err := os.ReadDir(root)
@@ -144,6 +151,9 @@ func scan(root string) (repoSignals, error) {
 				return filepath.SkipDir
 			}
 			signals.dirs[rel] = true
+			if isCorePath(rel) {
+				signals.coreDirs[rel] = true
+			}
 			return nil
 		}
 
@@ -151,6 +161,12 @@ func scan(root string) (repoSignals, error) {
 		ext := strings.ToLower(filepath.Ext(rel))
 		if ext != "" {
 			signals.extCounts[ext]++
+			if isCorePath(rel) {
+				signals.coreExtCounts[ext]++
+			}
+		}
+		if isCorePath(rel) {
+			signals.coreFiles[rel] = true
 		}
 
 		switch rel {
@@ -205,9 +221,9 @@ func detectRepoShape(signals repoSignals) string {
 }
 
 func mostlyDocs(signals repoSignals) bool {
-	docCount := signals.extCounts[".md"] + signals.extCounts[".mdx"]
+	docCount := signals.coreExtCounts[".md"] + signals.coreExtCounts[".mdx"]
 	codeCount := 0
-	for ext, count := range signals.extCounts {
+	for ext, count := range signals.coreExtCounts {
 		switch ext {
 		case ".go", ".js", ".ts", ".tsx", ".jsx", ".py", ".sh", ".bash", ".zsh", ".swift", ".kt", ".java", ".cs":
 			codeCount += count
@@ -225,29 +241,29 @@ func detectTechnologies(signals repoSignals) []DetectedTechnology {
 	if signals.hasPackageJSON {
 		detected = append(detected, DetectedTechnology{ID: "node", Confidence: ConfidenceHigh, Evidence: []string{"package.json"}})
 	}
-	if strings.Contains(signals.packageJSON, `"typescript"`) || signals.extCounts[".ts"] > 0 || signals.extCounts[".tsx"] > 0 {
-		detected = append(detected, DetectedTechnology{ID: "typescript", Confidence: confidenceFromCount(signals.extCounts[".ts"]+signals.extCounts[".tsx"], "package.json"), Evidence: collectEvidence(signals, "package.json", ".ts/.tsx files")})
+	if strings.Contains(signals.packageJSON, `"typescript"`) || signals.coreExtCounts[".ts"] > 0 || signals.coreExtCounts[".tsx"] > 0 {
+		detected = append(detected, DetectedTechnology{ID: "typescript", Confidence: confidenceFromCount(signals.coreExtCounts[".ts"]+signals.coreExtCounts[".tsx"], "package.json"), Evidence: collectEvidence(signals, "package.json", ".ts/.tsx files")})
 	}
-	if strings.Contains(signals.packageJSON, `"react"`) || signals.extCounts[".tsx"] > 0 {
-		detected = append(detected, DetectedTechnology{ID: "react", Confidence: confidenceFromCount(signals.extCounts[".tsx"], "package.json"), Evidence: collectEvidence(signals, "package.json", ".tsx files")})
+	if strings.Contains(signals.packageJSON, `"react"`) || signals.coreExtCounts[".tsx"] > 0 {
+		detected = append(detected, DetectedTechnology{ID: "react", Confidence: confidenceFromCount(signals.coreExtCounts[".tsx"], "package.json"), Evidence: collectEvidence(signals, "package.json", ".tsx files")})
 	}
 	if strings.Contains(signals.packageJSON, `"tailwindcss"`) || hasPrefixFile(signals.files, "tailwind.config.") {
 		detected = append(detected, DetectedTechnology{ID: "tailwind", Confidence: ConfidenceMedium, Evidence: collectEvidence(signals, "tailwind.config.*", "package.json")})
 	}
-	if signals.hasGradle || signals.extCounts[".kt"] > 0 || signals.extCounts[".java"] > 0 {
-		detected = append(detected, DetectedTechnology{ID: "java-kotlin", Confidence: confidenceFromCount(signals.extCounts[".kt"]+signals.extCounts[".java"], "Gradle"), Evidence: collectEvidence(signals, "build.gradle", ".kt/.java files")})
+	if signals.hasGradle || signals.coreExtCounts[".kt"] > 0 || signals.coreExtCounts[".java"] > 0 {
+		detected = append(detected, DetectedTechnology{ID: "java-kotlin", Confidence: confidenceFromCount(signals.coreExtCounts[".kt"]+signals.coreExtCounts[".java"], "Gradle"), Evidence: collectEvidence(signals, "build.gradle", ".kt/.java files")})
 	}
-	if signals.hasSwiftPackage || signals.extCounts[".swift"] > 0 {
-		detected = append(detected, DetectedTechnology{ID: "swift", Confidence: confidenceFromCount(signals.extCounts[".swift"], "Package.swift"), Evidence: collectEvidence(signals, "Package.swift", ".swift files")})
+	if signals.hasSwiftPackage || signals.coreExtCounts[".swift"] > 0 {
+		detected = append(detected, DetectedTechnology{ID: "swift", Confidence: confidenceFromCount(signals.coreExtCounts[".swift"], "Package.swift"), Evidence: collectEvidence(signals, "Package.swift", ".swift files")})
 	}
-	if signals.extCounts[".py"] > 0 || signals.files["pyproject.toml"] || signals.files["requirements.txt"] {
-		detected = append(detected, DetectedTechnology{ID: "python", Confidence: confidenceFromCount(signals.extCounts[".py"], "pyproject.toml"), Evidence: collectEvidence(signals, "pyproject.toml", ".py files")})
+	if signals.coreExtCounts[".py"] > 0 || signals.files["pyproject.toml"] || signals.files["requirements.txt"] {
+		detected = append(detected, DetectedTechnology{ID: "python", Confidence: confidenceFromCount(signals.coreExtCounts[".py"], "pyproject.toml"), Evidence: collectEvidence(signals, "pyproject.toml", ".py files")})
 	}
-	if signals.extCounts[".cs"] > 0 || hasSuffixFile(signals.files, ".csproj") || hasSuffixFile(signals.files, ".sln") {
-		detected = append(detected, DetectedTechnology{ID: "csharp", Confidence: confidenceFromCount(signals.extCounts[".cs"], ".csproj"), Evidence: collectEvidence(signals, ".csproj", ".cs files")})
+	if signals.coreExtCounts[".cs"] > 0 || hasSuffixFile(signals.files, ".csproj") || hasSuffixFile(signals.files, ".sln") {
+		detected = append(detected, DetectedTechnology{ID: "csharp", Confidence: confidenceFromCount(signals.coreExtCounts[".cs"], ".csproj"), Evidence: collectEvidence(signals, ".csproj", ".cs files")})
 	}
-	if signals.extCounts[".sh"] > 0 || signals.extCounts[".bash"] > 0 || signals.extCounts[".bats"] > 0 || signals.files["install.sh"] || signals.dirs["scripts"] || signals.dirs["tests"] {
-		detected = append(detected, DetectedTechnology{ID: "shell", Confidence: confidenceFromCount(signals.extCounts[".sh"]+signals.extCounts[".bash"]+signals.extCounts[".bats"], "scripts/"), Evidence: collectEvidence(signals, "install.sh", "shell files")})
+	if signals.coreExtCounts[".sh"] > 0 || signals.coreExtCounts[".bash"] > 0 || signals.coreExtCounts[".bats"] > 0 || signals.files["install.sh"] || signals.coreDirs["scripts"] {
+		detected = append(detected, DetectedTechnology{ID: "shell", Confidence: confidenceFromCount(signals.coreExtCounts[".sh"]+signals.coreExtCounts[".bash"]+signals.coreExtCounts[".bats"], "scripts/"), Evidence: collectEvidence(signals, "install.sh", "shell files")})
 	}
 	if countInfraSignals(signals) > 0 {
 		detected = append(detected, DetectedTechnology{ID: "infra", Confidence: confidenceFromSignals(countInfraSignals(signals)), Evidence: collectEvidence(signals, ".tf files", "helmfile.yaml", "charts/", "terraform/")})
@@ -336,7 +352,7 @@ func detectTestingTechnologies(signals repoSignals) []DetectedTechnology {
 func detectProjectTypes(signals repoSignals) []DetectedProjectType {
 	var detected []DetectedProjectType
 
-	if signals.dirs["cmd"] || strings.Contains(signals.goMod, "cobra") || strings.Contains(signals.packageJSON, `"bin"`) || signals.files["install.sh"] || signals.files["install.ps1"] {
+	if signals.coreDirs["cmd"] || strings.Contains(signals.goMod, "cobra") || strings.Contains(signals.packageJSON, `"bin"`) || signals.files["install.sh"] || signals.files["install.ps1"] {
 		detected = append(detected, DetectedProjectType{ID: "cli", Confidence: ConfidenceHigh, Evidence: collectEvidence(signals, "cmd/", "install.sh", "install.ps1")})
 	}
 	if countMonorepoSignals(signals) > 0 {
@@ -345,14 +361,14 @@ func detectProjectTypes(signals repoSignals) []DetectedProjectType {
 	if signals.dirs["android"] || signals.dirs["ios"] || signals.hasGradle || signals.hasSwiftPackage {
 		detected = append(detected, DetectedProjectType{ID: "mobile", Confidence: ConfidenceHigh, Evidence: collectEvidence(signals, "android/", "ios/", "Gradle", "Package.swift")})
 	}
-	if hasPrefixDir(signals.dirs, "src") || hasPrefixDir(signals.dirs, "app") || hasPrefixDir(signals.dirs, "pages") || strings.Contains(signals.packageJSON, `"next"`) || strings.Contains(signals.packageJSON, `"astro"`) || strings.Contains(signals.packageJSON, `"react"`) {
-		detected = append(detected, DetectedProjectType{ID: "frontend", Confidence: confidenceFromCount(signals.extCounts[".tsx"]+signals.extCounts[".jsx"], "package.json"), Evidence: collectEvidence(signals, "src/", "app/", "pages/", "package.json")})
+	if hasPrefixDir(signals.coreDirs, "src") || hasPrefixDir(signals.coreDirs, "app") || hasPrefixDir(signals.coreDirs, "pages") || strings.Contains(signals.packageJSON, `"next"`) || strings.Contains(signals.packageJSON, `"astro"`) || strings.Contains(signals.packageJSON, `"react"`) {
+		detected = append(detected, DetectedProjectType{ID: "frontend", Confidence: confidenceFromCount(signals.coreExtCounts[".tsx"]+signals.coreExtCounts[".jsx"], "package.json"), Evidence: collectEvidence(signals, "src/", "app/", "pages/", "package.json")})
 	}
-	if signals.dirs["api"] || signals.dirs["server"] || signals.dirs["handlers"] || strings.Contains(signals.goMod, "gin-gonic") || strings.Contains(signals.goMod, "labstack/echo") || strings.Contains(signals.packageJSON, `"express"`) || strings.Contains(signals.packageJSON, `"fastify"`) {
+	if signals.coreDirs["api"] || signals.coreDirs["server"] || signals.coreDirs["handlers"] || strings.Contains(signals.goMod, "gin-gonic") || strings.Contains(signals.goMod, "labstack/echo") || strings.Contains(signals.packageJSON, `"express"`) || strings.Contains(signals.packageJSON, `"fastify"`) {
 		detected = append(detected, DetectedProjectType{ID: "backend", Confidence: ConfidenceHigh, Evidence: collectEvidence(signals, "api/", "server/", "handlers/", "framework dependency")})
 	}
-	if signals.dirs["scripts"] || signals.files["install.sh"] || signals.extCounts[".sh"]+signals.extCounts[".bash"]+signals.extCounts[".bats"] >= 2 {
-		detected = append(detected, DetectedProjectType{ID: "scripts", Confidence: confidenceFromCount(signals.extCounts[".sh"]+signals.extCounts[".bash"]+signals.extCounts[".bats"], "scripts/"), Evidence: collectEvidence(signals, "scripts/", "shell files")})
+	if signals.coreDirs["scripts"] || signals.files["install.sh"] || signals.coreExtCounts[".sh"]+signals.coreExtCounts[".bash"]+signals.coreExtCounts[".bats"] >= 2 {
+		detected = append(detected, DetectedProjectType{ID: "scripts", Confidence: confidenceFromCount(signals.coreExtCounts[".sh"]+signals.coreExtCounts[".bash"]+signals.coreExtCounts[".bats"], "scripts/"), Evidence: collectEvidence(signals, "scripts/", "shell files")})
 	}
 	if countInfraSignals(signals) > 0 {
 		detected = append(detected, DetectedProjectType{ID: "infra", Confidence: confidenceFromSignals(countInfraSignals(signals)), Evidence: collectEvidence(signals, ".tf files", "helmfile.yaml", "charts/", "terraform/", "infra/")})
@@ -411,13 +427,13 @@ func supportedAutomaticComposition(left string, right string) bool {
 
 func countInfraSignals(signals repoSignals) int {
 	count := 0
-	if countFilesWithSuffix(signals.files, ".tf") > 0 {
+	if countFilesWithSuffix(signals.coreFiles, ".tf") > 0 {
 		count++
 	}
-	if signals.files["helmfile.yaml"] || signals.files["helmfile.yml"] {
+	if signals.coreFiles["helmfile.yaml"] || signals.coreFiles["helmfile.yml"] {
 		count++
 	}
-	if signals.dirs["terraform"] || signals.dirs["infra"] || signals.dirs["charts"] || signals.dirs["helm"] || signals.dirs["k8s"] || signals.dirs["kubernetes"] {
+	if signals.coreDirs["terraform"] || signals.coreDirs["infra"] || signals.coreDirs["charts"] || signals.coreDirs["helm"] || signals.coreDirs["k8s"] || signals.coreDirs["kubernetes"] {
 		count++
 	}
 	return count
@@ -425,10 +441,10 @@ func countInfraSignals(signals repoSignals) int {
 
 func countMonorepoSignals(signals repoSignals) int {
 	count := 0
-	if signals.files["pnpm-workspace.yaml"] || signals.files["turbo.json"] || signals.files["nx.json"] || signals.files["lerna.json"] || signals.files["lage.config.js"] || signals.files["lage.config.ts"] {
+	if signals.coreFiles["pnpm-workspace.yaml"] || signals.coreFiles["turbo.json"] || signals.coreFiles["nx.json"] || signals.coreFiles["lerna.json"] || signals.coreFiles["lage.config.js"] || signals.coreFiles["lage.config.ts"] {
 		count++
 	}
-	if signals.dirs["apps"] || signals.dirs["packages"] {
+	if signals.coreDirs["apps"] || signals.coreDirs["packages"] {
 		count++
 	}
 	return count
@@ -439,10 +455,10 @@ func countDesktopSignals(signals repoSignals) int {
 	if containsAny(signals.packageJSON, `"electron"`, `"tauri"`, `"wails"`) {
 		count++
 	}
-	if signals.dirs["src-tauri"] || signals.files["wails.json"] {
+	if signals.coreDirs["src-tauri"] || signals.coreFiles["wails.json"] {
 		count++
 	}
-	if hasPrefixFile(signals.files, "electron-builder.") || hasPrefixFile(signals.files, "tauri.conf.") {
+	if hasPrefixFile(signals.coreFiles, "electron-builder.") || hasPrefixFile(signals.coreFiles, "tauri.conf.") {
 		count++
 	}
 	return count
@@ -450,13 +466,27 @@ func countDesktopSignals(signals repoSignals) int {
 
 func countPluginSignals(signals repoSignals) int {
 	count := 0
-	if signals.files["plugin.json"] || signals.files[".codex-plugin/plugin.json"] {
+	if signals.coreFiles["plugin.json"] || signals.files[".codex-plugin/plugin.json"] {
 		count++
 	}
-	if signals.dirs["plugins"] || signals.dirs["plugin"] {
+	if signals.coreDirs["plugins"] || signals.coreDirs["plugin"] {
 		count++
 	}
 	return count
+}
+
+func isCorePath(rel string) bool {
+	return !hasAuxiliarySegment(rel)
+}
+
+func hasAuxiliarySegment(rel string) bool {
+	for _, segment := range strings.Split(rel, "/") {
+		switch segment {
+		case "templates", "vendor", "node_modules", "test", "tests", "__tests__", "testdata", "fixtures":
+			return true
+		}
+	}
+	return false
 }
 
 func overallConfidence(projectTypes []DetectedProjectType, technologies []DetectedTechnology, signals repoSignals) Confidence {
@@ -509,6 +539,29 @@ func collectEvidence(signals repoSignals, values ...string) []string {
 
 func evidence(kind string, id string, detail string, paths ...string) EvidenceItem {
 	return EvidenceItem{ID: id, Kind: kind, Detail: detail, SourcePaths: paths}
+}
+
+func classificationEvidence(projectTypes []DetectedProjectType, technologies []DetectedTechnology) []EvidenceItem {
+	items := make([]EvidenceItem, 0, len(projectTypes)+len(technologies))
+
+	for _, projectType := range projectTypes {
+		items = append(items, EvidenceItem{
+			ID:          "project-type-" + projectType.ID,
+			Kind:        "project-type",
+			Detail:      fmt.Sprintf("Resolved project type %s (%s)", projectType.ID, projectType.Confidence),
+			SourcePaths: append([]string{}, projectType.Evidence...),
+		})
+	}
+	for _, technology := range technologies {
+		items = append(items, EvidenceItem{
+			ID:          "technology-" + technology.ID,
+			Kind:        "technology",
+			Detail:      fmt.Sprintf("Resolved technology %s (%s)", technology.ID, technology.Confidence),
+			SourcePaths: append([]string{}, technology.Evidence...),
+		})
+	}
+
+	return items
 }
 
 func sortEvidence(items []EvidenceItem) []EvidenceItem {

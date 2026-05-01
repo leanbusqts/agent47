@@ -212,6 +212,8 @@ template_rule_path() {
 
 @test "docs expose the supported public command surface" {
   for file in "$ROOT_DIR/README.md" "$ROOT_DIR/SPEC.md" "$ROOT_DIR/RUNBOOK.md"; do
+    run grep -F "afs version" "$file"
+    assert_success
     run grep -F "afs doctor" "$file"
     assert_success
     run grep -F "afs add-agent" "$file"

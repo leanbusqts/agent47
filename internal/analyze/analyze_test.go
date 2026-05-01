@@ -3,6 +3,7 @@ package analyze
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -164,6 +165,72 @@ func TestAnalyzeDetectsDedicatedTestingStacks(t *testing.T) {
 	}
 }
 
+func TestAnalyzeIgnoresAuxiliaryDirectoriesForPrimaryStackDetection(t *testing.T) {
+	root := t.TempDir()
+	mustWriteAnalyzeFile(t, filepath.Join(root, "templates", "tool.py"), "print('template helper')\n")
+	mustWriteAnalyzeFile(t, filepath.Join(root, "tests", "fixture.py"), "print('test helper')\n")
+	mustWriteAnalyzeFile(t, filepath.Join(root, "vendor", "dep.py"), "print('vendored helper')\n")
+
+	result, err := (Service{}).Analyze(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tech := range result.Technologies {
+		if tech.ID == "python" {
+			t.Fatalf("did not expect python detection from auxiliary directories: %v", result.Technologies)
+		}
+		if tech.ID == "shell" {
+			t.Fatalf("did not expect shell detection from auxiliary directories: %v", result.Technologies)
+		}
+	}
+}
+
+func TestAnalyzeStillDetectsTestingStacksFromTestsDirectory(t *testing.T) {
+	root := t.TempDir()
+	mustWriteAnalyzeFile(t, filepath.Join(root, "tests", "smoke.bats"), "#!/usr/bin/env bats\n")
+
+	result, err := (Service{}).Analyze(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasTechnology(result.Technologies, "bats") {
+		t.Fatalf("expected bats detection from tests directory, got %v", result.Technologies)
+	}
+}
+
+func TestAnalyzeIncludesClassificationEvidence(t *testing.T) {
+	root := t.TempDir()
+	mustWriteAnalyzeFile(t, filepath.Join(root, "go.mod"), "module example.com/test\n")
+	mustWriteAnalyzeFile(t, filepath.Join(root, "install.sh"), "#!/usr/bin/env bash\n")
+	if err := os.MkdirAll(filepath.Join(root, "cmd"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "scripts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := (Service{}).Analyze(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	projectEvidence, ok := findEvidence(result.Evidence, "project-type", "cli")
+	if !ok {
+		t.Fatalf("expected cli project-type evidence, got %v", result.Evidence)
+	}
+	if len(projectEvidence.SourcePaths) == 0 {
+		t.Fatalf("expected cli project-type evidence sources, got %v", projectEvidence)
+	}
+
+	technologyEvidence, ok := findEvidence(result.Evidence, "technology", "shell")
+	if !ok {
+		t.Fatalf("expected shell technology evidence, got %v", result.Evidence)
+	}
+	if len(technologyEvidence.SourcePaths) == 0 {
+		t.Fatalf("expected shell technology evidence sources, got %v", technologyEvidence)
+	}
+}
+
 func mustWriteAnalyzeFile(t *testing.T, path string, body string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -181,4 +248,22 @@ func hasProjectType(projectTypes []DetectedProjectType, want string) bool {
 		}
 	}
 	return false
+}
+
+func hasTechnology(technologies []DetectedTechnology, want string) bool {
+	for _, technology := range technologies {
+		if technology.ID == want {
+			return true
+		}
+	}
+	return false
+}
+
+func findEvidence(items []EvidenceItem, kind string, fragment string) (EvidenceItem, bool) {
+	for _, item := range items {
+		if item.Kind == kind && strings.Contains(item.Detail, fragment) {
+			return item, true
+		}
+	}
+	return EvidenceItem{}, false
 }

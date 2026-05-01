@@ -1,6 +1,8 @@
 package resolve
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/leanbusqts/agent47/internal/analyze"
@@ -215,6 +217,25 @@ func TestResolveAcceptsCompatibleExplicitBundles(t *testing.T) {
 	}
 }
 
+func TestResolveAppliesExclusionsToExplicitBundles(t *testing.T) {
+	set, err := Resolve(analyze.AnalysisResult{}, Options{
+		ExplicitBundles: []string{"cli", "scripts"},
+		ExcludeBundles:  []string{"cli"},
+	})
+	if err != nil {
+		t.Fatalf("expected explicit bundle exclusion to succeed, got %v", err)
+	}
+	if containsString(set.Bundles, "project-cli") {
+		t.Fatalf("did not expect excluded explicit bundle in result: %v", set.Bundles)
+	}
+	if containsString(set.Bundles, "shared-cli-behavior") {
+		t.Fatalf("did not expect CLI shared dependency after exclusion: %v", set.Bundles)
+	}
+	if !containsString(set.Bundles, "project-scripts") {
+		t.Fatalf("expected remaining explicit bundle to stay selected: %v", set.Bundles)
+	}
+}
+
 func TestAssembleManifestFiltersToResolvedContract(t *testing.T) {
 	base := manifest.Manifest{
 		RuleTemplates:         []string{"rules-backend.yaml", "security-global.yaml", "security-shell.yaml"},
@@ -244,6 +265,40 @@ func TestAssembleManifestFiltersToResolvedContract(t *testing.T) {
 	}
 	if foundSSPrompt {
 		t.Fatalf("did not expect unused prompt in assembled manifest: %v", got.RequiredTemplateFiles)
+	}
+}
+
+func TestBuildSkillsActionPlanForceShowsDirectoryReplacementAndRootRemovals(t *testing.T) {
+	workDir := t.TempDir()
+	mustWriteResolveFile(t, filepath.Join(workDir, "skills", "analyze", "SKILL.md"), "custom\n")
+	mustWriteResolveFile(t, filepath.Join(workDir, "skills", "notes.txt"), "remove me\n")
+	mustWriteResolveFile(t, filepath.Join(workDir, "skills", "custom-skill", "SKILL.md"), "stale\n")
+
+	plan := BuildSkillsActionPlan(workDir, InstallSet{
+		Skills: []string{"analyze"},
+	}, true)
+
+	if !containsString(plan.Update, "skills/") {
+		t.Fatalf("expected skills directory replacement in update plan, got %v", plan.Update)
+	}
+	if !containsString(plan.Update, "skills/analyze/") {
+		t.Fatalf("expected selected skill directory replacement in update plan, got %v", plan.Update)
+	}
+	if !containsString(plan.Remove, "skills/notes.txt") {
+		t.Fatalf("expected unmanaged skills-root file removal in plan, got %v", plan.Remove)
+	}
+	if !containsString(plan.Remove, "skills/custom-skill") {
+		t.Fatalf("expected stale skill directory removal in plan, got %v", plan.Remove)
+	}
+}
+
+func mustWriteResolveFile(t *testing.T, path string, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 

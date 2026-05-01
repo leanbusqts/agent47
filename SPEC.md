@@ -108,6 +108,7 @@ Public command:
 Expected outcome:
 
 - `afs analyze` inspects the repository, resolves the install set, and never writes files
+- `afs analyze --evidence` includes both direct scan evidence and the evidence attached to resolved classifications
 - `afs add-agent` runs the same analysis and resolution flow before writing
 - write `AGENTS.md` if absent
 - write the resolved `rules/*.yaml` if absent
@@ -124,7 +125,7 @@ Default resolution behavior:
 - the base bundle includes `AGENTS.md`, shell/global security rules, universal skills, prompt helpers, and `specs/spec.yml`
 - supported project bundles currently include frontend, backend, mobile, cli, scripts, infra, monorepo-tooling, desktop, and plugin
 - supported automatic bundle composition currently includes `cli` + `scripts`, `cli` + `monorepo-tooling`, and `desktop` + `plugin`
-- in interactive TTY environments, `afs add-agent` asks for confirmation before writing unless `--yes` is supplied
+- in interactive TTY environments, `afs add-agent` asks for confirmation before writing, including skills-only mode, unless `--yes` is supplied
 
 ### 5.4 Fresh reinstall of the managed scaffold
 
@@ -162,6 +163,7 @@ Expected outcome:
 - do not touch `AGENTS.md` or `rules/*.yaml`
 - without `--force`, preserve existing invalid skill files and omit them from the generated skills indexes
 - with `--force`, replace the managed skills directory with the template set
+- with `--force --preview`, report the full managed `skills/` replacement and any entries under `skills/` that will be removed
 - the same validated skill set is rendered into the XML, JSON, and Markdown summary indexes
 
 ### 5.6 Prompt helpers
@@ -194,6 +196,7 @@ Expected outcome:
 Supported user-facing commands:
 
 - `afs help`
+- `afs version`
 - `afs uninstall`
 - `afs doctor [--check-update|--check-update-force|--fail-on-warn]`
 - `afs analyze [--json|--verbose|--evidence]`
@@ -230,6 +233,10 @@ Commands intentionally outside the supported public surface:
 - `scripts/`
 - `tests/`
 - root metadata such as `README.md`, `RUNBOOK.md`, `VERSION`, `SNAPSHOT.md`, and `SPEC.md`
+
+Repo-local execution detail:
+
+- checkout-based `bin/afs` execution uses repo-safe `GOCACHE` and `GOMODCACHE` defaults when falling back to `go run`
 
 ### 7.2 Template payload
 

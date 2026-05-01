@@ -36,6 +36,7 @@ GO_CLI_PATH="${AGENT47_GO_CLI:-$SCRIPT_DIR/afs-go}"
 REPO_CLI_PATH="${AGENT47_REPO_CLI:-}"
 TMP_ROOT="${TMPDIR:-/tmp}"
 GO_BUILD_CACHE="${GOCACHE:-$TMP_ROOT/agent47-go-build-cache}"
+GO_MOD_CACHE="${GOMODCACHE:-$TMP_ROOT/agent47-go-mod-cache}"
 CALLER_DIR="$(pwd)"
 
 resolve_go_bin() {
@@ -134,11 +135,13 @@ fi
 
 if GO_BIN="$(resolve_go_bin)"; then
   mkdir -p "$GO_BUILD_CACHE"
+  mkdir -p "$GO_MOD_CACHE"
   cd "$REPO_DIR"
   AGENT47_REPO_ROOT="$SOURCE_REPO_DIR" \
   AGENT47_TEMPLATE_SOURCE=filesystem \
   AGENT47_CALLER_DIR="$CALLER_DIR" \
   GOCACHE="$GO_BUILD_CACHE" \
+  GOMODCACHE="$GO_MOD_CACHE" \
   exec "$GO_BIN" run ./cmd/afs "$@"
 fi
 

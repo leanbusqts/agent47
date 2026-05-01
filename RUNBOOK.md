@@ -23,6 +23,7 @@ Windows:
 Verify the local setup:
 
 ```bash
+afs version
 afs doctor
 afs doctor --check-update
 ```
@@ -56,6 +57,7 @@ afs add-agent
 ```
 
 `afs analyze` is read-only. It reports detected project types, confidence, and the install set that `add-agent` would use.
+`afs analyze --evidence` includes both raw scan evidence and the evidence attached to the resolved project-type and technology classifications.
 
 ```bash
 afs analyze
@@ -86,7 +88,7 @@ afs add-agent --dry-run
 afs add-agent --bundle cli --bundle scripts --preview
 ```
 
-In interactive terminals, `afs add-agent` asks for confirmation before writing. Use `--yes` to skip that confirmation.
+In interactive terminals, `afs add-agent` asks for confirmation before writing, including `--only-skills` mode. Use `--yes` to skip that confirmation.
 
 Common example flows:
 
@@ -154,6 +156,7 @@ Behavior differences:
 
 - without `--force`, existing invalid skill files are preserved but omitted from the generated skills indexes
 - with `--force`, the managed skills directory is replaced with the current template set
+- with `--force --preview`, the plan reflects the actual `skills/` replacement plus any skill entries or unmanaged files under `skills/` that will be removed
 - the same validated skill set is rendered into the XML, JSON, and Markdown indexes
 
 ## Prompt Helpers
@@ -228,6 +231,7 @@ Behavior:
 - Windows installs default to `%LOCALAPPDATA%\agent47` and use the managed bin directory on PATH
 - `--non-interactive` avoids interactive shell rc prompts
 - repo-local `bin/afs` is for checkout-based development, not the installed runtime path
+- when `bin/afs` falls back to `go run`, it uses repo-safe `GOCACHE` and `GOMODCACHE` defaults
 - checkout-based execution depends on Go unless you provide `AGENT47_GO_CLI` or an explicit `AGENT47_REPO_CLI`
 - `afs uninstall` removes published commands and managed runtime assets
 

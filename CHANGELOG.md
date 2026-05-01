@@ -1,6 +1,21 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [1.3.0] - 2026-04-30
+### Added
+- Documented `afs version` consistently across the public command surface and operational docs.
+
+### Changed
+- Improved `afs analyze --evidence` so it reports the evidence attached to resolved project-type and technology classifications, not only raw scan hits.
+- Aligned `afs add-agent` confirmation behavior so interactive confirmation applies consistently to skills-only mode as well as the full scaffold flow.
+- Made `afs add-agent --only-skills --force --preview` reflect the real managed `skills/` replacement and pending removals under `skills/`.
+- Updated checkout-based execution and maintainer commands to use repo-safe `GOMODCACHE` defaults alongside `GOCACHE`.
+- Updated `README.md`, `RUNBOOK.md`, `SPEC.md`, and `SNAPSHOT.md` to reflect the current CLI behavior and release contract.
+
+### Fixed
+- Stopped repository analysis from treating auxiliary directories such as `templates/`, `vendor/`, and `tests/` as primary stack signals while still preserving dedicated testing-stack detection where intended.
+- Fixed explicit bundle exclusion handling so exclusions apply consistently during explicit bundle selection and preview flows.
+
 ## [1.2.0] - 2026-04-29
 ### Added
 - Added `afs analyze` with concise, verbose, evidence, and JSON output backed by the new repository analysis and install-resolution services.

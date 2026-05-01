@@ -222,6 +222,16 @@ func resolvedBundles(result analyze.AnalysisResult, opts Options) ([]string, err
 			}
 			selected = append(selected, bundleID)
 		}
+		for _, excluded := range opts.ExcludeBundles {
+			bundleID, ok := bundleAliases[excluded]
+			if !ok {
+				return nil, fmt.Errorf("unknown bundle: %s", excluded)
+			}
+			if bundleID == "base" {
+				return nil, fmt.Errorf("cannot exclude the base bundle")
+			}
+			selected = remove(selected, bundleID)
+		}
 		selected = uniqSorted(selected)
 		if err := validateBundleSelection(selected); err != nil {
 			return nil, err
@@ -448,6 +458,56 @@ func BuildActionPlan(workDir string, set InstallSet, force bool) ActionPlan {
 	return plan
 }
 
+func BuildSkillsActionPlan(workDir string, set InstallSet, force bool) ActionPlan {
+	plan := ActionPlan{}
+	skillsDirPath := filepath.Join(workDir, "skills")
+
+	targets := []string{
+		"skills/AVAILABLE_SKILLS.xml",
+		"skills/AVAILABLE_SKILLS.json",
+		"skills/SUMMARY.md",
+	}
+	for _, skill := range set.Skills {
+		if force {
+			skillDirRel := filepath.ToSlash(filepath.Join("skills", skill)) + "/"
+			skillDirPath := filepath.Join(workDir, "skills", skill)
+			if exists(skillDirPath) {
+				plan.Update = append(plan.Update, skillDirRel)
+			} else {
+				targets = append(targets, filepath.ToSlash(filepath.Join("skills", skill, "SKILL.md")))
+			}
+			continue
+		}
+		targets = append(targets, filepath.ToSlash(filepath.Join("skills", skill, "SKILL.md")))
+	}
+
+	for _, rel := range uniqSorted(targets) {
+		path := filepath.Join(workDir, filepath.FromSlash(rel))
+		if exists(path) {
+			if force {
+				plan.Update = append(plan.Update, rel)
+			} else {
+				plan.Keep = append(plan.Keep, rel)
+			}
+			continue
+		}
+		plan.Create = append(plan.Create, rel)
+	}
+
+	if force {
+		if exists(skillsDirPath) {
+			plan.Update = append(plan.Update, "skills/")
+		}
+		plan.Remove = append(plan.Remove, staleSkillsForceTargets(workDir, set)...)
+	}
+
+	plan.Create = uniqSorted(plan.Create)
+	plan.Update = uniqSorted(plan.Update)
+	plan.Keep = uniqSorted(plan.Keep)
+	plan.Remove = uniqSorted(plan.Remove)
+	return plan
+}
+
 func AssembleManifest(base manifest.Manifest, set InstallSet) manifest.Manifest {
 	assembled := manifest.Manifest{
 		ManagedTargets:   append([]string{}, base.ManagedTargets...),
@@ -510,6 +570,36 @@ func staleForceTargets(workDir string, set InstallSet) []string {
 	}
 
 	return stale
+}
+
+func staleSkillsForceTargets(workDir string, set InstallSet) []string {
+	var stale []string
+
+	selectedSkills := make(map[string]bool, len(set.Skills))
+	for _, skill := range set.Skills {
+		selectedSkills[skill] = true
+	}
+	managedIndexFiles := map[string]bool{
+		"AVAILABLE_SKILLS.xml":  true,
+		"AVAILABLE_SKILLS.json": true,
+		"SUMMARY.md":            true,
+	}
+	entries, err := osReadDir(filepath.Join(workDir, "skills"))
+	if err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				if !selectedSkills[entry.Name()] {
+					stale = append(stale, filepath.ToSlash(filepath.Join("skills", entry.Name())))
+				}
+				continue
+			}
+			if !managedIndexFiles[entry.Name()] {
+				stale = append(stale, filepath.ToSlash(filepath.Join("skills", entry.Name())))
+			}
+		}
+	}
+
+	return uniqSorted(stale)
 }
 
 var (

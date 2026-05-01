@@ -2,26 +2,26 @@
 
 # Run the CLI test suite (auto-installs a temporary bats copy from tests/vendor when needed)
 test:
-	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go run ./cmd/afstest
-	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go run ./cmd/afsverify
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go run ./cmd/afstest
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go run ./cmd/afsverify
 
 test-checkout:
-	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go run ./cmd/afstest
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go run ./cmd/afstest
 
 test-installed:
-	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go run ./cmd/afsverify
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go run ./cmd/afsverify
 
 go-test:
-	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go test ./...
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go test ./...
 
 go-build:
-	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go build ./cmd/afs
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go build ./cmd/afs
 
 lint-shell:
 	./scripts/lint-shell
 
 smoke-install:
-	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" go run ./cmd/afssmoke
+	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go run ./cmd/afssmoke
 
 # Remove any leftover temp dirs from failed/terminated test runs
 clean-test:

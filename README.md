@@ -46,12 +46,14 @@ On Windows, use:
 Verify the local install:
 
 ```bash
+afs version
 afs doctor
 ```
 
 ## What `add-agent` writes
 
 `afs analyze` inspects the current repository and reports the resolved install set without writing files.
+`afs analyze --evidence` includes both scan hits and the evidence used to resolve detected project types and technologies.
 
 `afs add-agent` now analyzes the repo first, previews the selected bundles, and then bootstraps a conservative scaffold.
 
@@ -88,7 +90,7 @@ Supported automatic bundle composition currently includes:
 
 Because `rules/*.yaml` and `skills/*` are managed paths, local custom files under those paths can be replaced or removed during `--force`.
 
-`afs add-agent --only-skills` refreshes only skills. Without `--force`, existing invalid skill files are preserved but omitted from the generated skills indexes.
+`afs add-agent --only-skills` refreshes only skills. Without `--force`, existing invalid skill files are preserved but omitted from the generated skills indexes. With `--force`, preview output now reflects the full managed `skills/` replacement and any skill entries that will be removed.
 
 ## Example Flows
 
@@ -130,6 +132,7 @@ Skills metadata contract:
 
 ```bash
 afs help
+afs version
 afs uninstall
 afs doctor
 afs doctor --check-update
@@ -182,7 +185,7 @@ agent47/
 
 Responsibility split:
 
-- `bin/afs` is the repo-local launcher. It prefers `AGENT47_GO_CLI`, then `AGENT47_REPO_CLI`, then `go run ./cmd/afs`.
+- `bin/afs` is the repo-local launcher. It prefers `AGENT47_GO_CLI`, then `AGENT47_REPO_CLI`, then `go run ./cmd/afs`, using repo-safe `GOCACHE` and `GOMODCACHE` defaults when it falls back to Go.
 - `cmd/afs` and `internal/*` implement command routing, install/uninstall, bootstrap, doctor, update checks, prompts, manifest handling, and skills generation.
 - `install.sh` and `install.ps1` are thin public wrappers over the native install flow.
 - `templates/manifest.txt` keeps the managed and preserved target contract, while `templates/base/manifest.txt` plus `templates/bundles/*/manifest.txt` drive the assembled runtime payload.
@@ -209,7 +212,7 @@ make smoke-install
 Notes:
 
 - `make test` runs the checkout test runner plus installed-artifact verification.
-- `make go-test` runs `go test ./...` with a repo-safe `GOCACHE`.
+- `make go-test` runs `go test ./...` with repo-safe `GOCACHE` and `GOMODCACHE`.
 - `make smoke-install` runs an isolated install plus `doctor` verification.
 - `scripts/lint-shell` is the remaining shell maintenance entrypoint in this repo.
 

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/leanbusqts/agent47/internal/cli"
 	"github.com/leanbusqts/agent47/internal/runtime"
@@ -41,6 +42,101 @@ func TestRunAddAgentOnlySkills(t *testing.T) {
 	assertFileExists(t, filepath.Join(env.workDir, "skills", "AVAILABLE_SKILLS.xml"))
 	assertNotExists(t, filepath.Join(env.workDir, "AGENTS.md"))
 	assertNotExists(t, filepath.Join(env.workDir, "rules"))
+}
+
+func TestRunAddAgentOnlySkillsPreviewDoesNotWriteFiles(t *testing.T) {
+	env := newAddAgentEnv(t)
+
+	status, stdout, stderr := env.run(t, "add-agent", "--only-skills", "--preview")
+	if status != 0 {
+		t.Fatalf("expected status 0, got %d: %s", status, stderr)
+	}
+	if !strings.Contains(stdout, "mode: only-skills") {
+		t.Fatalf("expected only-skills preview mode, got %s", stdout)
+	}
+	assertNotExists(t, filepath.Join(env.workDir, "skills"))
+	assertNotExists(t, filepath.Join(env.workDir, "AGENTS.md"))
+	assertNotExists(t, filepath.Join(env.workDir, "rules"))
+}
+
+func TestRunAddAgentOnlySkillsRespectsExplicitBundles(t *testing.T) {
+	env := newAddAgentEnv(t)
+
+	status, _, stderr := env.run(t, "add-agent", "--only-skills", "--bundle", "cli", "--yes")
+	if status != 0 {
+		t.Fatalf("expected status 0, got %d: %s", status, stderr)
+	}
+
+	assertFileExists(t, filepath.Join(env.workDir, "skills", "cli-design", "SKILL.md"))
+	assertNotExists(t, filepath.Join(env.workDir, "skills", "optimize"))
+	assertNotExists(t, filepath.Join(env.workDir, "skills", "refactor"))
+	assertNotExists(t, filepath.Join(env.workDir, "AGENTS.md"))
+	assertNotExists(t, filepath.Join(env.workDir, "rules"))
+}
+
+func TestRunAddAgentOnlySkillsPromptsBeforeWriting(t *testing.T) {
+	env := newAddAgentEnv(t)
+
+	restoreConfirmHooks := overrideAddAgentConfirmHooks(
+		t,
+		func(bool) bool { return true },
+		func(*Root) bool { return false },
+	)
+	defer restoreConfirmHooks()
+
+	status, stdout, stderr := env.run(t, "add-agent", "--only-skills")
+	if status != 0 {
+		t.Fatalf("expected status 0, got %d: %s", status, stderr)
+	}
+	if !strings.Contains(stdout, "Aborted before writing.") {
+		t.Fatalf("expected abort message, got %s", stdout)
+	}
+
+	assertNotExists(t, filepath.Join(env.workDir, "skills"))
+	assertNotExists(t, filepath.Join(env.workDir, "AGENTS.md"))
+	assertNotExists(t, filepath.Join(env.workDir, "rules"))
+}
+
+func TestShouldConfirmWriteReturnsTrueForTTYWithoutYesOrCI(t *testing.T) {
+	restoreStatHooks := overrideConfirmStatHooks(
+		t,
+		func() (os.FileInfo, error) { return fakeTTYFileInfo{}, nil },
+		func() (os.FileInfo, error) { return fakeTTYFileInfo{}, nil },
+	)
+	defer restoreStatHooks()
+
+	if shouldConfirmWrite(true) {
+		t.Fatal("expected --yes to bypass confirmation")
+	}
+
+	if got := shouldConfirmWrite(false); !got {
+		t.Fatal("expected confirmation for interactive TTY")
+	}
+}
+
+func TestShouldConfirmWriteReturnsFalseOutsideTTYOrInCI(t *testing.T) {
+	restoreStatHooks := overrideConfirmStatHooks(
+		t,
+		func() (os.FileInfo, error) { return fakeRegularFileInfo{}, nil },
+		func() (os.FileInfo, error) { return fakeTTYFileInfo{}, nil },
+	)
+	defer restoreStatHooks()
+
+	if got := shouldConfirmWrite(false); got {
+		t.Fatal("expected no confirmation when stdin is not a TTY")
+	}
+
+	t.Setenv("CI", "1")
+	restoreTTYStatHooks := overrideConfirmStatHooks(
+		t,
+		func() (os.FileInfo, error) { return fakeTTYFileInfo{}, nil },
+		func() (os.FileInfo, error) { return fakeTTYFileInfo{}, nil },
+	)
+	defer restoreTTYStatHooks()
+
+	if got := shouldConfirmWrite(false); got {
+		t.Fatal("expected CI to bypass confirmation")
+	}
 }
 
 func TestRunAddAgentForcePreservesProjectFilesAndRefreshesManagedArea(t *testing.T) {
@@ -335,3 +431,49 @@ func assertFileContains(t *testing.T, path string, fragment string) {
 		t.Fatalf("expected %s to contain %q, got %s", path, fragment, string(data))
 	}
 }
+
+func overrideAddAgentConfirmHooks(t *testing.T, should func(bool) bool, confirm func(*Root) bool) func() {
+	t.Helper()
+
+	prevShould := shouldConfirmWriteFunc
+	prevConfirm := confirmWriteFunc
+	shouldConfirmWriteFunc = should
+	confirmWriteFunc = confirm
+
+	return func() {
+		shouldConfirmWriteFunc = prevShould
+		confirmWriteFunc = prevConfirm
+	}
+}
+
+func overrideConfirmStatHooks(t *testing.T, stdin func() (os.FileInfo, error), stdout func() (os.FileInfo, error)) func() {
+	t.Helper()
+
+	prevStdin := stdinStatFunc
+	prevStdout := stdoutStatFunc
+	stdinStatFunc = stdin
+	stdoutStatFunc = stdout
+
+	return func() {
+		stdinStatFunc = prevStdin
+		stdoutStatFunc = prevStdout
+	}
+}
+
+type fakeTTYFileInfo struct{}
+
+func (fakeTTYFileInfo) Name() string       { return "tty" }
+func (fakeTTYFileInfo) Size() int64        { return 0 }
+func (fakeTTYFileInfo) Mode() os.FileMode  { return os.ModeCharDevice }
+func (fakeTTYFileInfo) ModTime() time.Time { return time.Time{} }
+func (fakeTTYFileInfo) IsDir() bool        { return false }
+func (fakeTTYFileInfo) Sys() any           { return nil }
+
+type fakeRegularFileInfo struct{}
+
+func (fakeRegularFileInfo) Name() string       { return "file" }
+func (fakeRegularFileInfo) Size() int64        { return 0 }
+func (fakeRegularFileInfo) Mode() os.FileMode  { return 0 }
+func (fakeRegularFileInfo) ModTime() time.Time { return time.Time{} }
+func (fakeRegularFileInfo) IsDir() bool        { return false }
+func (fakeRegularFileInfo) Sys() any           { return nil }

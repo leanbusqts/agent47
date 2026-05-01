@@ -15,6 +15,13 @@ import (
 	"github.com/leanbusqts/agent47/internal/templates"
 )
 
+var (
+	shouldConfirmWriteFunc = shouldConfirmWrite
+	confirmWriteFunc       = confirmWrite
+	stdinStatFunc          = func() (os.FileInfo, error) { return os.Stdin.Stat() }
+	stdoutStatFunc         = func() (os.FileInfo, error) { return os.Stdout.Stat() }
+)
+
 func (r *Root) runAddAgent(ctx context.Context, cfg runtime.Config, args []string) int {
 	var opts bootstrap.Options
 	var resolveOpts resolve.Options
@@ -57,22 +64,28 @@ func (r *Root) runAddAgent(ctx context.Context, cfg runtime.Config, args []strin
 		return 1
 	}
 
-	if !opts.OnlySkills {
-		result, installSet, err := analyzeAndResolve(workDir, resolveOpts)
-		if err != nil {
-			r.out.Err("%s", normalizeBootstrapError(err))
-			return 1
-		}
-		printAddAgentPlan(r, result, installSet, workDir, opts.Force)
-		opts.InstallSet = installSet
+	result, installSet, err := analyzeAndResolve(workDir, resolveOpts)
+	if err != nil {
+		r.out.Err("%s", normalizeBootstrapError(err))
+		return 1
+	}
+	opts.InstallSet = installSet
 
+	if opts.OnlySkills {
+		if previewOnly {
+			printOnlySkillsPlan(r, result, installSet, workDir, opts.Force)
+			return 0
+		}
+	} else {
+		printAddAgentPlan(r, result, installSet, workDir, opts.Force)
 		if previewOnly {
 			return 0
 		}
-		if shouldConfirmWrite(opts.Yes) && !confirmWrite(r) {
-			r.out.Info("Aborted before writing.")
-			return 0
-		}
+	}
+
+	if shouldConfirmWriteFunc(opts.Yes) && !confirmWriteFunc(r) {
+		r.out.Info("Aborted before writing.")
+		return 0
 	}
 
 	service, err := bootstrap.New(cfg, r.out)
@@ -116,29 +129,7 @@ func normalizeBootstrapError(err error) string {
 }
 
 func printAddAgentPlan(r *Root, result analyze.AnalysisResult, set resolve.InstallSet, workDir string, force bool) {
-	r.out.Info("Analyzing repository...")
-	if result.LowSignal {
-		r.out.Info("No strong project signals found.")
-	}
-	if result.UnresolvedConflict {
-		r.out.Warn("Multiple project types detected with no supported automatic composition:")
-		for _, projectType := range result.ConflictProjectTypes {
-			r.out.Printf("       - %s\n", projectType)
-		}
-		r.out.Info("Installing base bundle only.")
-		r.out.Info("No project-specific bundles were installed because the project type is ambiguous.")
-		r.out.Info("Run: afs analyze --verbose")
-		r.out.Info("Or install explicit bundles with:")
-		for _, projectType := range result.ConflictProjectTypes {
-			r.out.Printf("       afs add-agent --bundle %s\n", projectType)
-		}
-	}
-	if len(result.ManagedState.Notes) > 0 {
-		for _, note := range result.ManagedState.Notes {
-			r.out.Info("%s", note)
-		}
-	}
-
+	printAnalysisHeader(r, result)
 	r.out.Printf("Preview\n")
 	r.out.Printf("  types: %s\n", summarizeProjectTypes(result.ProjectTypes))
 	r.out.Printf("  bundles: %s\n", strings.Join(set.Bundles, ", "))
@@ -170,16 +161,75 @@ func printAddAgentPlan(r *Root, result analyze.AnalysisResult, set resolve.Insta
 	}
 }
 
+func printOnlySkillsPlan(r *Root, result analyze.AnalysisResult, set resolve.InstallSet, workDir string, force bool) {
+	printAnalysisHeader(r, result)
+	r.out.Printf("Preview\n")
+	r.out.Printf("  mode: only-skills\n")
+	r.out.Printf("  types: %s\n", summarizeProjectTypes(result.ProjectTypes))
+	r.out.Printf("  bundles: %s\n", strings.Join(set.Bundles, ", "))
+
+	plan := resolve.BuildSkillsActionPlan(workDir, set, force)
+	if len(plan.Create) > 0 {
+		r.out.Printf("  create:\n")
+		for _, item := range plan.Create {
+			r.out.Printf("    %s\n", item)
+		}
+	}
+	if len(plan.Update) > 0 {
+		r.out.Printf("  update:\n")
+		for _, item := range plan.Update {
+			r.out.Printf("    %s\n", item)
+		}
+	}
+	if len(plan.Keep) > 0 {
+		r.out.Printf("  keep:\n")
+		for _, item := range plan.Keep {
+			r.out.Printf("    %s\n", item)
+		}
+	}
+	if len(plan.Remove) > 0 {
+		r.out.Printf("  remove on --force:\n")
+		for _, item := range plan.Remove {
+			r.out.Printf("    %s\n", item)
+		}
+	}
+}
+
+func printAnalysisHeader(r *Root, result analyze.AnalysisResult) {
+	r.out.Info("Analyzing repository...")
+	if result.LowSignal {
+		r.out.Info("No strong project signals found.")
+	}
+	if result.UnresolvedConflict {
+		r.out.Warn("Multiple project types detected with no supported automatic composition:")
+		for _, projectType := range result.ConflictProjectTypes {
+			r.out.Printf("       - %s\n", projectType)
+		}
+		r.out.Info("Installing base bundle only.")
+		r.out.Info("No project-specific bundles were installed because the project type is ambiguous.")
+		r.out.Info("Run: afs analyze --verbose")
+		r.out.Info("Or install explicit bundles with:")
+		for _, projectType := range result.ConflictProjectTypes {
+			r.out.Printf("       afs add-agent --bundle %s\n", projectType)
+		}
+	}
+	if len(result.ManagedState.Notes) > 0 {
+		for _, note := range result.ManagedState.Notes {
+			r.out.Info("%s", note)
+		}
+	}
+}
+
 func shouldConfirmWrite(yes bool) bool {
 	if yes || os.Getenv("CI") != "" {
 		return false
 	}
 
-	stdinInfo, err := os.Stdin.Stat()
+	stdinInfo, err := stdinStatFunc()
 	if err != nil {
 		return false
 	}
-	stdoutInfo, err := os.Stdout.Stat()
+	stdoutInfo, err := stdoutStatFunc()
 	if err != nil {
 		return false
 	}

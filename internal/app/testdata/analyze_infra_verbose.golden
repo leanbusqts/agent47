@@ -24,3 +24,5 @@ Skills
   troubleshoot
 
 Evidence
+  project-type: Resolved project type infra (medium) (.tf files, helmfile.yaml, charts/, terraform/, infra/)
+  technology: Resolved technology infra (medium) (.tf files, helmfile.yaml, charts/, terraform/)

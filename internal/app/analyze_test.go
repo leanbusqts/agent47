@@ -86,6 +86,29 @@ func TestRunAnalyzeVerboseShowsTestingStacksAndMappedSkills(t *testing.T) {
 	}
 }
 
+func TestRunAnalyzeEvidenceShowsClassificationEvidence(t *testing.T) {
+	workDir := t.TempDir()
+	mustWriteFile(t, filepath.Join(workDir, "go.mod"), "module example.com/test\n")
+	mustWriteFile(t, filepath.Join(workDir, "install.sh"), "#!/usr/bin/env bash\n")
+	if err := os.MkdirAll(filepath.Join(workDir, "cmd"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(workDir, "scripts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, stderr, status := runAnalyzeInDir(t, workDir, "analyze", "--evidence")
+	if status != 0 {
+		t.Fatalf("expected status 0, got %d: %s", status, stderr)
+	}
+	if !bytes.Contains([]byte(stdout), []byte("project-type: Resolved project type cli")) {
+		t.Fatalf("expected project-type evidence in output, got %s", stdout)
+	}
+	if !bytes.Contains([]byte(stdout), []byte("technology: Resolved technology shell")) {
+		t.Fatalf("expected technology evidence in output, got %s", stdout)
+	}
+}
+
 func TestRunAddAgentPreviewDoesNotWriteFiles(t *testing.T) {
 	env := newAddAgentEnv(t)
 	if err := os.MkdirAll(filepath.Join(env.workDir, "cmd"), 0o755); err != nil {

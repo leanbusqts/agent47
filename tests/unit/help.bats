@@ -15,6 +15,7 @@ teardown() {
   assert_success
   assert_contains "$output" "Core commands:"
   assert_contains "$output" "afs help"
+  assert_contains "$output" "afs version"
   assert_not_contains "$output" "afs install [--force]"
   assert_not_contains "$output" "afs upgrade [--force]"
   assert_not_contains "$output" "afs add-spec"

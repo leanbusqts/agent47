@@ -58,6 +58,7 @@ func (r *Root) printHelp(version string) {
 	r.out.Printf("\n")
 	r.out.Printf("Core commands:\n")
 	r.out.Printf("  afs help\n")
+	r.out.Printf("  afs version\n")
 	r.out.Printf("  afs uninstall\n")
 	r.out.Printf("  afs doctor [--check-update|--check-update-force|--fail-on-warn]\n")
 	r.out.Printf("\n")
