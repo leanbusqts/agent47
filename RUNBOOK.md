@@ -73,12 +73,17 @@ afs analyze --verbose
 - `skills/AVAILABLE_SKILLS.xml`
 - `skills/AVAILABLE_SKILLS.json`
 - `skills/SUMMARY.md`
-- `prompts/agent-prompt.txt`
-- `prompts/ss-prompt.txt`
 - an empty `README.md` if missing
 - `specs/spec.yml` if missing
 
 Existing managed files are preserved unless you use `--force`.
+
+Prompt helpers stay available as explicit commands:
+
+```bash
+afs add-agent-prompt [--force]
+afs add-ss-prompt
+```
 
 Useful inspection modes:
 

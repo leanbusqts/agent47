@@ -17,8 +17,8 @@ func TestResolveLowSignalFallsBackToBaseBundle(t *testing.T) {
 	if len(set.Bundles) != 1 || set.Bundles[0] != "base" {
 		t.Fatalf("expected base bundle only, got %v", set.Bundles)
 	}
-	if len(set.Prompts) != 2 {
-		t.Fatalf("expected prompt helpers, got %v", set.Prompts)
+	if len(set.Prompts) != 0 {
+		t.Fatalf("did not expect default scaffold prompts, got %v", set.Prompts)
 	}
 }
 
@@ -241,13 +241,12 @@ func TestAssembleManifestFiltersToResolvedContract(t *testing.T) {
 		RuleTemplates:         []string{"rules-backend.yaml", "security-global.yaml", "security-shell.yaml"},
 		ManagedTargets:        []string{"AGENTS.md", "rules/*.yaml", "skills/*", "skills/AVAILABLE_SKILLS.xml", "skills/AVAILABLE_SKILLS.json", "skills/SUMMARY.md"},
 		PreservedTargets:      []string{"README.md", "specs/spec.yml", "SNAPSHOT.md", "SPEC.md"},
-		RequiredTemplateFiles: []string{"AGENTS.md", "manifest.txt", "prompts/agent-prompt.txt", "prompts/ss-prompt.txt", "specs/spec.yml"},
-		RequiredTemplateDirs:  []string{"prompts", "rules", "skills", "specs"},
+		RequiredTemplateFiles: []string{"AGENTS.md", "manifest.txt", "specs/spec.yml"},
+		RequiredTemplateDirs:  []string{"rules", "skills", "specs"},
 	}
 
 	got := AssembleManifest(base, InstallSet{
-		Rules:   []string{"security-global.yaml", "security-shell.yaml"},
-		Prompts: []string{"agent-prompt.txt"},
+		Rules: []string{"security-global.yaml", "security-shell.yaml"},
 	})
 
 	if len(got.RuleTemplates) != 2 {
@@ -256,15 +255,20 @@ func TestAssembleManifestFiltersToResolvedContract(t *testing.T) {
 	if got.RequiredTemplateFiles[0] != "AGENTS.md" {
 		t.Fatalf("expected AGENTS.md in required template files, got %v", got.RequiredTemplateFiles)
 	}
-	foundSSPrompt := false
+	foundPromptDir := false
 	for _, file := range got.RequiredTemplateFiles {
 		if file == "prompts/ss-prompt.txt" {
-			foundSSPrompt = true
+			t.Fatalf("did not expect prompt helper template in assembled manifest: %v", got.RequiredTemplateFiles)
+		}
+	}
+	for _, dir := range got.RequiredTemplateDirs {
+		if dir == "prompts" {
+			foundPromptDir = true
 			break
 		}
 	}
-	if foundSSPrompt {
-		t.Fatalf("did not expect unused prompt in assembled manifest: %v", got.RequiredTemplateFiles)
+	if foundPromptDir {
+		t.Fatalf("did not expect prompt helper directory in assembled manifest: %v", got.RequiredTemplateDirs)
 	}
 }
 

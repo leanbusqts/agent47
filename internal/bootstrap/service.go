@@ -111,7 +111,6 @@ func (s *Service) Run(ctx context.Context, opts Options) (err error) {
 		opts.InstallSet = resolve.InstallSet{
 			BaseBundle: true,
 			Rules:      append([]string{}, m.RuleTemplates...),
-			Prompts:    []string{"agent-prompt.txt", "ss-prompt.txt"},
 		}
 	}
 	effectiveManifest = m

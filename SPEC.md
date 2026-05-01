@@ -34,7 +34,7 @@ The product is intentionally conservative:
 
 ## 3. Goals
 
-- Keep policy, stack guidance, security rules, skills, and prompts versioned as normal files inside the target repo.
+- Keep policy, stack guidance, security rules, skills, and optional prompt helpers versioned as normal files when they are installed into the target repo.
 - Make managed vs preserved ownership explicit and machine-checkable through `templates/manifest.txt`.
 - Support agent CLIs and IDE agents through repo conventions instead of vendor-specific config.
 - Keep install, refresh, uninstall, and doctor flows safe and testable.
@@ -84,7 +84,7 @@ Public command:
 Expected outcome:
 
 - confirm managed launcher and helper commands are available
-- confirm templates and prompt assets exist
+- confirm templates and helper commands are available
 - validate template integrity and required `AGENTS.md` sections
 - optionally perform an update check
 - allow combining `--fail-on-warn` with update-check flags in one invocation
@@ -113,7 +113,6 @@ Expected outcome:
 - write `AGENTS.md` if absent
 - write the resolved `rules/*.yaml` if absent
 - create the resolved `skills/*` and managed skills indexes
-- create `prompts/agent-prompt.txt` and `prompts/ss-prompt.txt` if absent
 - create an empty `README.md` if absent
 - create `specs/spec.yml` if absent
 - preserve existing managed files unless `--force` is used
@@ -122,7 +121,7 @@ Default resolution behavior:
 
 - low-signal repos install the base bundle only
 - unresolved project-type conflicts install the base bundle only and print an explicit warning
-- the base bundle includes `AGENTS.md`, shell/global security rules, universal skills, prompt helpers, and `specs/spec.yml`
+- the base bundle includes `AGENTS.md`, shell/global security rules, universal skills, and `specs/spec.yml`
 - supported project bundles currently include frontend, backend, mobile, cli, scripts, infra, monorepo-tooling, desktop, and plugin
 - supported automatic bundle composition currently includes `cli` + `scripts`, `cli` + `monorepo-tooling`, and `desktop` + `plugin`
 - in interactive TTY environments, `afs add-agent` asks for confirmation before writing, including skills-only mode, unless `--yes` is supplied
@@ -175,7 +174,7 @@ Public commands:
 
 Expected outcome:
 
-- create or refresh `prompts/agent-prompt.txt`
+- create or refresh `prompts/agent-prompt.txt` on demand
 - copy the snapshot/spec helper prompt to a supported clipboard tool when available
 - otherwise print the snapshot/spec helper prompt from installed templates
 

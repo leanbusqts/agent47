@@ -178,12 +178,9 @@ README.md
 [required_template_files]
 AGENTS.md
 manifest.txt
-prompts/agent-prompt.txt
-prompts/ss-prompt.txt
 specs/spec.yml
 
 [required_template_dirs]
-prompts
 rules
 skills
 specs

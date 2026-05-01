@@ -84,12 +84,9 @@ var (
 	requiredTemplateFiles = []string{
 		"AGENTS.md",
 		"manifest.txt",
-		"prompts/agent-prompt.txt",
-		"prompts/ss-prompt.txt",
 		"specs/spec.yml",
 	}
 	requiredTemplateDirs = []string{
-		"prompts",
 		"rules",
 		"skills",
 		"specs",

@@ -322,28 +322,23 @@ func TestCheckTemplateManifestWarnsWhenContractExpands(t *testing.T) {
 	}
 }
 
-func TestCheckRequiredTemplateFilesWarnsWhenSSPromptMissing(t *testing.T) {
+func TestCheckRequiredTemplateFilesWarnsWhenSpecMissing(t *testing.T) {
 	templateDir := t.TempDir()
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "AGENTS.md"), "agents\n")
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), "manifest\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "prompts", "agent-prompt.txt"), "agent prompt\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "specs", "spec.yml"), "summary: test\n")
 	var stdout bytes.Buffer
 	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
 
 	if !service.checkRequiredTemplateFiles(templateDir) {
 		t.Fatal("expected missing template files warning")
 	}
-	if !strings.Contains(stdout.String(), "Missing template file: prompts/ss-prompt.txt") {
+	if !strings.Contains(stdout.String(), "Missing template file: specs/spec.yml") {
 		t.Fatalf("unexpected output: %s", stdout.String())
 	}
 }
 
 func TestCheckRequiredTemplateDirsWarnsWhenSpecsDirMissing(t *testing.T) {
 	templateDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(templateDir, "base", "prompts"), 0o755); err != nil {
-		t.Fatal(err)
-	}
 	if err := os.MkdirAll(filepath.Join(templateDir, "base", "rules"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -807,11 +802,8 @@ func validDoctorManifest() string {
 		"[required_template_files]",
 		"AGENTS.md",
 		"manifest.txt",
-		"prompts/agent-prompt.txt",
-		"prompts/ss-prompt.txt",
 		"specs/spec.yml",
 		"[required_template_dirs]",
-		"prompts",
 		"rules",
 		"skills",
 		"specs",

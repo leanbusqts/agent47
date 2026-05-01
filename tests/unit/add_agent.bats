@@ -23,8 +23,7 @@ teardown() {
   assert_file_exists "skills/SUMMARY.md"
   assert_file_exists "README.md"
   assert_file_exists "specs/spec.yml"
-  assert_file_exists "prompts/agent-prompt.txt"
-  assert_file_exists "prompts/ss-prompt.txt"
+  [ ! -d "prompts" ]
   [ ! -f "rules/rules-backend.yaml" ]
 }
 
@@ -180,7 +179,8 @@ EOF
   assert_success
   [ ! -f "rules/legacy.yaml" ]
   assert_file_exists "rules/security-global.yaml"
-  assert_file_exists "prompts/ss-prompt.txt"
+  run grep -F "existing prompt" prompts/agent-prompt.txt
+  assert_success
   [ ! -d "skills/custom" ]
   run grep -F "existing readme" README.md
   assert_success

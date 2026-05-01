@@ -66,10 +66,13 @@ For empty or low-signal repos, the default install is the base bundle:
 - `skills/AVAILABLE_SKILLS.xml`
 - `skills/AVAILABLE_SKILLS.json`
 - `skills/SUMMARY.md`
-- `prompts/agent-prompt.txt`
-- `prompts/ss-prompt.txt`
 - an empty `README.md` if missing
 - `specs/spec.yml` if missing
+
+Prompt helpers are available as opt-in commands instead of default scaffold files:
+
+- `afs add-agent-prompt [--force]`
+- `afs add-ss-prompt`
 
 Higher-confidence repo types add project-specific rules and skills on top of that base bundle.
 

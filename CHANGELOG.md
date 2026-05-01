@@ -1,6 +1,10 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [1.3.1] - 2026-04-30
+### Changed
+- Stopped installing `prompts/agent-prompt.txt` and `prompts/ss-prompt.txt` by default in `afs add-agent`; both flows remain available as opt-in helper commands and are no longer part of the required scaffold contract.
+
 ## [1.3.0] - 2026-04-30
 ### Added
 - Documented `afs version` consistently across the public command surface and operational docs.
@@ -140,3 +144,4 @@
 ### Removed
 - Legacy prompt variants and the old `add-agent --with-skills --prompt` bootstrap flow.
 - Redundant documentation sprawl from the main `README.md` in favor of focused docs pages.
+- Stopped installing `prompts/agent-prompt.txt` and `prompts/ss-prompt.txt` by default in `afs add-agent`; both flows remain available as opt-in helper commands and are no longer part of the required scaffold contract.

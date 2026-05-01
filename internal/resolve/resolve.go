@@ -63,7 +63,7 @@ var bundles = map[string]Bundle{
 		Description:    "Conservative default scaffold for low-signal repositories.",
 		IncludesRules:  []string{"security-global.yaml", "security-shell.yaml"},
 		IncludesSkills: universalSkills,
-		IncludesFiles:  []string{"AGENTS.md", "specs/spec.yml", "README.md", "prompts/agent-prompt.txt", "prompts/ss-prompt.txt"},
+		IncludesFiles:  []string{"AGENTS.md", "specs/spec.yml", "README.md"},
 	},
 	"project-frontend": {
 		ID:            "project-frontend",
@@ -177,8 +177,6 @@ func Resolve(result analyze.AnalysisResult, opts Options) (InstallSet, error) {
 			"skills/AVAILABLE_SKILLS.json",
 			"skills/SUMMARY.md",
 			"specs/spec.yml",
-			"prompts/agent-prompt.txt",
-			"prompts/ss-prompt.txt",
 		},
 		KeepFiles:            []string{"README.md", "SNAPSHOT.md", "SPEC.md"},
 		UnresolvedConflict:   result.UnresolvedConflict,

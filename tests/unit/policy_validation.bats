@@ -159,6 +159,7 @@ template_rule_path() {
   ' "$ROOT_DIR/templates/manifest.txt")
 }
 
+
 @test "repo root AGENTS exists and matches the template" {
   assert_file_exists "$ROOT_DIR/AGENTS.md"
   run cmp -s "$ROOT_DIR/AGENTS.md" "$ROOT_DIR/templates/base/AGENTS.md"

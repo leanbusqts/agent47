@@ -12,7 +12,7 @@
 - **Repo launcher caches:** when `bin/afs` falls back to `go run`, it now seeds both repo-safe `GOCACHE` and `GOMODCACHE` defaults
 - **Installers:** `install.sh` and `install.ps1` are thin wrappers around the native install service
 - **Analyze:** `afs analyze` is read-only and reports detected project types, testing stacks, evidence, and the resolved install plan; `--evidence` now includes classification evidence as well as raw scan hits
-- **Bootstrap:** `afs add-agent` analyzes first, previews the resolved bundle set, and then scaffolds `AGENTS.md`, template rules, curated skills, `skills/AVAILABLE_SKILLS.xml`, `skills/AVAILABLE_SKILLS.json`, `skills/SUMMARY.md`, and `specs/spec.yml`
+- **Bootstrap:** `afs add-agent` analyzes first, previews the resolved bundle set, and then scaffolds `AGENTS.md`, template rules, curated skills, `skills/AVAILABLE_SKILLS.xml`, `skills/AVAILABLE_SKILLS.json`, `skills/SUMMARY.md`, and `specs/spec.yml`; prompt helpers are now opt-in via their own commands
 - **Skills indexes:** the skills contract also supports JSON and Markdown summary indexes alongside `skills/AVAILABLE_SKILLS.xml`
 - **Forced refresh:** `afs add-agent --force` performs a fresh install of the managed scaffold and removes stale managed rules and skills not present in the resolved assembled contract
 - **Preserved targets:** `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md` stay untouched during forced refresh
@@ -21,7 +21,7 @@
 - **Update checks:** `doctor --check-update` uses a remote `VERSION` when configured or the local git tracking ref when running from a checkout with an upstream branch; `doctor --check-update-force` performs `git fetch --quiet` first
 - **Doctor flags:** update flags and `--fail-on-warn` can be combined in a single invocation
 - **Doctor validation:** `afs doctor` now validates the installed manifest contract, required template files and directories, stack rule templates, security templates, and required `AGENTS.md` sections
-- **Prompt helper:** `add-ss-prompt` copies to a supported clipboard tool when available and otherwise prints to stdout
+- **Prompt helpers:** `add-agent-prompt` and `add-ss-prompt` remain available as explicit helper commands, with `add-ss-prompt` copying to a supported clipboard tool when available and otherwise printing to stdout
 - **Testing:** `make test`, `make go-test`, `make go-build`, `make lint-shell`, and `make smoke-install` are the current maintainer entrypoints
 
 ## 3. Current Commands
@@ -64,5 +64,5 @@
 ## 7. Verification Notes
 
 - Manual empty-repo verification on April 29, 2026: `afs analyze` reported `type: unknown` and `bundles: base`, then `afs add-agent` installed the expected base scaffold.
-- Manual legacy-scaffold verification on April 29, 2026: `afs add-agent --force --yes` removed stale managed rules and stale managed skills, preserved `README.md` and `specs/spec.yml`, and added missing prompt helpers from the resolved contract.
+- Manual legacy-scaffold verification on April 29, 2026: `afs add-agent --force --yes` removed stale managed rules and stale managed skills, preserved `README.md` and `specs/spec.yml`, and kept prompt helpers as separate opt-in commands
 - Manual preview verification on April 30, 2026: `afs add-agent --only-skills --force --preview` reported the managed `skills/` replacement plus the concrete entries that would be removed under `skills/`.

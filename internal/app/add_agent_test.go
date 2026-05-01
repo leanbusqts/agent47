@@ -28,7 +28,7 @@ func TestRunAddAgentCreatesCoreFiles(t *testing.T) {
 	assertFileExists(t, filepath.Join(env.workDir, "skills", "review", "SKILL.md"))
 	assertFileExists(t, filepath.Join(env.workDir, "skills", "AVAILABLE_SKILLS.xml"))
 	assertFileExists(t, filepath.Join(env.workDir, "README.md"))
-	assertFileExists(t, filepath.Join(env.workDir, "prompts", "agent-prompt.txt"))
+	assertNotExists(t, filepath.Join(env.workDir, "prompts"))
 }
 
 func TestRunAddAgentOnlySkills(t *testing.T) {
@@ -161,7 +161,7 @@ func TestRunAddAgentForcePreservesProjectFilesAndRefreshesManagedArea(t *testing
 	assertFileContains(t, filepath.Join(env.workDir, "skills", "analyze", "SKILL.md"), "name: analyze")
 	assertFileContains(t, filepath.Join(env.workDir, "README.md"), "custom readme")
 	assertFileContains(t, filepath.Join(env.workDir, "SPEC.md"), "custom product spec")
-	assertFileExists(t, filepath.Join(env.workDir, "prompts", "agent-prompt.txt"))
+	assertNotExists(t, filepath.Join(env.workDir, "prompts"))
 }
 
 func TestRunAddAgentForceRollsBackOnInvalidSkillTemplate(t *testing.T) {
