@@ -105,6 +105,34 @@ func TestResolveSupportsPluginDesktopComposition(t *testing.T) {
 	}
 }
 
+func TestResolveSupportsDesktopScriptsComposition(t *testing.T) {
+	set, err := Resolve(analyze.AnalysisResult{
+		ProjectTypes: []analyze.DetectedProjectType{
+			{ID: "desktop", Confidence: analyze.ConfidenceHigh},
+			{ID: "scripts", Confidence: analyze.ConfidenceHigh},
+		},
+		Technologies: []analyze.DetectedTechnology{
+			{ID: "desktop-runtime", Confidence: analyze.ConfidenceHigh},
+			{ID: "shell", Confidence: analyze.ConfidenceHigh},
+		},
+	}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"base", "project-desktop", "project-scripts", "shared-testing"}
+	if len(set.Bundles) != len(want) {
+		t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
+	}
+	for i := range want {
+		if set.Bundles[i] != want[i] {
+			t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
+		}
+	}
+	if !containsString(set.Rules, "rules-desktop.yaml") || !containsString(set.Rules, "rules-scripts.yaml") {
+		t.Fatalf("expected desktop and scripts rules, got %v", set.Rules)
+	}
+}
+
 func TestResolveSupportsInfraBundle(t *testing.T) {
 	set, err := Resolve(analyze.AnalysisResult{
 		ProjectTypes: []analyze.DetectedProjectType{{ID: "infra", Confidence: analyze.ConfidenceHigh}},

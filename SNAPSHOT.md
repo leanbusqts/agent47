@@ -12,6 +12,7 @@
 - **Repo launcher caches:** when `bin/afs` falls back to `go run`, it now seeds both repo-safe `GOCACHE` and `GOMODCACHE` defaults
 - **Installers:** `install.sh` and `install.ps1` are thin wrappers around the native install service
 - **Analyze:** `afs analyze` is read-only and reports detected project types, testing stacks, evidence, and the resolved install plan; `--evidence` now includes classification evidence as well as raw scan hits
+- **SwiftPM desktop detection:** SwiftPM repos that declare `.macOS(...)` now resolve as `desktop`, and `desktop` + `scripts` is a supported automatic composition for macOS app repos with shell tooling
 - **Bootstrap:** `afs add-agent` analyzes first, previews the resolved bundle set, and then scaffolds `AGENTS.md`, template rules, curated skills, `skills/AVAILABLE_SKILLS.xml`, `skills/AVAILABLE_SKILLS.json`, `skills/SUMMARY.md`, and `specs/spec.yml`; prompt helpers are now opt-in via their own commands
 - **Skills indexes:** the skills contract also supports JSON and Markdown summary indexes alongside `skills/AVAILABLE_SKILLS.xml`
 - **Forced refresh:** `afs add-agent --force` performs a fresh install of the managed scaffold and removes stale managed rules and skills not present in the resolved assembled contract
@@ -22,6 +23,7 @@
 - **Doctor flags:** update flags and `--fail-on-warn` can be combined in a single invocation
 - **Doctor validation:** `afs doctor` now validates the installed manifest contract, required template files and directories, stack rule templates, security templates, and required `AGENTS.md` sections
 - **Prompt helpers:** `add-agent-prompt` and `add-ss-prompt` remain available as explicit helper commands, with `add-ss-prompt` copying to a supported clipboard tool when available and otherwise printing to stdout
+- **Version reporting:** installed `afs version` now reports the installed runtime version instead of picking up unrelated `VERSION` files from the current project
 - **Testing:** `make test`, `make go-test`, `make go-build`, `make lint-shell`, and `make smoke-install` are the current maintainer entrypoints
 
 ## 3. Current Commands
@@ -59,10 +61,11 @@
 
 ## 6. Last Updated
 
-- April 30, 2026
+- June 1, 2026
 
 ## 7. Verification Notes
 
 - Manual empty-repo verification on April 29, 2026: `afs analyze` reported `type: unknown` and `bundles: base`, then `afs add-agent` installed the expected base scaffold.
 - Manual legacy-scaffold verification on April 29, 2026: `afs add-agent --force --yes` removed stale managed rules and stale managed skills, preserved `README.md` and `specs/spec.yml`, and kept prompt helpers as separate opt-in commands
 - Manual preview verification on April 30, 2026: `afs add-agent --only-skills --force --preview` reported the managed `skills/` replacement plus the concrete entries that would be removed under `skills/`.
+- Manual regression target on June 1, 2026: a SwiftPM macOS menu bar app with `scripts/` should resolve automatically to `desktop + scripts` instead of falling back to the base bundle, and `afs version` should report the installed `agent47` version even inside repos that have their own `VERSION` file.

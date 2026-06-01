@@ -123,7 +123,7 @@ Default resolution behavior:
 - unresolved project-type conflicts install the base bundle only and print an explicit warning
 - the base bundle includes `AGENTS.md`, shell/global security rules, universal skills, and `specs/spec.yml`
 - supported project bundles currently include frontend, backend, mobile, cli, scripts, infra, monorepo-tooling, desktop, and plugin
-- supported automatic bundle composition currently includes `cli` + `scripts`, `cli` + `monorepo-tooling`, and `desktop` + `plugin`
+- supported automatic bundle composition currently includes `cli` + `scripts`, `cli` + `monorepo-tooling`, `desktop` + `scripts`, and `desktop` + `plugin`
 - in interactive TTY environments, `afs add-agent` asks for confirmation before writing, including skills-only mode, unless `--yes` is supplied
 
 ### 5.4 Fresh reinstall of the managed scaffold

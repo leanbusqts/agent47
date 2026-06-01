@@ -108,6 +108,65 @@ func TestAnalyzeAllowsSupportedPluginDesktopComposition(t *testing.T) {
 	}
 }
 
+func TestAnalyzeDetectsSwiftPMMacOSRepoAsDesktopNotMobile(t *testing.T) {
+	root := t.TempDir()
+	mustWriteAnalyzeFile(t, filepath.Join(root, "Package.swift"), `// swift-tools-version: 5.10
+import PackageDescription
+
+let package = Package(
+    name: "sauron",
+    platforms: [
+        .macOS(.v14)
+    ],
+    products: [
+        .executable(name: "sauron", targets: ["sauron"])
+    ]
+)
+`)
+	mustWriteAnalyzeFile(t, filepath.Join(root, "sources", "sauron", "main.swift"), "import AppKit\n")
+	mustWriteAnalyzeFile(t, filepath.Join(root, "scripts", "install.sh"), "#!/usr/bin/env bash\n")
+
+	result, err := (Service{}).Analyze(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasProjectType(result.ProjectTypes, "desktop") {
+		t.Fatalf("expected desktop project type, got %v", result.ProjectTypes)
+	}
+	if hasProjectType(result.ProjectTypes, "mobile") {
+		t.Fatalf("did not expect mobile project type, got %v", result.ProjectTypes)
+	}
+	if !hasProjectType(result.ProjectTypes, "scripts") {
+		t.Fatalf("expected scripts project type, got %v", result.ProjectTypes)
+	}
+}
+
+func TestAnalyzeDetectsSwiftPMIOSRepoAsMobile(t *testing.T) {
+	root := t.TempDir()
+	mustWriteAnalyzeFile(t, filepath.Join(root, "Package.swift"), `// swift-tools-version: 5.10
+import PackageDescription
+
+let package = Package(
+    name: "ios-app",
+    platforms: [
+        .iOS(.v17)
+    ]
+)
+`)
+	mustWriteAnalyzeFile(t, filepath.Join(root, "Sources", "App", "main.swift"), "import SwiftUI\n")
+
+	result, err := (Service{}).Analyze(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasProjectType(result.ProjectTypes, "mobile") {
+		t.Fatalf("expected mobile project type, got %v", result.ProjectTypes)
+	}
+	if hasProjectType(result.ProjectTypes, "desktop") {
+		t.Fatalf("did not expect desktop project type, got %v", result.ProjectTypes)
+	}
+}
+
 func TestAnalyzeDetectsInfraSignals(t *testing.T) {
 	root := t.TempDir()
 	mustWriteAnalyzeFile(t, filepath.Join(root, "main.tf"), "terraform {}\n")

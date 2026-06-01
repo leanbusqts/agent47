@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/leanbusqts/agent47/internal/platform"
 	"github.com/leanbusqts/agent47/internal/version"
@@ -70,6 +71,10 @@ func DetectConfig(executablePath string) (Config, error) {
 
 	repoRoot := detectRepoRoot(absExecutablePath)
 	templateMode := detectTemplateMode(repoRoot)
+	versionRepoRoot := ""
+	if shouldUseRepoVersion(absExecutablePath, repoRoot) {
+		versionRepoRoot = repoRoot
+	}
 
 	return Config{
 		OS:              runtimeOS(),
@@ -78,7 +83,7 @@ func DetectConfig(executablePath string) (Config, error) {
 		Agent47Home:     agent47Home,
 		CacheDir:        filepath.Join(agent47Home, "cache"),
 		UpdateCacheFile: filepath.Join(agent47Home, "cache", "update.cache"),
-		Version:         version.Current(repoRoot, agent47Home),
+		Version:         version.Current(versionRepoRoot, agent47Home),
 		TemplateMode:    templateMode,
 		RepoRoot:        repoRoot,
 		ExecutablePath:  absExecutablePath,
@@ -117,6 +122,25 @@ func detectRepoRoot(executablePath string) string {
 		}
 		current = parent
 	}
+}
+
+func shouldUseRepoVersion(executablePath, repoRoot string) bool {
+	if repoRoot == "" {
+		return false
+	}
+
+	rel, err := filepath.Rel(repoRoot, executablePath)
+	if err != nil {
+		return false
+	}
+	rel = filepath.Clean(rel)
+	if rel == "." {
+		return true
+	}
+	if strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+		return false
+	}
+	return true
 }
 
 func looksLikeRepoRoot(root string) bool {

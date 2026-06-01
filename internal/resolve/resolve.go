@@ -145,6 +145,7 @@ var bundles = map[string]Bundle{
 var supportedProjectCompositions = map[string]bool{
 	"cli+monorepo-tooling": true,
 	"cli+scripts":          true,
+	"desktop+scripts":      true,
 	"desktop+plugin":       true,
 }
 

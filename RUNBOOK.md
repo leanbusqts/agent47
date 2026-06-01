@@ -108,6 +108,11 @@ afs analyze
 afs add-agent --preview --bundle cli --bundle scripts
 afs add-agent --yes
 
+# macOS desktop app with scripts
+afs analyze
+afs add-agent --preview
+afs add-agent --yes
+
 # Unresolved conflict
 afs analyze --verbose
 afs add-agent --preview

@@ -56,6 +56,31 @@ func TestDetectConfigUsesRepoRootDetectedFromExecutablePath(t *testing.T) {
 	}
 }
 
+func TestDetectConfigPrefersInstalledHomeVersionWhenExecutableIsOutsideRepo(t *testing.T) {
+	repoRoot := t.TempDir()
+	mustWriteFile(t, filepath.Join(repoRoot, "templates", "manifest.txt"), "manifest\n")
+	mustWriteFile(t, filepath.Join(repoRoot, "AGENTS.md"), "agents\n")
+	mustWriteFile(t, filepath.Join(repoRoot, "VERSION"), "repo-version\n")
+
+	agent47Home := filepath.Join(t.TempDir(), ".agent47")
+	mustWriteFile(t, filepath.Join(agent47Home, "VERSION"), "home-version\n")
+
+	t.Setenv("AGENT47_REPO_ROOT", repoRoot)
+	t.Setenv("AGENT47_HOME", agent47Home)
+	t.Setenv("AGENT47_TEMPLATE_SOURCE", "")
+
+	cfg, err := DetectConfig(filepath.Join(agent47Home, "bin", "afs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.RepoRoot != repoRoot {
+		t.Fatalf("expected repo root %s, got %s", repoRoot, cfg.RepoRoot)
+	}
+	if cfg.Version != "home-version" {
+		t.Fatalf("expected installed home version, got %s", cfg.Version)
+	}
+}
+
 func TestDetectConfigUsesAbsoluteExecutablePathAndUserBin(t *testing.T) {
 	repoRoot := t.TempDir()
 	mustWriteFile(t, filepath.Join(repoRoot, "templates", "manifest.txt"), "manifest\n")

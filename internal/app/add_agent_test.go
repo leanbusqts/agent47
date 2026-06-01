@@ -246,6 +246,33 @@ func TestRunAddAgentAllowsCompatibleExplicitBundles(t *testing.T) {
 	}
 }
 
+func TestRunAddAgentAutoResolvesDesktopScriptsRepo(t *testing.T) {
+	env := newAddAgentEnv(t)
+	mustWriteFile(t, filepath.Join(env.workDir, "Package.swift"), `// swift-tools-version: 5.10
+import PackageDescription
+
+let package = Package(
+    name: "sauron",
+    platforms: [
+        .macOS(.v14)
+    ]
+)
+`)
+	mustWriteFile(t, filepath.Join(env.workDir, "sources", "sauron", "main.swift"), "import AppKit\n")
+	mustWriteFile(t, filepath.Join(env.workDir, "scripts", "install.sh"), "#!/usr/bin/env bash\n")
+
+	status, stdout, stderr := env.run(t, "add-agent", "--preview")
+	if status != 0 {
+		t.Fatalf("expected status 0, got %d: %s", status, stderr)
+	}
+	if strings.Contains(stdout, "bundles: base\n") {
+		t.Fatalf("did not expect base-only fallback, got %s", stdout)
+	}
+	if !strings.Contains(stdout, "bundles: base, project-desktop, project-scripts, shared-testing") {
+		t.Fatalf("expected desktop+scripts bundle preview, got %s", stdout)
+	}
+}
+
 func TestNormalizeBootstrapErrorHandlesNil(t *testing.T) {
 	if got := normalizeBootstrapError(nil); got != "" {
 		t.Fatalf("expected empty string, got %q", got)

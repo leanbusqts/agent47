@@ -80,6 +80,7 @@ Supported automatic bundle composition currently includes:
 
 - `cli` + `scripts`
 - `cli` + `monorepo-tooling`
+- `desktop` + `scripts`
 - `desktop` + `plugin`
 
 `afs add-agent --force` performs a fresh install of the resolved scaffold in the current project:
@@ -110,6 +111,14 @@ CLI repo with scripts:
 ```bash
 afs analyze
 afs add-agent --preview --bundle cli --bundle scripts
+afs add-agent --yes
+```
+
+macOS desktop app with scripts:
+
+```bash
+afs analyze
+afs add-agent --preview
 afs add-agent --yes
 ```
 

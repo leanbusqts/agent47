@@ -92,6 +92,7 @@ type repoSignals struct {
 	coreExtCounts   map[string]int
 	packageJSON     string
 	goMod           string
+	swiftPackage    string
 	evidence        []EvidenceItem
 	hasAgents       bool
 	hasRules        bool
@@ -186,6 +187,10 @@ func scan(root string) (repoSignals, error) {
 			}
 		case "Package.swift":
 			signals.hasSwiftPackage = true
+			body, err := os.ReadFile(path)
+			if err == nil {
+				signals.swiftPackage = string(body)
+			}
 			signals.evidence = append(signals.evidence, evidence("technology", "swift-package", "Detected Package.swift", rel))
 		case "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts":
 			signals.hasGradle = true
@@ -272,7 +277,7 @@ func detectTechnologies(signals repoSignals) []DetectedTechnology {
 		detected = append(detected, DetectedTechnology{ID: "workspace-tooling", Confidence: confidenceFromSignals(countMonorepoSignals(signals)), Evidence: collectEvidence(signals, "pnpm-workspace.yaml", "turbo.json", "nx.json", "lerna.json")})
 	}
 	if countDesktopSignals(signals) > 0 {
-		detected = append(detected, DetectedTechnology{ID: "desktop-runtime", Confidence: confidenceFromSignals(countDesktopSignals(signals)), Evidence: collectEvidence(signals, "package.json", "src-tauri/", "wails.json")})
+		detected = append(detected, DetectedTechnology{ID: "desktop-runtime", Confidence: confidenceFromSignals(countDesktopSignals(signals)), Evidence: collectEvidence(signals, "package.json", "src-tauri/", "wails.json", "Package.swift", ".macOS(")})
 	}
 	if countPluginSignals(signals) > 0 {
 		detected = append(detected, DetectedTechnology{ID: "plugin-hosting", Confidence: confidenceFromSignals(countPluginSignals(signals)), Evidence: collectEvidence(signals, "plugin.json", ".codex-plugin/plugin.json", "plugins/", "plugin/")})
@@ -358,8 +363,8 @@ func detectProjectTypes(signals repoSignals) []DetectedProjectType {
 	if countMonorepoSignals(signals) > 0 {
 		detected = append(detected, DetectedProjectType{ID: "monorepo-tooling", Confidence: confidenceFromSignals(countMonorepoSignals(signals)), Evidence: collectEvidence(signals, "pnpm-workspace.yaml", "turbo.json", "nx.json", "lerna.json", "apps/", "packages/")})
 	}
-	if signals.dirs["android"] || signals.dirs["ios"] || signals.hasGradle || signals.hasSwiftPackage {
-		detected = append(detected, DetectedProjectType{ID: "mobile", Confidence: ConfidenceHigh, Evidence: collectEvidence(signals, "android/", "ios/", "Gradle", "Package.swift")})
+	if signals.dirs["android"] || signals.dirs["ios"] || signals.hasGradle || countSwiftMobileSignals(signals) > 0 {
+		detected = append(detected, DetectedProjectType{ID: "mobile", Confidence: ConfidenceHigh, Evidence: collectEvidence(signals, "android/", "ios/", "Gradle", "Package.swift", ".iOS(", ".watchOS(", ".tvOS(")})
 	}
 	if hasPrefixDir(signals.coreDirs, "src") || hasPrefixDir(signals.coreDirs, "app") || hasPrefixDir(signals.coreDirs, "pages") || strings.Contains(signals.packageJSON, `"next"`) || strings.Contains(signals.packageJSON, `"astro"`) || strings.Contains(signals.packageJSON, `"react"`) {
 		detected = append(detected, DetectedProjectType{ID: "frontend", Confidence: confidenceFromCount(signals.coreExtCounts[".tsx"]+signals.coreExtCounts[".jsx"], "package.json"), Evidence: collectEvidence(signals, "src/", "app/", "pages/", "package.json")})
@@ -374,7 +379,7 @@ func detectProjectTypes(signals repoSignals) []DetectedProjectType {
 		detected = append(detected, DetectedProjectType{ID: "infra", Confidence: confidenceFromSignals(countInfraSignals(signals)), Evidence: collectEvidence(signals, ".tf files", "helmfile.yaml", "charts/", "terraform/", "infra/")})
 	}
 	if countDesktopSignals(signals) > 0 {
-		detected = append(detected, DetectedProjectType{ID: "desktop", Confidence: confidenceFromSignals(countDesktopSignals(signals)), Evidence: collectEvidence(signals, "package.json", "src-tauri/", "wails.json")})
+		detected = append(detected, DetectedProjectType{ID: "desktop", Confidence: confidenceFromSignals(countDesktopSignals(signals)), Evidence: collectEvidence(signals, "package.json", "src-tauri/", "wails.json", "Package.swift", ".macOS(")})
 	}
 	if countPluginSignals(signals) > 0 {
 		detected = append(detected, DetectedProjectType{ID: "plugin", Confidence: confidenceFromSignals(countPluginSignals(signals)), Evidence: collectEvidence(signals, "plugin.json", ".codex-plugin/plugin.json", "plugins/", "plugin/")})
@@ -418,7 +423,7 @@ func detectUnresolvedConflict(projectTypes []DetectedProjectType) (bool, []strin
 
 func supportedAutomaticComposition(left string, right string) bool {
 	switch left + "+" + right {
-	case "cli+scripts", "cli+monorepo-tooling", "desktop+plugin":
+	case "cli+scripts", "cli+monorepo-tooling", "desktop+plugin", "desktop+scripts":
 		return true
 	default:
 		return false
@@ -461,7 +466,28 @@ func countDesktopSignals(signals repoSignals) int {
 	if hasPrefixFile(signals.coreFiles, "electron-builder.") || hasPrefixFile(signals.coreFiles, "tauri.conf.") {
 		count++
 	}
+	if hasSwiftDesktopSignals(signals) {
+		count++
+	}
 	return count
+}
+
+func countSwiftMobileSignals(signals repoSignals) int {
+	count := 0
+	if strings.Contains(signals.swiftPackage, ".iOS(") {
+		count++
+	}
+	if strings.Contains(signals.swiftPackage, ".watchOS(") || strings.Contains(signals.swiftPackage, ".tvOS(") {
+		count++
+	}
+	return count
+}
+
+func hasSwiftDesktopSignals(signals repoSignals) bool {
+	if strings.Contains(signals.swiftPackage, ".macOS(") {
+		return true
+	}
+	return false
 }
 
 func countPluginSignals(signals repoSignals) int {

@@ -1,6 +1,15 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [1.3.2] - 2026-06-01
+### Changed
+- Improved repository analysis so SwiftPM macOS apps resolve as `desktop` when `Package.swift` declares `.macOS(...)`, instead of being treated as `mobile` from the Swift package signal alone.
+- Added `desktop` + `scripts` to the supported automatic bundle compositions so macOS desktop repos with shell tooling no longer fall back to the base bundle by default.
+- Updated `README.md`, `RUNBOOK.md`, and `SPEC.md` to document the new automatic `desktop` + `scripts` composition and the expected bootstrap flow for macOS desktop apps with scripts.
+
+### Fixed
+- Fixed `afs version` so installed runtimes report the installed `agent47` version from `~/.agent47/VERSION` instead of being overridden by an unrelated `VERSION` file in the target repository.
+
 ## [1.3.1] - 2026-04-30
 ### Changed
 - Stopped installing `prompts/agent-prompt.txt` and `prompts/ss-prompt.txt` by default in `afs add-agent`; both flows remain available as opt-in helper commands and are no longer part of the required scaffold contract.
