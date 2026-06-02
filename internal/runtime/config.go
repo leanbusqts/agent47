@@ -69,10 +69,10 @@ func DetectConfig(executablePath string) (Config, error) {
 		return Config{}, err
 	}
 
-	repoRoot := detectRepoRoot(absExecutablePath)
+	repoRoot, explicitRepoRoot := detectRepoRoot(absExecutablePath)
 	templateMode := detectTemplateMode(repoRoot)
 	versionRepoRoot := ""
-	if shouldUseRepoVersion(absExecutablePath, repoRoot) {
+	if explicitRepoRoot || shouldUseRepoVersion(absExecutablePath, repoRoot) {
 		versionRepoRoot = repoRoot
 	}
 
@@ -105,20 +105,20 @@ func detectTemplateMode(repoRoot string) TemplateMode {
 	return TemplateModeEmbedded
 }
 
-func detectRepoRoot(executablePath string) string {
+func detectRepoRoot(executablePath string) (string, bool) {
 	if repoRoot := os.Getenv("AGENT47_REPO_ROOT"); repoRoot != "" && looksLikeRepoRoot(repoRoot) {
-		return repoRoot
+		return repoRoot, true
 	}
 
 	current := filepath.Dir(executablePath)
 	for {
 		if looksLikeRepoRoot(current) {
-			return current
+			return current, false
 		}
 
 		parent := filepath.Dir(current)
 		if parent == current {
-			return ""
+			return "", false
 		}
 		current = parent
 	}

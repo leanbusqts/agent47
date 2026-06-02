@@ -13,16 +13,15 @@ func Current(repoRoot, agent47Home string) string {
 		return override
 	}
 
-	candidates := []string{
-		filepath.Join(repoRoot, "VERSION"),
-		filepath.Join(agent47Home, "VERSION"),
+	var candidates []string
+	if repoRoot != "" {
+		candidates = append(candidates, filepath.Join(repoRoot, "VERSION"))
+	}
+	if agent47Home != "" {
+		candidates = append(candidates, filepath.Join(agent47Home, "VERSION"))
 	}
 
 	for _, candidate := range candidates {
-		if candidate == "" {
-			continue
-		}
-
 		data, err := os.ReadFile(candidate)
 		if err != nil {
 			continue

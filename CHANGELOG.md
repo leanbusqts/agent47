@@ -1,6 +1,11 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [1.3.4] - 2026-06-02
+### Fixed
+- Fixed `afs version` and `afs doctor` so installed runtimes no longer read a `VERSION` file from the current working directory when no checkout repo root applies.
+- Fixed checkout-driven installs so `./install.sh` publishes the current repo `VERSION` when the repo launcher executes `go run` from a temporary binary outside the checkout.
+
 ## [1.3.3] - 2026-06-02
 ### Fixed
 - Fixed the `afs` entrypoint to derive runtime config from `os.Executable()` instead of `os.Args[0]`, so installed CLIs no longer couple version reporting to the current working directory when the shell invokes `afs` by name.

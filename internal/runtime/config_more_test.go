@@ -30,7 +30,7 @@ func TestDetectRepoRootWalksParents(t *testing.T) {
 	mustWriteFile(t, filepath.Join(repoRoot, "AGENTS.md"), "agents\n")
 
 	start := filepath.Join(repoRoot, "cmd", "afs", "nested", "afs")
-	if got := detectRepoRoot(start); got != repoRoot {
+	if got, explicit := detectRepoRoot(start); got != repoRoot || explicit {
 		t.Fatalf("expected repo root %s, got %s", repoRoot, got)
 	}
 }
@@ -65,6 +65,31 @@ func TestDetectConfigPrefersInstalledHomeVersionWhenExecutableIsOutsideRepo(t *t
 	agent47Home := filepath.Join(t.TempDir(), ".agent47")
 	mustWriteFile(t, filepath.Join(agent47Home, "VERSION"), "home-version\n")
 
+	t.Setenv("AGENT47_REPO_ROOT", "")
+	t.Setenv("AGENT47_HOME", agent47Home)
+	t.Setenv("AGENT47_TEMPLATE_SOURCE", "")
+
+	cfg, err := DetectConfig(filepath.Join(agent47Home, "bin", "afs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.RepoRoot != "" {
+		t.Fatalf("expected empty repo root, got %s", cfg.RepoRoot)
+	}
+	if cfg.Version != "home-version" {
+		t.Fatalf("expected installed home version, got %s", cfg.Version)
+	}
+}
+
+func TestDetectConfigPrefersExplicitRepoVersionWhenExecutableIsOutsideRepo(t *testing.T) {
+	repoRoot := t.TempDir()
+	mustWriteFile(t, filepath.Join(repoRoot, "templates", "manifest.txt"), "manifest\n")
+	mustWriteFile(t, filepath.Join(repoRoot, "AGENTS.md"), "agents\n")
+	mustWriteFile(t, filepath.Join(repoRoot, "VERSION"), "repo-version\n")
+
+	agent47Home := filepath.Join(t.TempDir(), ".agent47")
+	mustWriteFile(t, filepath.Join(agent47Home, "VERSION"), "home-version\n")
+
 	t.Setenv("AGENT47_REPO_ROOT", repoRoot)
 	t.Setenv("AGENT47_HOME", agent47Home)
 	t.Setenv("AGENT47_TEMPLATE_SOURCE", "")
@@ -76,8 +101,8 @@ func TestDetectConfigPrefersInstalledHomeVersionWhenExecutableIsOutsideRepo(t *t
 	if cfg.RepoRoot != repoRoot {
 		t.Fatalf("expected repo root %s, got %s", repoRoot, cfg.RepoRoot)
 	}
-	if cfg.Version != "home-version" {
-		t.Fatalf("expected installed home version, got %s", cfg.Version)
+	if cfg.Version != "repo-version" {
+		t.Fatalf("expected explicit repo version, got %s", cfg.Version)
 	}
 }
 
@@ -140,7 +165,7 @@ func TestDetectRepoRootIgnoresInvalidExplicitRepoRoot(t *testing.T) {
 	t.Setenv("AGENT47_REPO_ROOT", invalid)
 
 	start := filepath.Join(repoRoot, "bin", "afs")
-	if got := detectRepoRoot(start); got != repoRoot {
+	if got, explicit := detectRepoRoot(start); got != repoRoot || explicit {
 		t.Fatalf("expected fallback repo root %s, got %s", repoRoot, got)
 	}
 }
