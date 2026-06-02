@@ -24,6 +24,7 @@
 - **Doctor validation:** `afs doctor` now validates the installed manifest contract, required template files and directories, stack rule templates, security templates, and required `AGENTS.md` sections
 - **Prompt helpers:** `add-agent-prompt` and `add-ss-prompt` remain available as explicit helper commands, with `add-ss-prompt` copying to a supported clipboard tool when available and otherwise printing to stdout
 - **Version reporting:** installed `afs version` now reports the installed runtime version instead of picking up unrelated `VERSION` files from the current project
+- **Entrypoint resolution:** the installed `afs` launcher now resolves runtime metadata from the actual executable path (`os.Executable()`), avoiding cwd-sensitive version reporting when invoked through PATH
 - **Testing:** `make test`, `make go-test`, `make go-build`, `make lint-shell`, and `make smoke-install` are the current maintainer entrypoints
 
 ## 3. Current Commands
@@ -61,7 +62,7 @@
 
 ## 6. Last Updated
 
-- June 1, 2026
+- June 2, 2026
 
 ## 7. Verification Notes
 
@@ -69,3 +70,4 @@
 - Manual legacy-scaffold verification on April 29, 2026: `afs add-agent --force --yes` removed stale managed rules and stale managed skills, preserved `README.md` and `specs/spec.yml`, and kept prompt helpers as separate opt-in commands
 - Manual preview verification on April 30, 2026: `afs add-agent --only-skills --force --preview` reported the managed `skills/` replacement plus the concrete entries that would be removed under `skills/`.
 - Manual regression target on June 1, 2026: a SwiftPM macOS menu bar app with `scripts/` should resolve automatically to `desktop + scripts` instead of falling back to the base bundle, and `afs version` should report the installed `agent47` version even inside repos that have their own `VERSION` file.
+- Manual regression target on June 2, 2026: invoking the installed `afs` binary from a target repository should report the installed `agent47` version regardless of the shell-visible command name or the target repo working directory.

@@ -1,6 +1,10 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [1.3.3] - 2026-06-02
+### Fixed
+- Fixed the `afs` entrypoint to derive runtime config from `os.Executable()` instead of `os.Args[0]`, so installed CLIs no longer couple version reporting to the current working directory when the shell invokes `afs` by name.
+
 ## [1.3.2] - 2026-06-01
 ### Changed
 - Improved repository analysis so SwiftPM macOS apps resolve as `desktop` when `Package.swift` declares `.macOS(...)`, instead of being treated as `mobile` from the Swift package signal alone.
