@@ -182,20 +182,20 @@ template_rule_path() {
   assert_success
   run grep -F "refs:" "$ROOT_DIR/templates/base/rules/rules-frontend.yaml"
   assert_success
-  run grep -F 'applies_to: "backend|mobile"' "$ROOT_DIR/templates/base/rules/security-java-kotlin.yaml"
+  run grep -F 'applies_to: ["backend", "mobile"]' "$ROOT_DIR/templates/base/rules/security-java-kotlin.yaml"
   assert_success
-  run grep -F 'applies_to: "backend|mobile"' "$ROOT_DIR/templates/base/rules/security-csharp.yaml"
+  run grep -F 'applies_to: ["backend", "mobile"]' "$ROOT_DIR/templates/base/rules/security-csharp.yaml"
   assert_success
-  run grep -F 'applies_to: "shell"' "$ROOT_DIR/templates/base/rules/security-shell.yaml"
+  run grep -F 'applies_to: ["shell"]' "$ROOT_DIR/templates/base/rules/security-shell.yaml"
   assert_success
 }
 
 @test "dependency approval policy is present across AGENTS and stack rules" {
-  run grep -F "dependencies:approval" "$ROOT_DIR/templates/base/rules/rules-backend.yaml"
+  run grep -F 'id: "X-deps-001"' "$ROOT_DIR/rules/rules-cross.yaml"
   assert_success
-  run grep -F "dependencies:approval" "$ROOT_DIR/templates/base/rules/rules-frontend.yaml"
+  run grep -F 'refs: ["X-deps-001"]' "$ROOT_DIR/templates/base/rules/security-global.yaml"
   assert_success
-  run grep -F "mobile:dependencies" "$ROOT_DIR/templates/base/rules/rules-mobile.yaml"
+  run grep -F "rules/APPROVALS.md#dependencies" "$ROOT_DIR/AGENTS.md"
   assert_success
   run grep -F "A change is add, remove, upgrade, or pinning shift" "$ROOT_DIR/AGENTS.md"
   assert_success

@@ -1,16 +1,119 @@
+metadata:
+  version: 2
+  last_updated: "2026-05-11"
+  owner: "platform-tooling"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
 rules:
-  - topic: "cli:command-surface"
-    level: "high"
+  - id: "CLI-001"
+    topic: "cli:command-surface"
+    severity: "high"
+    applies_to: ["cli"]
     rule: "Document the supported command surface, keep help output accurate, and treat exit codes as part of the public contract."
+    rationale: |
+      Help text and exit codes are the public API of a CLI. Drift between docs,
+      help, and behavior breaks automation downstream and erodes trust.
+    refs: ["SCR-003"]
 
-  - topic: "cli:tty-behavior"
-    level: "high"
-    rule: "Keep TTY and non-TTY behavior explicit; output should remain readable in logs and automation."
+  - id: "CLI-002"
+    topic: "cli:tty-behavior"
+    severity: "high"
+    applies_to: ["cli"]
+    rule: "Keep TTY and non-TTY behavior explicit; primary output remains parseable in pipes and CI logs."
+    rationale: |
+      Color codes, progress bars, and pagers must auto-disable when stdout is not
+      a TTY. Otherwise CI logs accumulate escape sequences and grep/jq break.
+    refs: ["CLI-005"]
 
-  - topic: "cli:install-lifecycle"
-    level: "high"
+  - id: "CLI-003"
+    topic: "cli:install-lifecycle"
+    severity: "high"
+    applies_to: ["cli"]
     rule: "Installation, refresh, update, and uninstall flows must be explicit, testable, and safe to retry."
+    rationale: |
+      Install/uninstall touches user PATH, home directory, and managed assets.
+      Re-running an installer on a partially-installed state is the common case.
 
-  - topic: "cli:preview-before-mutation"
-    level: "high"
-    rule: "When commands modify repository state, prefer a preview or dry-run path that explains planned changes before mutation."
+  - id: "CLI-004"
+    topic: "cli:preview-before-mutation"
+    severity: "high"
+    applies_to: ["cli"]
+    rule: "Commands that modify repository state expose a `--preview`/`--dry-run` path that lists planned changes before mutating."
+    rationale: |
+      Bootstrap, refresh, and `--force` flows can overwrite managed files. A
+      preview path is the user's last guardrail.
+    refs: ["SCR-005"]
+
+  # ─── New rules (v4) ──────────────────────────────────────────────────────
+
+  - id: "CLI-005"
+    topic: "cli:stdout-stderr-contract"
+    severity: "high"
+    applies_to: ["cli"]
+    rule: "Use stdout for primary machine-readable results and stderr for diagnostics; do not interleave."
+    rationale: |
+      Pipes capture stdout. Logging to stdout breaks `cmd | jq`, `cmd > file`,
+      and CI capture. This is the most common DX regression in CLIs.
+    refs: ["X-obs-001"]
+
+  - id: "CLI-006"
+    topic: "cli:exit-code-discipline"
+    severity: "high"
+    applies_to: ["cli"]
+    rule: "Use distinct documented exit codes for distinct failure modes; reserve 0 for success, 2 for usage errors, 64-78 for sysexits-style categories when relevant."
+    rationale: |
+      Distinct exit codes let scripts and CI gates branch on failure type instead
+      of parsing stderr text (which is unstable). `afs doctor --fail-on-warn` is
+      the canonical example.
+    refs: ["SCR-003"]
+
+  - id: "CLI-007"
+    topic: "cli:config-precedence"
+    severity: "medium"
+    applies_to: ["cli"]
+    rule: "Resolve configuration in a single documented precedence: explicit flag > environment variable > project file > user file > built-in default."
+    rationale: |
+      Hidden config sources cause "works on my machine" debugging. Precedence
+      must be documented in help text or RUNBOOK.
+
+  - id: "CLI-008"
+    topic: "cli:signal-handling"
+    severity: "high"
+    applies_to: ["cli"]
+    rule: "Trap SIGINT and SIGTERM during long-running or stateful operations (install, bootstrap, --force) and roll back partial state."
+    rationale: |
+      Ctrl-C during `afs add-agent --force` must leave the repo in a known
+      state. Partial template installs are the most common bug source.
+    refs: ["SEC-shell-004"]
+
+  - id: "CLI-009"
+    topic: "cli:json-output"
+    severity: "medium"
+    applies_to: ["cli"]
+    rule: "Commands intended for automation (analyze, doctor, list) expose `--json` output with a stable schema; document additive vs breaking changes."
+    rationale: |
+      `afs analyze --json` is the integration contract for plugin authors and
+      CI gates. JSON schema is part of the public surface.
+
+  - id: "CLI-010"
+    topic: "cli:deprecation-protocol"
+    severity: "medium"
+    applies_to: ["cli"]
+    rule: "Removed commands and flags pass through a deprecation window: emit a stderr warning naming the replacement, with a documented removal version."
+    rationale: |
+      The SPEC.md "Commands intentionally outside the supported public surface"
+      list (afs install, afs upgrade, afs add-spec, afs templates, afs check-update)
+      shows that removal happens; the warning-then-remove protocol prevents
+      surprise breakage for downstream wrappers.
+
+  - id: "CLI-011"
+    topic: "cli:no-telemetry-by-default"
+    severity: "high"
+    applies_to: ["cli"]
+    rule: "Do not emit network calls, telemetry, analytics, or update checks without explicit opt-in or an explicit flag (`--check-update`)."
+    rationale: |
+      Implicit network calls violate the conservative bootstrap principle and
+      block air-gapped use. `afs doctor` already enforces this via opt-in
+      `--check-update`; future commands must follow.
+    refs: ["SEC-global-005"]

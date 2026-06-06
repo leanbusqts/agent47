@@ -1,47 +1,402 @@
-# Backend rules extend AGENTS.md and may reference security IDs from rules/.
+metadata:
+  version: 2
+  last_updated: "2026-04-29"
+  owner: "platform-backend"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
 
 rules:
-  - topic: "architecture:error-contracts"
-    level: "high"
+  - id: "BE-001"
+    topic: "architecture:error-contracts"
+    severity: "high"
+    applies_to: ["backend"]
     rule: "Service boundaries return explicit success/error results and do not leak raw exceptions."
+    rationale: |
+      Callers cannot reason about partial failures when transport-level exceptions
+      surface as business outcomes. Explicit error types make failure modes part of
+      the API contract.
+    examples:
+      dont: |
+        // Go — panic / unchecked exception leaks; caller has no schema for failure
+        func (s *Svc) Pay(o Order) Receipt { ... }
+      do: |
+        func (s *Svc) Pay(o Order) (Receipt, error)
+        // Or in TS:
+        type Result<T, E> = { ok: true, value: T } | { ok: false, error: E }
 
-  - topic: "architecture:controller-flow"
-    level: "high"
+  - id: "BE-002"
+    topic: "architecture:controller-flow"
+    severity: "high"
+    applies_to: ["backend"]
     rule: "Controllers and transport adapters handle transport concerns only and delegate business logic to services."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
 
-  - topic: "architecture:layering"
-    level: "high"
+  - id: "BE-003"
+    topic: "architecture:layering"
+    severity: "high"
+    applies_to: ["backend"]
     rule: "Controllers/adapters must not access persistence or external integrations directly; services own orchestration."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
 
-  - topic: "architecture:dependency-injection"
-    level: "high"
+  - id: "BE-004"
+    topic: "architecture:dependency-injection"
+    severity: "high"
+    applies_to: ["backend", "mobile"]
     rule: "Use constructor or factory injection; do not instantiate collaborators inside business components."
+    rationale: |
+      Direct instantiation breaks substitution for tests and binds business logic to
+      concrete dependencies, complicating refactor and test isolation.
 
-  - topic: "backend:input-validation"
-    level: "critical"
+  - id: "BE-005"
+    topic: "backend:input-validation"
+    severity: "critical"
+    applies_to: ["backend"]
     rule: "Validate external input with allow-lists and business rules at the backend boundary."
-    refs:
-      - "SEC-global-003"
+    rationale: |
+      Violations can materially affect security, data integrity, or compliance for production systems.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["SEC-global-003"]
 
-  - topic: "backend:authz-authn"
-    level: "critical"
+  - id: "BE-006"
+    topic: "backend:authz-authn"
+    severity: "critical"
+    applies_to: ["backend"]
     rule: "Enforce authentication and authorization for sensitive operations and apply least privilege."
+    rationale: |
+      Authz must be enforced at the boundary closest to the data; defense in depth
+      means re-checking at the service layer rather than relying on UI/route guards.
 
-  - topic: "backend:external-calls"
-    level: "high"
-    rule: "External calls define timeouts, bounded retries, and resilient fallbacks where appropriate."
+  - id: "BE-007"
+    topic: "backend:external-calls"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "External calls must define timeouts, bounded retries with backoff, and observable error handling. Fallbacks must not silently mask failure: every fallback emits a structured log/metric and the error contract surfaces a degraded state."
+    rationale: |
+      "Resilient fallbacks where appropriate" was previously interpreted as
+      try/except with default values, hiding incidents. Fallbacks are legitimate
+      only when the degraded path is observable and intentional.
+    examples:
+      dont: |
+        try:
+            return upstream.fetch(id)
+        except Exception:
+            return None  # silent failure
+      do: |
+        try:
+            return upstream.fetch(id, timeout=2.0)
+        except UpstreamTimeout as e:
+            metrics.inc("upstream.timeout", tags={"endpoint": "fetch"})
+            log.warning("upstream timeout, falling back to cache", error=str(e))
+            stale = cache.get_stale(id)
+            if stale is None:
+                raise DegradedState(id) from e
+            return stale
+    refs: ["BE-001", "BE-013", "X-obs-001"]
 
-  - topic: "backend:query-safety"
-    level: "critical"
+  - id: "BE-008"
+    topic: "backend:query-safety"
+    severity: "critical"
+    applies_to: ["backend"]
     rule: "Use parameterized queries or safe persistence APIs."
-    refs:
-      - "SEC-java-kotlin-002"
-      - "SEC-py-002"
+    rationale: |
+      Violations can materially affect security, data integrity, or compliance for production systems.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["SEC-java-kotlin-002", "SEC-py-002", "SEC-csharp-002", "SEC-go-002"]
 
-  - topic: "backend:concurrency"
-    level: "critical"
+  - id: "BE-009"
+    topic: "backend:concurrency"
+    severity: "high"
+    applies_to: ["backend"]
     rule: "Avoid shared mutable state in concurrent paths; prefer request-scoped or thread-safe coordination."
+    rationale: |
+      Concurrency is structural, not security-critical by itself; severity lowered
+      from `critical` to `high`. Race conditions that affect authorization or
+      financial integrity remain `critical` under BE-006/BE-008.
 
-  - topic: "dependencies:approval"
-    level: "high"
-    rule: "Backend dependency additions or version changes require explicit approval, version pinning, and maintenance justification."
+  - id: "BE-010"
+    topic: "backend:idempotency"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Mutating endpoints that may be retried (POST, network-prone PUT/DELETE) must accept and honor an idempotency key for at-least-once safety."
+    rationale: |
+      Without idempotency keys, retries from clients/proxies create duplicate
+      charges, double sends, and inconsistent state.
+    examples:
+      do: |
+        # Header: Idempotency-Key: <uuid>
+        # Server stores (key, response) for N hours; replays return stored response.
+    refs: ["BE-007"]
+
+  - id: "BE-011"
+    topic: "backend:rate-limiting"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Public-facing endpoints must declare a rate-limit policy (per-IP, per-user, or per-API-key) and a circuit-breaker for downstream calls."
+    rationale: |
+      Without rate limits, a single client can DoS the service and starve downstream
+      systems. Circuit breakers prevent retry storms during partial outages.
+
+  - id: "BE-012"
+    topic: "backend:transactions"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Operations spanning multiple writes must execute in a transaction or compensating workflow; document the consistency boundary."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      dont: |
+        # Two separate INSERTs, no transaction. Crash between them = inconsistent state.
+        db.execute("INSERT INTO orders ...")
+        db.execute("INSERT INTO ledger ...")
+      do: |
+        with db.transaction():
+            db.execute("INSERT INTO orders ...")
+            db.execute("INSERT INTO ledger ...")
+        # Or for cross-service: outbox pattern + idempotent consumer.
+
+  - id: "BE-013"
+    topic: "backend:observability"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Service code must emit structured logs, metrics, and traces around external dependencies and business-critical operations."
+    rationale: |
+      Without observability, fallbacks (BE-007) and rate-limit decisions (BE-011)
+      are invisible. Required for incident response and capacity planning.
+    refs: ["X-obs-001"]
+
+  - id: "BE-014"
+    topic: "backend:testing"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Service-layer tests cover happy path, error contracts, and concurrency-relevant edge cases; transport-layer tests cover validation and authz."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["X-test-001"]
+
+  # BE-015 (dependencies) replaced by canonical X-deps-001; see rules-cross.yaml.
+  - id: "BE-015"
+    topic: "backend:account-lockout"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Authentication endpoints implement progressive delay or account lockout per identity AND per source-IP/device fingerprint, with audit logging of attempts."
+    rationale: |
+      Without throttling, credential stuffing and brute-force are unbounded.
+      Per-IP only is bypassable via botnets; per-account only enables targeted
+      lockout-DoS. Combine both.
+    refs: ["BE-006", "BE-011"]
+    tags: ["owasp:A07", "cwe:307"]
+
+  - id: "BE-016"
+    topic: "backend:session-rotation"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Issue a new session/token on login and on any privilege change (e.g. step-up auth, role change); invalidate the old one server-side."
+    rationale: |
+      Session fixation and stale privilege caching let attackers retain access
+      after the user re-auths or has rights revoked.
+    refs: ["BE-006"]
+    tags: ["owasp:A07", "cwe:384"]
+
+  - id: "BE-017"
+    topic: "backend:object-level-authz"
+    severity: "critical"
+    applies_to: ["backend"]
+    rule: "Every endpoint that accepts an object identifier verifies the requester is authorized for THAT specific object; not just authenticated."
+    rationale: |
+      IDOR (`/api/orders/123` returns any order if you swap the id) is the most
+      common high-severity bug in OWASP-sampled apps; authentication ≠
+      authorization.
+    examples:
+      do: |
+        # Always re-check ownership/role for the specific object
+        order = orders.get(id)
+        if order.tenant_id != ctx.tenant_id: raise Forbidden()
+    refs: ["BE-006"]
+    tags: ["owasp:A01", "cwe:639"]
+
+  - id: "BE-018"
+    topic: "backend:financial-race-safety"
+    severity: "critical"
+    applies_to: ["backend"]
+    rule: "Operations affecting balances, inventory, or quotas use database-level locks (`SELECT ... FOR UPDATE`), conditional updates with version columns, or serializable isolation. The race-condition severity carve-out promised by BE-009."
+    rationale: |
+      Concurrency was lowered to `high` (BE-009) on the assumption that financial
+      and authz races were carved out. This rule is that carve-out — making sure
+      the gap doesn't open silently.
+    refs: ["BE-009", "BE-012"]
+    tags: ["cwe:362", "cwe:367"]
+
+  - id: "BE-019"
+    topic: "backend:no-http-smuggling"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Reject ambiguous HTTP framing (both `Content-Length` and `Transfer-Encoding`, conflicting CL values, obs-fold headers, leading-whitespace headers)."
+    rationale: |
+      HTTP request smuggling at proxy/edge bypasses authz, poisons caches, and
+      exfiltrates other users' requests. Stack hardening at edge plus app-layer
+      validation is required defense in depth.
+    tags: ["cwe:444"]
+
+  - id: "BE-020"
+    topic: "backend:host-header-trust"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Do not derive absolute URLs (password reset, redirect targets, CSP report-uri) from `Host`/`X-Forwarded-Host` headers without an allow-list of accepted hostnames."
+    rationale: |
+      Host-header injection causes password-reset emails to point to attacker
+      domains and poisons CDN/cache keys.
+    refs: ["SEC-global-010"]
+    tags: ["cwe:644"]
+
+  - id: "BE-021"
+    topic: "backend:safe-file-upload"
+    severity: "critical"
+    applies_to: ["backend"]
+    rule: "File uploads enforce: max size, allowed MIME types via content-sniffing (not just header), filename sanitization, store outside the webroot, scan for malware, and never serve user-controlled paths via direct disk access."
+    rationale: |
+      Uploads are a chronic RCE/SSRF/disclosure vector: PHP/JSP shells, polyglots,
+      EXIF-injected SVG, ZIP bombs.
+    refs: ["SEC-global-007", "SEC-global-018"]
+    tags: ["owasp:A05", "cwe:434", "cwe:400"]
+
+  - id: "BE-022"
+    topic: "backend:http-security-headers"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Web responses set: `Strict-Transport-Security`, `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (minimal), and frame ancestors via CSP."
+    rationale: |
+      Defense-in-depth controls that mitigate XSS, clickjacking, MIME sniffing,
+      cookie/cross-origin leakage. Mostly free; missing them is OWASP A05.
+    refs: ["SEC-js-ts-001", "SEC-global-008"]
+    tags: ["owasp:A05"]
+
+  - id: "BE-023"
+    topic: "backend:cors-strict"
+    severity: "critical"
+    applies_to: ["backend"]
+    rule: "CORS must allow specific origins from an allow-list; never reflect arbitrary `Origin` and never combine `Access-Control-Allow-Origin: *` with `Access-Control-Allow-Credentials: true`."
+    rationale: |
+      Reflected-origin + credentials = cross-site request with cookies. Equivalent
+      to disabling SOP for any attacker-controlled origin.
+    tags: ["owasp:A05", "cwe:942"]
+
+  - id: "BE-024"
+    topic: "backend:other-injection"
+    severity: "critical"
+    applies_to: ["backend"]
+    rule: "LDAP, XPath, NoSQL (Mongo `$where`, JS-on-server queries), and command-shell composition follow the same parameterization discipline as SQL."
+    rationale: |
+      The injection family is broader than SQL; the same anti-pattern (string
+      concat with user input) creates equivalent issues elsewhere.
+    refs: ["BE-008", "SEC-global-003"]
+    tags: ["owasp:A03", "cwe:90", "cwe:91", "cwe:943"]
+
+  - id: "BE-025"
+    topic: "backend:graphql-hardening"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "GraphQL endpoints disable introspection in prod, enforce query depth/complexity limits, rate-limit by cost not by request count, and authorize at the field/resolver level."
+    rationale: |
+      Without limits, a single nested query can multiply work N^k. Without
+      field-level authz, schema-level checks miss object-level access (BE-017
+      analog for GraphQL).
+    refs: ["BE-011", "BE-017"]
+    tags: ["cwe:770"]
+
+  - id: "BE-026"
+    topic: "backend:websocket-auth"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "WebSocket connections authenticate at HTTP upgrade (cookie or token), re-validate on each message that mutates state, and check `Origin` against an allow-list."
+    rationale: |
+      The HTTP upgrade is subject to CSRF (no SameSite cookie scoping enforces
+      Origin); per-message authz prevents long-lived hijacked sockets retaining
+      privileges after re-auth.
+    refs: ["BE-006", "SEC-js-ts-005"]
+    tags: ["owasp:A01"]
+
+  - id: "BE-027"
+    topic: "backend:api-versioning"
+    severity: "medium"
+    applies_to: ["backend"]
+    rule: "Public APIs declare a versioning strategy (URI path, header, or media type) and a deprecation window with `Sunset` header on retired versions."
+
+  - id: "BE-028"
+    topic: "backend:pagination-safety"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "List endpoints enforce a max page size, refuse user-supplied `ORDER BY` columns outside an allow-list, and expose cursor-based pagination for hot tables (offset pagination is O(N) and DoS-prone)."
+    rationale: |
+      Unbounded list endpoints (`?limit=999999999`) exhaust memory; user-supplied
+      ORDER BY enables sort injection in some drivers (concatenation) and full-
+      table scans on un-indexed columns.
+    refs: ["BE-008", "BE-011"]
+
+  - id: "BE-029"
+    topic: "backend:async-messaging"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Message consumers (Kafka/SQS/RabbitMQ/Pub-Sub) are idempotent, declare a DLQ with monitoring, and handle poison messages with bounded retry + quarantine. Document ordering guarantees and partitioning."
+    rationale: |
+      `BE-010` covers HTTP idempotency only. Without DLQs, one bad message blocks
+      the whole consumer; without idempotent handlers, retries cause double-side-
+      effects.
+    refs: ["BE-010"]
+
+  - id: "BE-030"
+    topic: "backend:caching-discipline"
+    severity: "medium"
+    applies_to: ["backend"]
+    rule: "Caches declare TTL, eviction policy, and invalidation strategy; high-fanout endpoints use single-flight to prevent cache stampedes; cache keys never include unsanitized user input."
+    rationale: |
+      Cache stampedes saturate origin on TTL expiry; user-keyed caches enable
+      poisoning. Defaults are dangerous.
+    refs: ["BE-007"]
+
+  - id: "BE-031"
+    topic: "backend:safe-migrations"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Schema migrations follow expand-contract: deploy backwards-compatible schema, deploy code that writes both old and new, migrate data, deploy code that reads new only, drop old. Each step is independently safe to roll back."
+    rationale: |
+      Without expand-contract, simultaneous code+schema deploys cause downtime,
+      and rollbacks lose data. Lock-free, online migrations are required at scale.
+    refs: ["BE-012"]
+
+  - id: "BE-032"
+    topic: "backend:multi-tenant-isolation"
+    severity: "critical"
+    applies_to: ["backend"]
+    rule: "Tenant identifier is enforced at the persistence layer (row-level filter, DB-per-tenant, or column predicate baked into the query builder); never relied upon only in application code."
+    rationale: |
+      Tenant-leak bugs from missing predicates have caused some of the largest
+      SaaS breaches. Defense in depth requires the layer below the bug to fail
+      closed.
+    refs: ["BE-006", "BE-017"]
+
+  - id: "BE-033"
+    topic: "backend:audit-trail"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Sensitive actions (auth changes, money movement, exports, role grants, support impersonation) write to an append-only audit log distinct from application logs, with actor, target, action, and original-vs-resulting state."
+    rationale: |
+      Required for incident response and most compliance regimes (SOC2, PCI,
+      HIPAA). App logs are mutable and often retained shorter than audits need.
+
+  - id: "BE-034"
+    topic: "backend:scheduled-jobs"
+    severity: "medium"
+    applies_to: ["backend"]
+    rule: "Scheduled and batch jobs declare: schedule, idempotency, missed-run recovery, single-instance guarantee (lease/lock), and a metric for last-success time."
+
+  - id: "BE-035"
+    topic: "backend:api-contracts"
+    severity: "medium"
+    applies_to: ["backend"]
+    rule: "Public/internal APIs publish a machine-readable contract (OpenAPI, gRPC proto, GraphQL SDL) and CI verifies request/response conformance."

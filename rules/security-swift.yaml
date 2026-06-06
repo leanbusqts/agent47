@@ -1,10 +1,103 @@
+metadata:
+  version: 2
+  last_updated: "2026-04-29"
+  owner: "platform-security"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
 rules:
   - id: "SEC-swift-001"
+    topic: "swift:secret-storage"
     severity: "critical"
-    applies_to: "mobile"
-    rule: "Do not store secrets in source, Info.plist, or insecure local storage; use Keychain or approved secret delivery mechanisms."
+    applies_to: ["mobile"]
+    rule: "Do not store secrets in source, `Info.plist`, or insecure local storage; use Keychain or approved secret delivery mechanisms."
+    rationale: |
+      `Info.plist` and `UserDefaults` are unencrypted and trivially extracted from a
+      backup or jailbroken device. Keychain provides hardware-backed, ACL'd storage.
+    examples:
+      dont: |
+        UserDefaults.standard.set(token, forKey: "auth")
+      do: |
+        let q: [String: Any] = [
+          kSecClass as String: kSecClassGenericPassword,
+          kSecAttrAccount as String: "auth",
+          kSecValueData as String: tokenData,
+          kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+        SecItemAdd(q as CFDictionary, nil)
+    tags: ["cwe:312"]
 
   - id: "SEC-swift-002"
+    topic: "swift:validate-untrusted-input"
     severity: "high"
-    applies_to: "mobile"
+    applies_to: ["mobile"]
     rule: "Validate untrusted input before using it in URLs, file paths, or dynamic view/state updates."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["SEC-global-003", "SEC-global-007"]
+    tags: ["cwe:20"]
+
+  - id: "SEC-swift-003"
+    topic: "swift:secure-randomness"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Use `SecRandomCopyBytes` or `SystemRandomNumberGenerator` for security-sensitive randomness."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      do: |
+        var bytes = [UInt8](repeating: 0, count: 32)
+        let r = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+        guard r == errSecSuccess else { throw CryptoError.rng }
+    tags: ["cwe:330"]
+
+  - id: "SEC-swift-004"
+    topic: "swift:no-ats-override"
+    severity: "critical"   # v3 bump: equivalent to verify=False app-wide.
+    applies_to: ["mobile"]
+    rule: "Do not disable App Transport Security globally (`NSAllowsArbitraryLoads`); narrow exceptions per domain when unavoidable."
+    rationale: |
+      Disabling ATS allows cleartext HTTP everywhere, defeating TLS protections;
+      equivalent in blast radius to disabling certificate verification globally.
+    examples:
+      dont: |
+        <key>NSAppTransportSecurity</key>
+        <dict><key>NSAllowsArbitraryLoads</key><true/></dict>
+      do: |
+        <!-- Per-domain exception with strong justification only -->
+        <key>NSAppTransportSecurity</key>
+        <dict>
+          <key>NSExceptionDomains</key>
+          <dict>
+            <key>legacy.example.com</key>
+            <dict>
+              <key>NSExceptionAllowsInsecureHTTPLoads</key><true/>
+            </dict>
+          </dict>
+        </dict>
+    refs: ["SEC-global-008"]
+    tags: ["cwe:319"]
+
+  - id: "SEC-swift-005"
+    topic: "swift:deeplink-allowlist"
+    severity: "critical"   # v3 bump: known account-takeover vector via webview pivots.
+    applies_to: ["mobile"]
+    rule: "Validate deep-link URLs against an allow-list of paths and parameters before navigating; never pass arbitrary URL parameters into webviews."
+    rationale: |
+      Universal Links and custom schemes are an open entrypoint into the app; an
+      attacker-supplied URL can pivot into webviews or screens with elevated trust.
+      Real-world ATO vector documented across multiple iOS apps.
+    refs: ["SEC-global-010"]
+    tags: ["cwe:601"]
+  - id: "SEC-swift-006"
+    topic: "swift:cert-pinning"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Production iOS apps that handle auth or PII pin to expected certificates or public-key SPKI hashes via `URLSession` delegate or a vetted library."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["SEC-global-008"]
+    tags: ["cwe:295"]

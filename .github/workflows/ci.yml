@@ -13,6 +13,17 @@ jobs:
       - name: Validate AGENTS.md contract
         run: make agents-check
 
+  rules-check:
+    name: rules-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Validate rules contract
+        run: make rules-check
+
   go-test:
     name: go-test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

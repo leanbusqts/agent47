@@ -1,8 +1,60 @@
-rules:
-  - topic: "testing:coverage-shape"
-    level: "high"
-    rule: "Add or update tests in the order happy path, failure path, edge cases. Coverage should reflect the risk of the change rather than raw file count."
+metadata:
+  version: 2
+  last_updated: "2026-05-11"
+  owner: "platform-quality"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
 
-  - topic: "testing:determinism"
-    level: "high"
-    rule: "Keep local test commands deterministic and isolated. Avoid hidden environment coupling, clock sensitivity, or cross-test state leakage."
+rules:
+  - id: "SHT-001"   # = X-test-001 in §4.3
+    topic: "testing:coverage-shape"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Tests are added in order: happy path, failure path, edge cases. Coverage reflects the risk of the change, not raw file count."
+    rationale: |
+      Coverage-as-target is a Goodhart's Law trap. The order forces the riskier
+      cases first.
+
+  - id: "SHT-002"
+    topic: "testing:determinism"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Local test commands are deterministic and isolated. No hidden env coupling, no clock sensitivity, no cross-test state leakage."
+    rationale: |
+      Flaky local tests destroy team trust in the suite and mask real
+      regressions.
+
+  - id: "SHT-003"
+    topic: "testing:behavioral-coverage"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Tests for behavior changes cover what the user observes (output, manifest shape, file ownership), not implementation details that may refactor."
+    rationale: |
+      Tests pinned to internal symbols become refactor blockers; tests pinned
+      to observable behavior survive rewrites.
+
+  - id: "SHT-004"
+    topic: "testing:contract-regression"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "User-visible contracts (CLI output, file ownership, manifest shape, exit codes) have explicit regression tests."
+    rationale: |
+      The contract is the product. If it's not tested, it drifts.
+    refs: ["CLI-001", "CLI-006"]
+
+  - id: "SHT-005"
+    topic: "testing:automation"
+    severity: "medium"
+    applies_to: ["all"]
+    rule: "Tests run locally without remote services (mock or fake at the boundary)."
+    rationale: |
+      Tests that require a network leg are slow and flaky in CI.
+
+  - id: "SHT-006"
+    topic: "testing:flakiness-budget"
+    severity: "medium"
+    applies_to: ["all"]
+    rule: "Flaky tests are quarantined within a tracked budget; quarantine without a fix-by date is forbidden."
+    rationale: |
+      The half-life of a quarantined-and-forgotten test is "until someone
+      else's PR breaks for the wrong reason".

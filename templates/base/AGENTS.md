@@ -30,7 +30,7 @@ When sources conflict, resolve in this order (highest wins). If two items at the
 
 1. User instructions in the current conversation. [AG-041]
 2. The closest `AGENTS.md` in the directory tree. In this repo: the root one. [AG-042]
-3. Security rules: `security-global.yaml` -> `security-<lang>.yaml` -> `security-shell.yaml` when applicable. [AG-043]
+3. Security rules by ID: `security-global.yaml` -> `security-<lang>.yaml` -> `security-shell.yaml` when applicable; see `rules/SEVERITY.md` for severity semantics. [AG-043]
 4. Stack rules: `rules-<stack>.yaml` for the file under edit. [AG-044]
 5. Skill instructions loaded via `skills/AVAILABLE_SKILLS.xml`. Skills extend, never override sources above. [AG-045]
 6. `specs/spec.yml` for the current task. [AG-046]
@@ -90,7 +90,7 @@ Authoritative: `rules/security-*.yaml`. Load order: `security-global.yaml` -> `s
 
 ## Dependency Policy
 
-Governed by the repository dependency approval policy in `AGENTS.md` plus the applicable stack/security rules. A change is add, remove, upgrade, or pinning shift. [AG-090]
+Dependency changes are governed by `X-deps-001` in `rules/rules-cross.yaml` plus `rules/APPROVALS.md#dependencies`. A change is add, remove, upgrade, or pinning shift. [AG-090]
 
 Required justification (in the PR or `specs/spec.yml`): benefit vs cost; acceptable license (default-deny AGPL/SSPL/BUSL); pinning + integrity hash committed (lockfile); wrapper when used in ≥ 3 places. Approval covers the named version; later upgrades require new approval. [AG-091] Optional guidance: prefer existing tooling first, a single package manager, and a small local utility over a new dependency when the utility is genuinely small and stable. [AG-093]
 

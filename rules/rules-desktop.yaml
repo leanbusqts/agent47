@@ -1,8 +1,72 @@
-rules:
-  - topic: "desktop:platform-boundaries"
-    level: "high"
-    rule: "Keep operating-system integrations at explicit boundaries. UI code, local services, and shell/process interactions should not blur into one layer."
+metadata:
+  version: 2
+  last_updated: "2026-05-11"
+  owner: "platform-desktop"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
 
-  - topic: "desktop:packaging"
-    level: "high"
-    rule: "When changing desktop packaging, update signing, distribution, and upgrade assumptions together rather than in isolation."
+rules:
+  - id: "DT-001"
+    topic: "desktop:platform-boundaries"
+    severity: "high"
+    applies_to: ["desktop"]
+    rule: "Keep OS integrations at explicit boundaries. UI, local services, and shell/process interactions are not blurred into one layer."
+    rationale: |
+      Mixing IPC, file IO, shell exec, and rendering creates implicit privilege
+      escalation paths. Same architectural principle as backend layering.
+
+  - id: "DT-002"
+    topic: "desktop:lifecycle"
+    severity: "high"
+    applies_to: ["desktop"]
+    rule: "App lifecycle, updates, and packaging flows are explicit and testable: install, launch, update-while-running, quit, uninstall."
+    rationale: |
+      Each transition is a state machine. Bugs at update-while-running cause
+      data loss; bugs at uninstall leave orphan agents.
+
+  - id: "DT-003"
+    topic: "desktop:packaging"
+    severity: "high"
+    applies_to: ["desktop"]
+    rule: "Packaging changes update signing, notarization (macOS), distribution channel, and upgrade path together — not piecemeal."
+    rationale: |
+      An unsigned update or mismatched distribution channel breaks the OS
+      Gatekeeper / SmartScreen / package manager trust chain.
+
+  - id: "DT-004"
+    topic: "desktop:state"
+    severity: "high"
+    applies_to: ["desktop"]
+    rule: "State ownership is clear across UI thread, background workers, and persistent storage; events have a single source of truth."
+    rationale: |
+      Desktop UI bugs concentrate at the boundary between event loop, IPC, and
+      persistence. Force a single source of truth per state owner.
+
+  - id: "DT-005"
+    topic: "desktop:integration-testing"
+    severity: "medium"
+    applies_to: ["desktop"]
+    rule: "Platform-specific integration paths have deterministic local tests when feasible; flaky platform tests are gated, not muted."
+    rationale: |
+      Desktop CI for macOS/Windows/Linux is the most fragile surface. Mute
+      means "pretend it works"; gate means "block until fixed".
+
+  - id: "DT-006"
+    topic: "desktop:auto-update-integrity"
+    severity: "critical"
+    applies_to: ["desktop"]
+    rule: "Auto-update channels verify signature and integrity before applying; updates over plaintext HTTP or without signature verification are forbidden."
+    rationale: |
+      Auto-update is the desktop equivalent of supply-chain attack: one
+      compromised feed = RCE on every install.
+    refs: ["SEC-global-008", "SEC-global-011"]
+
+  - id: "DT-007"
+    topic: "desktop:ipc-boundary"
+    severity: "critical"
+    applies_to: ["desktop"]
+    rule: "IPC between renderer/UI and main/host process treats renderer input as untrusted; never relay unvalidated input to filesystem, shell, or network calls."
+    rationale: |
+      Electron-style IPC bridges are the #1 desktop RCE vector. Treat any
+      renderer-originating message at the same trust level as an HTTP request.
+    refs: ["SEC-global-003", "SEC-global-004"]

@@ -1,0 +1,106 @@
+metadata:
+  version: 1
+  last_updated: "2026-04-29"
+  owner: "platform-security"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
+rules:
+  - id: "SEC-go-001"
+    topic: "go:no-unsafe-exec"
+    severity: "critical"
+    applies_to: ["backend"]
+    rule: "Do not pass user input to `exec.Command` via shell wrappers (`sh -c`, `bash -c`); use `exec.Command(name, args...)` with a fixed binary."
+    rationale: |
+      Go's exec.Command does not invoke a shell — but `sh -c "$user_input"` does
+      and reintroduces command injection. (Remove the hyphens from "exec" before
+      copying to the YAML file.)
+    examples:
+      dont: |
+        exec.Command("sh", "-c", "ls "+userPath).Run()
+      do: |
+        exec.Command("ls", "--", userPath).Run()
+    refs: ["SEC-global-004"]
+    tags: ["cwe:78"]
+
+  - id: "SEC-go-002"
+    topic: "go:parameterized-queries"
+    severity: "critical"
+    applies_to: ["backend"]
+    rule: "Use `db.QueryContext` / `db.ExecContext` with placeholder parameters; never `fmt.Sprintf` user input into SQL."
+    rationale: |
+      Violations can materially affect security, data integrity, or compliance for production systems.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      dont: |
+        db.QueryContext(ctx, fmt.Sprintf("SELECT * FROM u WHERE id=%s", id))
+      do: |
+        db.QueryContext(ctx, "SELECT * FROM u WHERE id=$1", id)
+    refs: ["SEC-global-003"]
+    tags: ["cwe:89"]
+
+  - id: "SEC-go-003"
+    topic: "go:secure-randomness"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Use `crypto/rand` for security-sensitive randomness; `math/rand` is non-cryptographic."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      dont: |
+        rand.Int63()  // math/rand
+      do: |
+        b := make([]byte, 32)
+        _, _ = crypto_rand.Read(b)
+    tags: ["cwe:330"]
+
+  - id: "SEC-go-004"
+    topic: "go:context-required"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Public functions performing IO accept `context.Context` as the first parameter and propagate it to all downstream calls."
+    rationale: |
+      Without a context, requests cannot be cancelled or have deadlines enforced;
+      goroutine leaks and unbounded latency follow.
+    examples:
+      dont: |
+        func GetUser(id int64) (*User, error)
+      do: |
+        func GetUser(ctx context.Context, id int64) (*User, error)
+
+  - id: "SEC-go-005"
+    topic: "go:no-unhandled-errors"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Do not discard error returns with `_` outside test or clearly intentional cleanup paths; check or wrap with `fmt.Errorf` / `errors.Join`."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      dont: |
+        f, _ := os.Open(path)
+        defer f.Close()
+      do: |
+        f, err := os.Open(path)
+        if err != nil { return fmt.Errorf("open %s: %w", path, err) }
+        defer func() { _ = f.Close() }()  // explicit, with reasoning
+
+  - id: "SEC-go-006"
+    topic: "go:no-unsafe-package"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Do not import `unsafe` outside well-isolated, reviewed boundaries (e.g. cgo wrappers); never with user-controlled offsets."
+    rationale: |
+      `unsafe.Pointer` arithmetic with user-controlled values bypasses memory safety.
+
+  - id: "SEC-go-007"
+    topic: "go:tls-min-version"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Configure `tls.Config{MinVersion: tls.VersionTLS12}` (or higher) explicitly; never set `InsecureSkipVerify: true`."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["SEC-global-008"]
+    tags: ["cwe:295", "cwe:319"]

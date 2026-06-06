@@ -1,12 +1,26 @@
+metadata:
+  version: 2
+  last_updated: "2026-05-11"
+  owner: "platform-tooling"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
 rules:
-  - topic: "cli:behavior"
-    level: "high"
-    rule: "Keep command output stable, explicit, and friendly to automation."
+  - id: "SHC-001"
+    topic: "cli:stdout-stderr"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Stdout carries primary results, stderr carries diagnostics. The contract holds in automation and non-interactive runs."
+    rationale: |
+      Interleaving breaks pipes and log capture. Universal rule: any program
+      that emits anything follows this.
+    refs: ["CLI-005"]
 
-  - topic: "cli:mutation-preview"
-    level: "high"
-    rule: "Prefer preview or dry-run output before mutating repository state."
-
-  - topic: "cli:exit-contract"
-    level: "high"
-    rule: "Treat exit codes and stderr wording as part of the public contract."
+  - id: "SHC-002"
+    topic: "cli:exit-codes"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Exit codes are part of the supported interface. Document or preserve success, usage-error, and failure semantics when changing commands."
+    rationale: |
+      Same argument as SHC-001 but for the other half of the contract.
+    refs: ["CLI-006"]

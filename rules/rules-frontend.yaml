@@ -1,41 +1,170 @@
-# Frontend rules extend AGENTS.md and may reference security IDs from rules/.
+metadata:
+  version: 2
+  last_updated: "2026-04-29"
+  owner: "platform-frontend"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
 
 rules:
-  - topic: "architecture:server-logic"
-    level: "high"
-    rule: "Keep business logic on the backend/BFF when possible; clients should consume computed results."
-    refs:
-      - "SEC-js-ts-003"
+  - id: "FE-001"
+    topic: "architecture:server-logic"
+    severity: "high"
+    applies_to: ["frontend"]
+    rule: "Keep business logic on the backend/BFF when possible; clients should consume computed results. Client-side input validation for UX is allowed; authorization, pricing, eligibility, and any decision with security or financial impact must be enforced server-side."
+    rationale: |
+      Anything in the browser is under the user's control. Pricing/eligibility logic
+      in the client is bypassed by trivial dev-tools changes. UX-level validation
+      (format, length, required fields) is OK to mirror on the client.
+    refs: ["SEC-js-ts-003"]
 
-  - topic: "architecture:services"
-    level: "high"
+  - id: "FE-002"
+    topic: "architecture:services"
+    severity: "high"
+    applies_to: ["frontend"]
     rule: "Encapsulate integrations and orchestration behind service modules instead of calling them directly from UI components."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
 
-  - topic: "architecture:components"
-    level: "high"
+  - id: "FE-003"
+    topic: "architecture:components"
+    severity: "high"
+    applies_to: ["frontend"]
     rule: "Separate presentation from data/state orchestration; keep UI units focused."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
 
-  - topic: "frontend:validation"
-    level: "high"
-    rule: "Validate and normalize input close to the UI boundary, but rely on server-side enforcement for security."
-    refs:
-      - "SEC-global-003"
-      - "SEC-js-ts-003"
+  - id: "FE-004"
+    topic: "frontend:validation"
+    severity: "high"
+    applies_to: ["frontend"]
+    rule: "Validate and normalize input close to the UI boundary for UX; rely on server-side enforcement for security-bearing checks."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["SEC-global-003", "SEC-js-ts-003", "FE-001"]
 
-  - topic: "frontend:ssr-csp"
-    level: "high"
+  - id: "FE-005"
+    topic: "frontend:ssr-csp"
+    severity: "high"
+    applies_to: ["frontend"]
     rule: "Preserve SSR/BFF boundaries and CSP-conscious rendering patterns; avoid introducing inline script or unsafe rendering shortcuts."
-    refs:
-      - "SEC-js-ts-001"
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["SEC-js-ts-001"]
 
-  - topic: "observability:tracking"
-    level: "medium"
+  - id: "FE-006"
+    topic: "observability:tracking"
+    severity: "medium"
+    applies_to: ["frontend"]
     rule: "Use the standard tracking/logging mechanisms provided by the stack and include the right context."
+    refs: ["X-obs-001"]
 
-  - topic: "dependencies:approval"
-    level: "high"
-    rule: "Frontend dependency additions or version changes require explicit approval and should prefer existing stack libraries."
-
-  - topic: "preferences:typing"
-    level: "low"
+  - id: "FE-007"
+    topic: "preferences:typing"
+    severity: "low"
+    applies_to: ["frontend"]
     rule: "Prefer explicit types and clear data shapes; avoid `any` unless there is a strong reason."
+
+  - id: "FE-008"
+    topic: "frontend:accessibility"
+    severity: "high"
+    applies_to: ["frontend"]
+    rule: "Interactive UI must be operable with keyboard, expose accessible names/roles, meet WCAG 2.1 AA contrast, and avoid relying on color alone to convey state."
+    rationale: |
+      A11y is a legal requirement in many regions and a usability requirement everywhere.
+    examples:
+      dont: |
+        <div onClick={...}>Save</div>
+      do: |
+        <button type="button" onClick={...} aria-label="Save changes">Save</button>
+
+  - id: "FE-009"
+    topic: "frontend:performance"
+    severity: "high"
+    applies_to: ["frontend"]
+    rule: "Code-split routes, defer non-critical scripts, avoid synchronous waterfalls, and budget bundle size; track Core Web Vitals (LCP, INP, CLS)."
+    rationale: |
+      Initial bundle size and main-thread blocking dominate perceived performance and
+      conversion. Without budgets, regressions slip into release.
+
+  - id: "FE-010"
+    topic: "frontend:error-boundaries"
+    severity: "high"
+    applies_to: ["frontend"]
+    rule: "Wrap risk-prone UI subtrees in error boundaries with user-actionable fallback UI; do not let component errors crash the entire app."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      do: |
+        <ErrorBoundary fallback={<RetryCard onRetry={...} />}>
+          <ChartFromExternalAPI ... />
+        </ErrorBoundary>
+
+  - id: "FE-011"
+    topic: "frontend:i18n"
+    severity: "medium"
+    applies_to: ["frontend"]
+    rule: "User-facing strings must go through the i18n system; do not hardcode locale-specific date/number/currency formats."
+
+  - id: "FE-012"
+    topic: "frontend:state-management"
+    severity: "medium"
+    applies_to: ["frontend"]
+    rule: "Prefer locally scoped state; lift state only to the nearest common ancestor that needs it. Global state is reserved for cross-cutting concerns (auth, theme, feature flags)."
+    rationale: |
+      Premature globalization couples unrelated features and complicates testing.
+
+  - id: "FE-013"
+    topic: "frontend:testing"
+    severity: "high"
+    applies_to: ["frontend"]
+    rule: "Components must have rendering tests (presentation), interaction tests (user events), and contract tests for API boundaries; prefer testing user-visible behavior over implementation."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["X-test-001"]
+
+  # FE-014 (dependencies) replaced by canonical X-deps-001.
+  - id: "FE-014"
+    topic: "frontend:hydration-stability"
+    severity: "high"
+    applies_to: ["frontend"]
+    rule: "SSR-rendered output must be deterministic between server and client: avoid `Date.now`/`Math.random`/locale-dependent formatting at render unless the value is stable per-request."
+    rationale: |
+      Hydration mismatches re-render the entire subtree on the client, defeating
+      SSR's TTI benefit and causing flicker. Some frameworks (React 18+) treat
+      mismatches as errors.
+    refs: ["FE-005"]
+
+  - id: "FE-015"
+    topic: "frontend:loading-and-optimistic"
+    severity: "medium"
+    applies_to: ["frontend"]
+    rule: "Async UI declares loading, empty, error, and success states; mutations may use optimistic updates with reconciliation on response or error rollback."
+
+  - id: "FE-016"
+    topic: "frontend:offline-and-pwa"
+    severity: "medium"
+    applies_to: ["frontend"]
+    rule: "Service workers (when used) version their cache, gate scope explicitly, and have a deactivation/cleanup path; never cache auth-bearing responses in the SW cache without TTL and refresh policy."
+
+  - id: "FE-017"
+    topic: "frontend:asset-strategy"
+    severity: "medium"
+    applies_to: ["frontend"]
+    rule: "Images use modern formats (AVIF/WebP) with `loading=\"lazy\"` for below-the-fold and `<picture>` for responsive variants; fonts use `font-display: swap` and `preconnect` to font origins."
+    refs: ["FE-009"]
+
+  - id: "FE-018"
+    topic: "frontend:route-security"
+    severity: "high"
+    applies_to: ["frontend"]
+    rule: "Client-side routes guard authenticated/authorized pages with a render-time check (not just navigation); never rely on hidden links for access control."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["FE-001", "BE-006"]

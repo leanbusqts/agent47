@@ -1,8 +1,75 @@
-rules:
-  - topic: "infra:change-safety"
-    level: "high"
-    rule: "Treat infrastructure changes as high-risk operations. Make blast radius, rollback steps, and environment scope explicit before applying changes."
+metadata:
+  version: 2
+  last_updated: "2026-05-11"
+  owner: "platform-infra"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
 
-  - topic: "infra:state-and-secrets"
-    level: "high"
-    rule: "Keep infrastructure state handling, credentials, and secret references explicit. Never hardcode secrets or rely on undocumented local state."
+rules:
+  - id: "INF-001"
+    topic: "infra:change-safety"
+    severity: "critical"
+    applies_to: ["infra"]
+    rule: "Treat infrastructure changes as high-risk. Make blast radius, environment scope, rollback steps, and approval owner explicit before applying."
+    rationale: |
+      An infra change can take down N services or leak secrets at the boundary.
+      Pre-change documentation is the minimal guardrail before any mutation.
+    refs: ["SEC-global-005", "APPROVALS.md#infrastructure"]
+
+  - id: "INF-002"
+    topic: "infra:state-and-secrets"
+    severity: "critical"
+    applies_to: ["infra"]
+    rule: "Treat IaC state files, credentials, and secret references as sensitive. Never hardcode secrets; never rely on undocumented local state."
+    rationale: |
+      State files (terraform.tfstate, pulumi stacks) and secret material end up
+      in the same blast radius as production. Hardcoded secrets in IaC are a
+      common breach root cause (xz, npm package takeovers).
+    refs: ["SEC-global-001", "SEC-global-002"]
+
+  - id: "INF-003"
+    topic: "infra:shell-safety"
+    severity: "critical"
+    applies_to: ["infra"]
+    rule: "Provisioning scripts use strict mode, quote expansions, and never compose commands from untrusted input."
+    rationale: |
+      Provisioning scripts run with elevated privilege; an injection here is RCE
+      on the orchestration host.
+    refs: ["SEC-shell-001", "SEC-shell-002", "SEC-shell-003"]
+
+  - id: "INF-004"
+    topic: "infra:dependency-discipline"
+    severity: "high"
+    applies_to: ["infra"]
+    rule: "Provider, module, and tool versions are pinned; upgrades are explicit, reviewed, and reversible."
+    rationale: |
+      Floating versions of Terraform providers, Helm charts, or container base
+      images are the main supply-chain regression vector in IaC.
+    refs: ["SEC-global-011", "X-deps-001"]
+
+  - id: "INF-005"
+    topic: "infra:environment-isolation"
+    severity: "high"
+    applies_to: ["infra"]
+    rule: "Production, staging, and development environments use separate credentials, separate state, and separate kill-switches. Cross-environment writes require explicit opt-in."
+    rationale: |
+      A single set of credentials across envs is the difference between a
+      staging incident and a production outage.
+
+  - id: "INF-006"
+    topic: "infra:state-locking"
+    severity: "high"
+    applies_to: ["infra"]
+    rule: "IaC operations against shared state require remote state locking; do not bypass locks to unblock a deploy."
+    rationale: |
+      Concurrent terraform apply with a missing lock leaves state corrupted.
+      Unblocking by force-unlocking is a frequent root cause of "ghost" resources.
+
+  - id: "INF-007"
+    topic: "infra:drift-detection"
+    severity: "medium"
+    applies_to: ["infra"]
+    rule: "Periodic drift detection (plan with no changes) runs in CI or on schedule; drift is treated as a real incident, not noise."
+    rationale: |
+      Out-of-band console edits compound silently. A drift gate forces them to
+      surface.

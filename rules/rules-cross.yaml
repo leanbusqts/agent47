@@ -1,0 +1,149 @@
+metadata:
+  version: 1
+  last_updated: "2026-04-29"
+  owner: "platform-architecture"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
+rules:
+  # ─── Dependencies (canonical, replaces 3 duplicates) ───────────────────────
+  - id: "X-deps-001"
+    topic: "deps:approval"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Adding, removing, or upgrading a dependency requires explicit approval, with rationale (benefit vs maintenance cost), license check, version pinning, and lockfile update."
+    rationale: |
+      Replaces `dependencies:approval` (backend), `dependencies:approval` (frontend),
+      and `mobile:dependencies` (mobile), which were three near-identical rules.
+      AGENTS.md "Dependency Policy" section also references this canonical rule.
+    how_to_apply: |
+      Approval is recorded in the PR description with: (a) why this dep over
+      alternatives, (b) license, (c) maintenance signals (last release, open issues),
+      (d) pinned version + integrity hash. New transitive risk requires re-approval.
+    refs: ["SEC-global-011", "APPROVALS.md#dependencies"]
+    tags: ["governance"]
+
+  # ─── Testing ───────────────────────────────────────────────────────────────
+  - id: "X-test-001"
+    topic: "testing:order"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Tests cover happy path, error handling, and edge cases — in that order. Test names describe behavior, not implementation."
+    rationale: |
+      Mirrors AGENTS.md "Execution Model"; centralizing here so backend, frontend,
+      and mobile tests follow the same priority order.
+
+  - id: "X-test-002"
+    topic: "testing:behavior-over-impl"
+    severity: "medium"
+    applies_to: ["all"]
+    rule: "Test through public APIs / user-visible behavior; avoid asserting on private implementation details."
+
+  - id: "X-test-003"
+    topic: "testing:fakes-over-mocks"
+    severity: "medium"
+    applies_to: ["all"]
+    rule: "Prefer in-memory fakes or stubs that implement the same contract over heavy mocking frameworks; reserve mocks for verifying interaction protocols."
+
+  # ─── Observability ─────────────────────────────────────────────────────────
+  - id: "X-obs-001"
+    topic: "observability:structured-logs"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Logs are structured (key/value or JSON), include correlation/trace IDs where available, and never include secrets or unredacted PII."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["SEC-global-002", "SEC-global-009"]
+
+  - id: "X-obs-002"
+    topic: "observability:log-levels"
+    severity: "medium"
+    applies_to: ["all"]
+    rule: "Use log levels with consistent semantics: DEBUG = developer-only diagnostics; INFO = normal lifecycle events; WARN = recoverable anomaly; ERROR = action required by oncall; FATAL/CRITICAL = process is exiting."
+    examples:
+      dont: |
+        log.error("starting up")        # not an error; should be INFO
+        log.info(stack_trace, level=2)  # stack traces should be ERROR/WARN, not INFO
+        log.warning("ok")               # nothing wrong; should be DEBUG/INFO
+      do: |
+        log.info("server starting", port=port)
+        log.error("upstream call failed", error=err, retry_in=retry)
+        log.debug("cache miss", key=key)
+
+  - id: "X-obs-003"
+    topic: "observability:metrics"
+    severity: "medium"
+    applies_to: ["backend", "mobile", "frontend"]
+    rule: "Critical paths emit a counter (events) and a histogram (latency); SLOs reference these metrics."
+
+  # ─── Configuration ─────────────────────────────────────────────────────────
+  - id: "X-cfg-001"
+    topic: "config:env-vs-file"
+    severity: "medium"
+    applies_to: ["all"]
+    rule: "Secrets via environment or secret manager; non-secret config via versioned config files; feature flags via the project's flag system."
+
+  - id: "X-cfg-002"
+    topic: "config:no-business-logic-in-flags"
+    severity: "medium"
+    applies_to: ["all"]
+    rule: "Feature flags toggle behavior, not business logic correctness; flags have an owner and an expected removal condition."
+
+  # ─── Time / I18n primitives ────────────────────────────────────────────────
+  - id: "X-time-001"
+    topic: "time:utc-at-boundary"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Persist and transmit timestamps in UTC (ISO-8601 with offset or epoch); convert to user's locale only at the rendering edge."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+
+  # ─── Comments / Docstrings ─────────────────────────────────────────────────
+  - id: "X-doc-001"
+    topic: "code:comments"
+    severity: "low"
+    applies_to: ["all"]
+    rule: "Default to no comments. Add one only when the WHY is non-obvious (hidden constraint, subtle invariant, workaround for a specific bug, surprising behavior)."
+
+  - id: "X-doc-002"
+    topic: "code:no-historical-comments"
+    severity: "low"
+    applies_to: ["all"]
+    rule: "Do not reference the current task, fix, or callers in comments (\"used by X\", \"added for the Y flow\", \"handles the case from issue #123\"); those belong in the PR description."
+  - id: "X-arch-001"
+    topic: "arch:transport-choice"
+    severity: "medium"
+    applies_to: ["all"]
+    rule: "Choose REST for public/external APIs, gRPC for internal/high-frequency, GraphQL for client-driven aggregation; document the rationale per service."
+
+  - id: "X-arch-002"
+    topic: "arch:error-taxonomy"
+    severity: "medium"
+    applies_to: ["all"]
+    rule: "Errors map to a documented taxonomy (HTTP status code + business error code + retriable flag); error messages exposed to clients never leak stack traces or internal hostnames."
+    refs: ["BE-001"]
+
+  - id: "X-build-001"
+    topic: "build:container-hardening"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Container images: non-root user (UID ≥ 10000), read-only root filesystem, dropped capabilities, distroless or minimal base, multi-stage builds excluding build tools from runtime layers."
+    rationale: |
+      Reduces blast radius of a successful exploit; required by most kubernetes
+      hardening profiles (CIS, NSA).
+    tags: ["cwe:269"]
+
+  - id: "X-build-002"
+    topic: "build:reproducibility"
+    severity: "medium"
+    applies_to: ["all"]
+    rule: "Build artifacts are reproducible: fixed timestamps (`SOURCE_DATE_EPOCH`), pinned base images by digest, lockfiles checked in, output digest recorded in artifact metadata."
+    refs: ["SEC-global-011"]
+
+  - id: "X-naming-001"
+    topic: "code:cross-stack-naming"
+    severity: "low"
+    applies_to: ["all"]
+    rule: "Identifier conventions per surface: HTTP routes kebab-case, JSON fields camelCase or snake_case (consistent per service), env vars SCREAMING_SNAKE, event names dot.path.style."

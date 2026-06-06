@@ -1,12 +1,71 @@
+metadata:
+  version: 2
+  last_updated: "2026-05-11"
+  owner: "platform-tooling"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
 rules:
-  - topic: "workspace:boundaries"
-    level: "high"
-    rule: "Keep workspace boundaries explicit and avoid cross-package writes without a clear contract."
+  - id: "MR-001"
+    topic: "workspace:ownership"
+    severity: "high"
+    applies_to: ["monorepo"]
+    rule: "Workspace ownership boundaries are explicit. Changes to shared tooling describe which packages, apps, or tasks are affected."
+    rationale: |
+      In a monorepo, a tooling change can ripple across N packages silently.
+      Explicit impact statement is a guardrail for review and rollback.
 
-  - topic: "workspace:task-routing"
-    level: "high"
-    rule: "Prefer top-level task orchestration and explicit package entrypoints over hidden automation."
+  - id: "MR-002"
+    topic: "workspace:task-graph"
+    severity: "high"
+    applies_to: ["monorepo"]
+    rule: "The task graph is part of the product contract. Build, test, and lint entrypoints stay deterministic across packages."
+    rationale: |
+      Non-deterministic task ordering causes "passes locally fails in CI" the
+      most often in monorepos.
 
-  - topic: "workspace:tooling-safety"
-    level: "medium"
-    rule: "Keep workspace tooling predictable, deterministic, and easy to audit."
+  - id: "MR-003"
+    topic: "workspace:boundaries"
+    severity: "high"
+    applies_to: ["monorepo"]
+    rule: "Workspace package boundaries are explicit; cross-package writes happen through documented contracts, not via reaching into another package's filesystem."
+    rationale: |
+      Reaching across boundaries is fast in the short term and is the #1 cause
+      of monorepo refactors that paralyze the team.
+
+  - id: "MR-004"
+    topic: "workspace:task-routing"
+    severity: "high"
+    applies_to: ["monorepo"]
+    rule: "Top-level task orchestration (`npm run`, `turbo run`, `nx run-many`, `make`) is the supported entrypoint; per-package hidden automation is documented if used."
+    rationale: |
+      Hidden per-package scripts cause "works when I run it from this dir"
+      bugs that break CI parallelism.
+
+  - id: "MR-005"
+    topic: "workspace:tooling-safety"
+    severity: "medium"
+    applies_to: ["monorepo"]
+    rule: "Workspace tooling (codegen, lint, format) is predictable, deterministic, and audit-friendly. Generated files declare their source."
+    rationale: |
+      Non-deterministic codegen creates merge conflicts and obscures provenance.
+
+  - id: "MR-006"
+    topic: "workspace:cache-integrity"
+    severity: "high"
+    applies_to: ["monorepo"]
+    rule: "Cache keys (turbo, nx, bazel remote) reflect every input that affects output. Cache poisoning is treated as a P0."
+    rationale: |
+      A poisoned cache produces wrong artifacts at every consumer's CI. Same
+      blast radius as a bad release.
+
+  - id: "MR-007"
+    topic: "workspace:dependency-drift"
+    severity: "high"
+    applies_to: ["monorepo"]
+    rule: "Cross-package dependency versions are aligned via a single policy (hoisting, syncpack, or pnpm overrides); accidental drift is gated in CI."
+    rationale: |
+      Two versions of the same library in one process is the most common cause
+      of "instanceof returns false" bugs in JS monorepos and is silent in
+      multi-language monorepos.
+    refs: ["X-deps-001"]

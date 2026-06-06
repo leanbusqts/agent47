@@ -1,10 +1,77 @@
+metadata:
+  version: 2
+  last_updated: "2026-04-29"
+  owner: "platform-security"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
 rules:
   - id: "SEC-csharp-001"
+    topic: "csharp:no-unsafe-deserialization"
     severity: "critical"
-    applies_to: "backend|mobile"
-    rule: "Avoid unsafe deserialization and dynamic code execution paths with untrusted input."
+    applies_to: ["backend", "mobile"]
+    rule: "Do not use `BinaryFormatter`, `NetDataContractSerializer`, or `LosFormatter` on untrusted input; avoid `JsonSerializer` with `TypeNameHandling.All`."
+    rationale: |
+      `BinaryFormatter` is deprecated by Microsoft due to RCE-prone gadget chains.
+      `TypeNameHandling.All` in Json.NET reconstructs arbitrary types from input.
+    examples:
+      dont: |
+        // BinaryFormatter against untrusted streams -> RCE-prone
+        var f = new BinaryFormatter();
+        var o = f.Deserialize(stream);
+        // Polymorphic Json.NET with TypeNameHandling.All -> RCE-prone
+        var s = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+      do: |
+        var dto = JsonSerializer.Deserialize<UserDto>(json);
+    refs: ["SEC-global-004"]
+    tags: ["cwe:502"]
 
   - id: "SEC-csharp-002"
+    topic: "csharp:parameterized-queries"
     severity: "critical"
-    applies_to: "backend|mobile"
-    rule: "Use parameterized queries and safe data access APIs; never compose SQL directly from user input."
+    applies_to: ["backend", "mobile"]
+    rule: "Use parameterized queries / `DbCommand.Parameters` / EF Core parameter binding; never compose SQL directly from user input."
+    rationale: |
+      Violations can materially affect security, data integrity, or compliance for production systems.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      dont: |
+        var cmd = new SqlCommand($"SELECT * FROM u WHERE id={id}", conn);
+        ctx.Users.FromSqlRaw($"SELECT ... WHERE name='{name}'");
+      do: |
+        var cmd = new SqlCommand("SELECT * FROM u WHERE id=@id", conn);
+        cmd.Parameters.AddWithValue("@id", id);
+        ctx.Users.FromSqlInterpolated($"SELECT ... WHERE name={name}");
+    refs: ["SEC-global-003"]
+    tags: ["cwe:89"]
+
+  - id: "SEC-csharp-003"
+    topic: "csharp:secure-randomness"
+    severity: "high"
+    applies_to: ["backend", "mobile"]
+    rule: "Use `RandomNumberGenerator` for security-sensitive randomness; never `System.Random`."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      do: |
+        var bytes = RandomNumberGenerator.GetBytes(32);
+    tags: ["cwe:330"]
+
+  - id: "SEC-csharp-004"
+    topic: "csharp:safe-xml"
+    severity: "critical"   # v3 bump: XXE in .NET parsers = file disclosure + SSRF.
+    applies_to: ["backend", "mobile"]
+    rule: "Configure `XmlReader`/`XmlDocument` with `DtdProcessing = Prohibit` and `XmlResolver = null` for untrusted XML."
+    rationale: |
+      Default `XmlReader`/`XmlDocument` settings in some .NET versions resolve DTDs
+      and external entities, enabling XXE attacks equivalent in severity to those in
+      JDK XML parsers.
+    examples:
+      do: |
+        var s = new XmlReaderSettings {
+          DtdProcessing = DtdProcessing.Prohibit,
+          XmlResolver = null
+        };
+        using var r = XmlReader.Create(stream, s);
+    tags: ["cwe:611"]

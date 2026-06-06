@@ -1,62 +1,231 @@
-# Mobile rules extend AGENTS.md and may reference security IDs from rules/.
+metadata:
+  version: 2
+  last_updated: "2026-04-29"
+  owner: "platform-mobile"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
 
 rules:
-  - topic: "testing:structure"
-    level: "high"
-    rule: "Use clear behavior-driven test structure that makes scenario, action, and outcome obvious."
+  - id: "MO-001"
+    topic: "testing:structure"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Use clear behavior-driven test structure (Given-When-Then or Arrange-Act-Assert) that makes scenario, action, and outcome obvious."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["X-test-001"]
 
-  - topic: "testing:naming"
-    level: "medium"
-    rule: "Name tests by behavior and expected outcome."
+  - id: "MO-002"
+    topic: "testing:naming"
+    severity: "medium"
+    applies_to: ["mobile"]
+    rule: "Name tests by behavior and expected outcome (e.g. `placesOrder_whenCartIsEmpty_returnsValidationError`)."
 
-  - topic: "mobile:encapsulation"
-    level: "high"
-    rule: "Preserve intended encapsulation; do not widen visibility to bypass design constraints."
+  - id: "MO-003"
+    topic: "mobile:encapsulation"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Preserve intended encapsulation; do not widen visibility (`internal` → `public`, `private` → `internal`) to bypass design constraints."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
 
-  - topic: "mobile:consistency"
-    level: "medium"
-    rule: "Follow existing patterns in the surrounding module and avoid introducing divergent patterns without justification."
+  - id: "MO-004"
+    topic: "mobile:consistency"
+    severity: "medium"
+    applies_to: ["mobile"]
+    rule: "Follow existing patterns in the surrounding module unless the surrounding pattern violates a higher-severity rule (e.g. MO-008 layered architecture). When divergence is justified, document it in the PR description."
+    rationale: |
+      Resolves the prior tension with MO-008: consistency yields to higher-severity
+      architectural rules, and divergence becomes explicit instead of accidental.
 
-  - topic: "mobile:async-safety"
-    level: "high"
+  - id: "MO-005"
+    topic: "mobile:async-safety"
+    severity: "critical"
+    applies_to: ["mobile"]
     rule: "Keep IO and compute off the UI thread, use safe async coordination, and avoid unsafe force unwraps or equivalent shortcuts."
-    refs:
-      - "SEC-global-003"
-      - "SEC-java-kotlin-003"
-      - "SEC-swift-002"
+    rationale: |
+      Severity raised to critical: a force-unwrap crash in production is a top-tier
+      reliability incident, equivalent to a backend race-condition crash.
+    refs: ["SEC-global-003", "SEC-java-kotlin-003", "SEC-swift-002"]
 
-  - topic: "mobile:platform-security"
-    level: "high"
-    rule: "Apply the matching language security rules for the mobile stack: Java/Kotlin rules for Android, Swift rules for iOS, and C# rules for MAUI/Xamarin-style mobile apps."
+  - id: "MO-006"
+    topic: "mobile:platform-security"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Apply the matching language security rules for the mobile stack: Java/Kotlin rules for Android, Swift rules for iOS, C# rules for MAUI/Xamarin-style mobile apps."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
     refs:
       - "SEC-java-kotlin-001"
       - "SEC-java-kotlin-002"
       - "SEC-java-kotlin-003"
+      - "SEC-java-kotlin-004"
+      - "SEC-java-kotlin-005"
       - "SEC-swift-001"
       - "SEC-swift-002"
+      - "SEC-swift-003"
+      - "SEC-swift-004"
+      - "SEC-swift-005"
       - "SEC-csharp-001"
       - "SEC-csharp-002"
+      - "SEC-csharp-003"
+      - "SEC-csharp-004"
 
-  - topic: "mobile:dependencies"
-    level: "high"
-    rule: "Mobile dependency or config changes require approval and should reuse existing project libraries."
+  - id: "MO-007"
+    topic: "mobile:input-validation"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Validate inputs at module boundaries (deeplinks, intent extras, IPC, push payloads) before mutating state or navigating."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["SEC-global-003", "SEC-swift-005"]
 
-  - topic: "mobile:architecture-default"
-    level: "high"
-    rule: "Unless the user explicitly requests another architecture, implement mobile features with explicit UI, domain, and data layers."
+  - id: "MO-008"
+    topic: "mobile:architecture-default"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Unless the user explicitly requests another architecture, implement mobile features with explicit UI, domain, and data layers. When a project already follows a different layered architecture (MVI, KMP shared, Compose Multiplatform), preserve it and document mapping to UI/domain/data concepts."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
 
-  - topic: "mobile:architecture-patterns"
-    level: "high"
+  - id: "MO-009"
+    topic: "mobile:architecture-patterns"
+    severity: "high"
+    applies_to: ["mobile"]
     rule: "Use unidirectional data flow, a single source of truth per state owner, repositories as the boundary to data sources, and dependency injection. Keep platform details at the edges and business rules in the domain layer."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
 
-  - topic: "mobile:android-architecture"
-    level: "high"
-    rule: "On Android, use the recommended app architecture patterns: screen-level ViewModels in the UI layer, repositories in the data layer, use cases or interactors in the domain layer, and observable UI state exposed from the state holder."
+  - id: "MO-010"
+    topic: "mobile:android-architecture"
+    severity: "medium"
+    applies_to: ["mobile"]
+    rule: "On Android, prefer screen-level ViewModels in the UI layer, repositories in the data layer, use cases or interactors in the domain layer, and observable UI state. If the project uses an established alternative (e.g. MVI/Redux, KMP shared logic, Jetpack ViewModel-less Compose patterns), follow it and align it with MO-008/MO-009."
+    rationale: |
+      Severity lowered from `high` to `medium`: prescribing ViewModels paralyzed
+      agents in projects with valid alternative patterns. The architectural intent
+      (MO-008/MO-009) remains `high`; the specific implementation pattern is `medium`.
 
-  - topic: "mobile:ios-architecture"
-    level: "high"
-    rule: "On iOS, apply the same layered architecture using platform-native patterns: SwiftUI views in the UI layer, observable screen-level state holders or view models, repositories in the data layer, domain use cases or services in the domain layer, and a single source of truth for UI state."
+  - id: "MO-011"
+    topic: "mobile:ios-architecture"
+    severity: "medium"
+    applies_to: ["mobile"]
+    rule: "On iOS, prefer SwiftUI views with observable state holders, repositories, domain use cases, and a single source of truth. UIKit-only or hybrid projects may continue with their established patterns; new screens should follow the project's chosen pattern consistently."
+    rationale: |
+      Severity lowered from `high` to `medium` for the same reason as MO-010.
 
-  - topic: "mobile:layering"
-    level: "high"
+  - id: "MO-012"
+    topic: "mobile:layering"
+    severity: "high"
+    applies_to: ["mobile"]
     rule: "Keep mobile modules clearly separated by feature and by layer. Domain is required in the recommended architecture, not optional."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+
+  - id: "MO-013"
+    topic: "mobile:secure-storage"
+    severity: "critical"
+    applies_to: ["mobile"]
+    rule: "Use platform secure storage (Keychain on iOS; EncryptedSharedPreferences or Keystore on Android) for tokens and PII; never plain `UserDefaults`/`SharedPreferences` or unencrypted SQLite."
+    rationale: |
+      Violations can materially affect security, data integrity, or compliance for production systems.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["SEC-swift-001"]
+
+  - id: "MO-014"
+    topic: "mobile:observability"
+    severity: "high"   # v3 bump: crash-free-session is industry-standard SLO; security-relevant client failures (auth, payment) need crash/error telemetry.
+    applies_to: ["mobile"]
+    rule: "Use the project's standard analytics/crash-reporting/log SDKs; include screen, action, and user-identifier (anonymized) context."
+    rationale: |
+      Without crash/error telemetry, security-relevant failures in auth, payment,
+      and deeplink handling are invisible. Crash-free-session SLO is industry standard.
+    refs: ["X-obs-001"]
+
+  # MO-015 (dependencies) replaced by canonical X-deps-001.
+  - id: "MO-015"
+    topic: "mobile:tampering-detection"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Apps handling money or sensitive PII detect rooted/jailbroken environments, debugger attachment, and basic tampering, and respond per policy (warn, degrade, block) rather than crash silently."
+    rationale: |
+      Detection is not a security boundary, but it raises attacker cost and lets
+      backend take risk-based decisions (step-up auth on suspicious devices).
+    tags: ["cwe:693"]
+
+  - id: "MO-016"
+    topic: "mobile:screen-protection"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Screens that display sensitive data (payment, OTP, secrets) set platform flags to block screenshots and hide content in the task switcher (Android `FLAG_SECURE`; iOS blur/hide on `applicationWillResignActive`)."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+
+  - id: "MO-017"
+    topic: "mobile:biometric-binding"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Biometric auth gates a Keychain/Keystore-bound cryptographic operation, not just a boolean callback; reject unlock when `LAContext`/`BiometricPrompt` reports a fallback or device-credential."
+    rationale: |
+      A boolean from `BiometricPrompt.onSucceeded` is bypassable by hooking;
+      requiring the biometric to unlock a key in hardware-backed storage forces
+      the attacker to defeat secure hardware.
+
+  - id: "MO-018"
+    topic: "mobile:obfuscation-and-symbol-stripping"
+    severity: "medium"
+    applies_to: ["mobile"]
+    rule: "Release builds enable R8/ProGuard (Android) and dSYM upload + bitcode/strip (iOS); secrets used at runtime are not retrievable via `strings` on the binary."
+
+  - id: "MO-019"
+    topic: "mobile:safe-backup"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Disable auto-backup or exclude PII/auth from backups (Android `android:allowBackup` policy with rules; iOS `NSURLIsExcludedFromBackupKey` for sensitive files)."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+
+  - id: "MO-020"
+    topic: "mobile:accessibility"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Interactive UI exposes accessible labels (TalkBack/VoiceOver), supports dynamic text size, meets contrast standards, and is operable without gesture-only interactions."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["FE-008"]
+
+  - id: "MO-021"
+    topic: "mobile:push-handling"
+    severity: "medium"
+    applies_to: ["mobile"]
+    rule: "Push payloads are validated like any external input; deeplinks from notifications go through the same allow-list as `MO-007`/`SEC-swift-005`; tokens rotate on logout/uninstall."
+    refs: ["MO-007"]
+
+  - id: "MO-022"
+    topic: "mobile:background-work"
+    severity: "medium"
+    applies_to: ["mobile"]
+    rule: "Background work uses `WorkManager` (Android) or `BGTaskScheduler` (iOS) with declared constraints (network, charging, idle), retry/backoff, and observability."
+
+  - id: "MO-023"
+    topic: "mobile:size-and-memory"
+    severity: "medium"
+    applies_to: ["mobile"]
+    rule: "App-size budgets and heap budgets are tracked in CI; large images are resampled to display size; LRU caches are bounded."
+
+  - id: "MO-024"
+    topic: "mobile:state-restoration"
+    severity: "medium"
+    applies_to: ["mobile"]
+    rule: "Screens restore from process death using `SavedStateHandle` (Android) or `NSCoder`/`UISceneSession` (iOS); avoid storing transient sensitive values in restored state."
+    refs: ["MO-005"]

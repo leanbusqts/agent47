@@ -1,8 +1,26 @@
-rules:
-  - topic: "cli:stdout-stderr"
-    level: "high"
-    rule: "Keep stdout for primary results and stderr for diagnostics. This contract must remain stable in automation and non-interactive runs."
+metadata:
+  version: 2
+  last_updated: "2026-05-11"
+  owner: "platform-tooling"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
 
-  - topic: "cli:exit-codes"
-    level: "high"
-    rule: "Treat exit codes as part of the supported interface. Document or preserve success, usage, and failure semantics when changing commands."
+rules:
+  - id: "SHC-001"
+    topic: "cli:stdout-stderr"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Stdout carries primary results, stderr carries diagnostics. The contract holds in automation and non-interactive runs."
+    rationale: |
+      Interleaving breaks pipes and log capture. Universal rule: any program
+      that emits anything follows this.
+    refs: ["CLI-005"]
+
+  - id: "SHC-002"
+    topic: "cli:exit-codes"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Exit codes are part of the supported interface. Document or preserve success, usage-error, and failure semantics when changing commands."
+    rationale: |
+      Same argument as SHC-001 but for the other half of the contract.
+    refs: ["CLI-006"]

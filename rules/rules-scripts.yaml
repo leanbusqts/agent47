@@ -1,14 +1,136 @@
+metadata:
+  version: 2
+  last_updated: "2026-05-11"
+  owner: "platform-tooling"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
 rules:
-  - topic: "scripts:composition"
-    level: "high"
+  - id: "SCR-001"
+    topic: "scripts:shebang-and-mode"
+    severity: "high"
+    applies_to: ["scripts"]
+    rule: "Scripts declare an explicit shebang (`#!/usr/bin/env bash` or `#!/bin/sh`) and enable strict mode at the top."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["SEC-shell-003"]
+    examples:
+      do: |
+        #!/usr/bin/env bash
+        set -Eeuo pipefail
+        IFS=$'\n\t'
+
+  - id: "SCR-002"
+    topic: "scripts:idempotency"
+    severity: "high"
+    applies_to: ["scripts"]
+    rule: "Setup, install, and bootstrap scripts must be idempotent: re-running them yields the same final state without duplicating side effects."
+    rationale: |
+      Idempotency is required for safe re-runs after partial failures and for
+      configuration management drift correction.
+    examples:
+      dont: |
+        echo "export FOO=bar" >> ~/.zshrc   # appends every run
+      do: |
+        grep -q '^export FOO=bar' ~/.zshrc || echo "export FOO=bar" >> ~/.zshrc
+
+  - id: "SCR-003"
+    topic: "scripts:exit-codes"
+    severity: "high"
+    applies_to: ["scripts"]
+    rule: "Scripts return distinct, documented non-zero exit codes for distinct failure modes; reserve 0 for success and 1 for unspecified errors."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    refs: ["CLI-006"]
+
+  - id: "SCR-004"
+    topic: "scripts:logging"
+    severity: "medium"
+    applies_to: ["scripts"]
+    rule: "User-facing output goes to stdout; diagnostics and errors go to stderr; quiet mode (`-q`) and verbose mode (`-v`) are honored consistently."
+    refs: ["CLI-005", "SHC-001"]
+
+  - id: "SCR-005"
+    topic: "scripts:dry-run"
+    severity: "medium"
+    applies_to: ["scripts"]
+    rule: "Scripts that perform destructive operations support `--dry-run` and print the actions they would take without executing them."
+    refs: ["SEC-shell-004", "CLI-004"]
+
+  - id: "SCR-006"
+    topic: "scripts:argument-parsing"
+    severity: "medium"
+    applies_to: ["scripts"]
+    rule: "Use `getopts` (POSIX) or a structured argument-parsing helper; do not parse positional args ad-hoc when more than two flags exist."
+
+  - id: "SCR-007"
+    topic: "scripts:portability"
+    severity: "medium"
+    applies_to: ["scripts"]
+    rule: "Detect platform with `uname` or capability checks; do not assume GNU vs BSD utilities."
+    refs: ["SEC-shell-005"]
+
+  - id: "SCR-008"
+    topic: "scripts:dependencies"
+    severity: "medium"
+    applies_to: ["scripts"]
+    rule: "At script start, verify required external commands exist (`command -v`); fail with a clear error message and the install hint when missing."
+    examples:
+      do: |
+        require() {
+          command -v "$1" >/dev/null || { echo >&2 "missing: $1 ($2)"; exit 127; }
+        }
+        require jq    "brew install jq / apt install jq"
+        require curl  "brew install curl"
+
+  - id: "SCR-009"
+    topic: "scripts:composition"
+    severity: "high"
+    applies_to: ["scripts"]
     rule: "Keep scripts small, composable, and explicit about inputs, outputs, and filesystem side effects."
+    rationale: |
+      Composability follows from small surface area: well-defined inputs (flags
+      or env), well-defined outputs (stdout schema), and explicit filesystem
+      writes. Hidden side effects make scripts unsafe to compose into pipelines.
 
-  - topic: "scripts:portability"
-    level: "high"
-    rule: "Prefer portable shell constructs or guard platform-specific behavior with capability checks."
-    refs:
-      - "SEC-shell-005"
+  - id: "SCR-010"
+    topic: "scripts:verification"
+    severity: "high"
+    applies_to: ["scripts"]
+    rule: "Critical script paths have targeted verification for success, failure handling, and rollback behavior."
+    rationale: |
+      The high-blast-radius scripts (install, bootstrap, migrate) are the ones
+      most often broken by silent regressions; targeted tests are the floor.
+    refs: ["SHT-001", "SHT-004"]
+  - id: "SCR-011"
+    topic: "scripts:no-run-as-root"
+    severity: "high"
+    applies_to: ["scripts"]
+    rule: "Scripts refuse to run as root unless the operation strictly requires it; check with `[ \"$EUID\" -ne 0 ]` and elevate per-command via `sudo` or `doas`."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
 
-  - topic: "scripts:verification"
-    level: "high"
-    rule: "Critical script paths should have targeted verification for success, failure handling, and rollback behavior."
+  - id: "SCR-012"
+    topic: "scripts:concurrency-lock"
+    severity: "medium"
+    applies_to: ["scripts"]
+    rule: "Scripts that must not run concurrently use `flock` (Linux) or equivalent (e.g. `shlock`/lock dirs) on a fixed path with a deterministic lease."
+    examples:
+      do: |
+        exec 9>/var/lock/myscript.lock
+        flock -n 9 || { echo "already running"; exit 0; }
+
+  - id: "SCR-013"
+    topic: "scripts:cwd-restoration"
+    severity: "low"
+    applies_to: ["scripts"]
+    rule: "Scripts that change directory restore the original `cwd` on exit (via `pushd`/`popd` or trap on EXIT) when the script could be sourced or reused."
+
+  - id: "SCR-014"
+    topic: "scripts:log-rotation"
+    severity: "low"
+    applies_to: ["scripts"]
+    rule: "Long-lived scripts that write logs cap file size or hand off to `logrotate`/`journald`; never let a single log grow unbounded."

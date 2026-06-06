@@ -1,0 +1,95 @@
+metadata:
+  version: 1
+  last_updated: "2026-04-29"
+  owner: "platform-backend"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
+rules:
+  - id: "GO-001"
+    topic: "go:package-layout"
+    severity: "medium"
+    applies_to: ["backend"]
+    rule: "Group code by domain feature, not by technical layer (`internal/users/`, not `internal/repositories/`); keep `cmd/` for binaries and `internal/` for non-exported."
+
+  - id: "GO-002"
+    topic: "go:errors-wrap"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Wrap errors with `fmt.Errorf(\"context: %w\", err)` to preserve the chain; check with `errors.Is` / `errors.As`, not string matching."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      dont: |
+        if err.Error() == "not found" { ... }
+      do: |
+        if errors.Is(err, sql.ErrNoRows) { ... }
+
+  - id: "GO-003"
+    topic: "go:goroutine-lifecycle"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Every goroutine has an explicit termination path (context cancellation, channel close, or wait group); never spawn a goroutine without an owner."
+    rationale: |
+      Goroutine leaks accumulate slowly and cause memory growth and exhausted
+      connection pools; they're invisible without leak tests.
+
+  - id: "GO-004"
+    topic: "go:interface-at-consumer"
+    severity: "medium"
+    applies_to: ["backend"]
+    rule: "Define interfaces at the consumer side, not the producer; keep them small (1–3 methods)."
+
+  - id: "GO-005"
+    topic: "go:no-init-side-effects"
+    severity: "medium"
+    applies_to: ["backend"]
+    rule: "Avoid side effects in `init()` (network calls, file IO, global mutation); prefer explicit constructors called from `main`."
+
+  - id: "GO-006"
+    topic: "go:testing-table-driven"
+    severity: "medium"
+    applies_to: ["backend"]
+    rule: "Prefer table-driven tests with `t.Run(name, ...)` subtests for behavior matrices."
+    refs: ["X-test-001"]
+
+  - id: "GO-007"
+    topic: "go:linting"
+    severity: "low"
+    applies_to: ["backend"]
+    rule: "CI runs `go vet`, `staticcheck`, and `golangci-lint` with the project's checked-in config."
+  - id: "GO-008"
+    topic: "go:channel-direction"
+    severity: "medium"
+    applies_to: ["backend"]
+    rule: "Function signatures restrict channel direction (`chan<- T`, `<-chan T`) when only one direction is needed; bidirectional `chan T` reserved for owners."
+
+  - id: "GO-009"
+    topic: "go:struct-embedding"
+    severity: "medium"
+    applies_to: ["backend"]
+    rule: "Embed types only when promoting their methods is intentional; do not embed third-party structs whose methods could collide or expose internals."
+
+  - id: "GO-010"
+    topic: "go:json-tag-conventions"
+    severity: "low"
+    applies_to: ["backend"]
+    rule: "Public DTOs use explicit `json:\"name\"` tags with consistent casing; opt out of zero-value emission with `,omitempty` only when the contract distinguishes absent from zero."
+
+  - id: "GO-011"
+    topic: "go:no-package-cycles"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Package import cycles are forbidden; refactor via interfaces at the consumer or extract shared types to a leaf package."
+    rationale: |
+      Cycles fail the compiler but the symptom is often resolved by gymnastics
+      that worsen the design (over-broad packages, leaking internals). Treat the
+      compiler error as an architectural smell.
+    refs: ["GO-004"]
+
+  - id: "GO-012"
+    topic: "go:generics-discipline"
+    severity: "low"
+    applies_to: ["backend"]
+    rule: "Use generics for container algorithms (sort, filter, set) and for typed wrappers; do not generify business code where concrete types document intent better."

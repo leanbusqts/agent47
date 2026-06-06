@@ -1,29 +1,193 @@
+metadata:
+  version: 2
+  last_updated: "2026-04-29"
+  owner: "platform-security"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
 rules:
   - id: "SEC-shell-001"
+    topic: "shell:quote-expansions"
     severity: "critical"
-    applies_to: "shell"
-    rule: "Quote expansions and paths unless a deliberate word-splitting behavior is required."
-    refs:
-      - "SEC-global-003"
+    applies_to: ["shell"]
+    rule: "Quote expansions and paths unless deliberate word-splitting is required."
+    rationale: |
+      Unquoted expansions split on $IFS and glob, breaking on filenames with spaces,
+      newlines, or wildcards. NOTE: Quoting prevents word-splitting; it does NOT
+      sanitize input — see SEC-shell-002 for command-injection prevention.
+    examples:
+      dont: |
+        rm $file
+        for f in $(ls); do ...
+      do: |
+        rm -- "$file"
+        for f in *; do ...
+    refs: ["SEC-global-003", "SEC-shell-002"]
+    tags: ["cwe:78"]
 
   - id: "SEC-shell-002"
+    topic: "shell:no-untrusted-commands"
     severity: "critical"
-    applies_to: "shell"
+    applies_to: ["shell"]
     rule: "Do not build or execute shell commands from untrusted input; use fixed command forms and explicit allow-lists."
-    refs:
-      - "SEC-global-004"
+    rationale: |
+      Even quoted untrusted input can be passed to commands that interpret arguments
+      as code (`bash -c`, `sh -c "$x"`, `find -exec sh -c`, the eval builtin).
+      Quoting is necessary but not sufficient.
+    examples:
+      dont: |
+        # Composes a shell command from user input -> command injection
+        eval "git $USER_INPUT"
+        bash -c "process $USER_INPUT"
+      do: |
+        case "$USER_INPUT" in
+          status) git status ;;
+          log)    git log -n 20 ;;
+          *)      echo "unknown" >&2; exit 2 ;;
+        esac
+    refs: ["SEC-global-004"]
+    tags: ["cwe:78"]
 
   - id: "SEC-shell-003"
+    topic: "shell:strict-mode"
     severity: "high"
-    applies_to: "shell"
+    applies_to: ["shell"]
     rule: "Use strict mode where supported and fail fast on command, pipeline, and unset-variable errors."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      do: |
+        #!/usr/bin/env bash
+        set -Eeuo pipefail
+        IFS=$'\n\t'
+    tags: ["cwe:252"]
 
   - id: "SEC-shell-004"
+    topic: "shell:scoped-destructive-ops"
     severity: "high"
-    applies_to: "shell"
+    applies_to: ["shell"]
     rule: "Perform destructive filesystem changes only on explicitly scoped paths and prefer transactional staging for replacements."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      dont: |
+        rm -rf $TARGET_DIR/   # if $TARGET_DIR is empty -> rm -rf /
+      do: |
+        : "${TARGET_DIR:?TARGET_DIR is required}"
+        case "$TARGET_DIR" in /|/home|/usr|/etc|/var) echo "refusing"; exit 2 ;; esac
+        rm -rf -- "$TARGET_DIR"
+    tags: ["cwe:73"]
 
   - id: "SEC-shell-005"
-    severity: "high"
-    applies_to: "shell"
+    topic: "shell:portable-constructs"
+    severity: "medium"   # v3 reclassification: portability is maintainability, not security.
+    applies_to: ["shell"]
     rule: "Prefer platform-portable shell constructs or guard platform-specific commands with capability checks."
+    examples:
+      do: |
+        if command -v gsed >/dev/null; then SED=gsed; else SED=sed; fi
+        "$SED" -i ...
+    tags: ["portability"]
+    # NOTE: this rule should arguably live in `rules-scripts.yaml` (SCR-*); kept here
+    # for backwards compatibility with the existing ID series. Move in v4.
+
+  - id: "SEC-shell-006"
+    topic: "shell:safe-tempfiles"
+    severity: "high"
+    applies_to: ["shell"]
+    rule: "Create temporary files and directories with `mktemp`; never with predictable names in shared directories."
+    rationale: |
+      `/tmp/myscript.$$` is racy and predictable. `mktemp` creates the file with
+      mode 0600 atomically.
+    examples:
+      dont: |
+        TMP=/tmp/myscript.$$
+        echo "$data" > "$TMP"
+      do: |
+        TMP="$(mktemp)"
+        trap 'rm -f -- "$TMP"' EXIT
+        printf '%s\n' "$data" > "$TMP"
+    tags: ["cwe:377"]
+
+  - id: "SEC-shell-007"
+    topic: "shell:explicit-umask"
+    severity: "high"   # v3 bump: world-readable secrets are a real disclosure path.
+    applies_to: ["shell"]
+    rule: "Set an explicit `umask` for scripts that create files outside `mktemp`-controlled paths."
+    rationale: |
+      Default umask varies between OS/distro/user. A script that writes a credentials
+      file under default 022 produces a world-readable file. Setting `umask 077`
+      ensures created files are mode 0600.
+    examples:
+      do: |
+        umask 077  # files default to mode 0600
+    tags: ["cwe:732"]
+  - id: "SEC-shell-008"
+    topic: "shell:no-toctou"
+    severity: "high"
+    applies_to: ["shell"]
+    rule: "Avoid the `[ -e file ]` then act pattern on attacker-writable paths; perform the action with O_EXCL semantics or operate inside `mktemp -d` directories."
+    rationale: |
+      Time-of-check-time-of-use lets an attacker symlink the path between the
+      test and the action.
+    examples:
+      dont: |
+        [ -e /tmp/build.lock ] || touch /tmp/build.lock
+      do: |
+        # Atomic create-or-fail
+        ( set -C; > /tmp/build.lock ) 2>/dev/null || { echo "locked"; exit 1; }
+    tags: ["cwe:367"]
+
+  - id: "SEC-shell-009"
+    topic: "shell:signal-handling"
+    severity: "high"
+    applies_to: ["shell"]
+    rule: "Long-running scripts trap INT/TERM/HUP and run cleanup; never leave orphan locks, temp dirs, or partial writes on signal exit."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      do: |
+        trap 'cleanup; trap - INT TERM EXIT; exit 130' INT
+        trap 'cleanup; trap - INT TERM EXIT; exit 143' TERM
+        trap 'cleanup' EXIT
+
+  - id: "SEC-shell-010"
+    topic: "shell:sudo-discipline"
+    severity: "high"
+    applies_to: ["shell"]
+    rule: "Use `sudo -n` in non-interactive contexts (CI, cron) so that missing credentials fail fast; never wrap sudo around an entire script when only one step needs it."
+    rationale: |
+      Sudo prompting in non-tty contexts hangs the script; sudo over the entire
+      script grants more privilege than the operation requires.
+
+  - id: "SEC-shell-011"
+    topic: "shell:harden-env"
+    severity: "high"
+    applies_to: ["shell"]
+    rule: "Set explicit `PATH=\"/usr/local/bin:/usr/bin:/bin\"` and `IFS=$' \\t\\n'` early in scripts that run as root or in shared environments."
+    rationale: |
+      Inherited PATH from the invoking shell can include attacker-writable
+      directories; inherited IFS can change word splitting.
+    refs: ["SEC-shell-001", "SEC-shell-003"]
+
+  - id: "SEC-shell-012"
+    topic: "shell:no-curl-pipe-sh"
+    severity: "critical"
+    applies_to: ["shell"]
+    rule: "Do not document or recommend `curl ... | sh` style installs for production; if used for bootstrap, pin the URL to a versioned tag and verify a checksum before executing."
+    rationale: |
+      `curl|sh` executes whatever the server (or MITM) returns, with no review.
+      A redirect, a defacement, or a CDN compromise becomes RCE on every
+      installer machine.
+    examples:
+      dont: |
+        curl https://example.com/install.sh | sh
+      do: |
+        curl -sSLO https://example.com/install-v1.2.3.sh
+        sha256sum -c install-v1.2.3.sh.sha256
+        bash ./install-v1.2.3.sh
+    refs: ["SEC-global-011"]
+    tags: ["cwe:494"]

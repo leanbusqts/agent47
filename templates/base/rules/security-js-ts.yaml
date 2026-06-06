@@ -1,15 +1,123 @@
+metadata:
+  version: 2
+  last_updated: "2026-04-29"
+  owner: "platform-security"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
 rules:
   - id: "SEC-js-ts-001"
+    topic: "js-ts:no-dom-injection"
     severity: "critical"
-    applies_to: "frontend"
+    applies_to: ["frontend"]
     rule: "Do not inject untrusted content into the DOM without safe escaping or trusted sanitization."
+    rationale: |
+      `innerHTML`, `dangerouslySetInnerHTML`, `v-html`, `document.write`, and string
+      template injection enable stored/reflected XSS. Frameworks escape by default
+      via text interpolation; bypassing that requires DOMPurify or equivalent.
+    examples:
+      dont: |
+        el.innerHTML = userBio
+        <div dangerouslySetInnerHTML={{ __html: userBio }} />
+      do: |
+        el.textContent = userBio
+        <div>{userBio}</div>
+        <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(userBio) }} />
+    refs: ["SEC-global-003"]
+    tags: ["owasp:A03", "cwe:79"]
 
   - id: "SEC-js-ts-002"
+    topic: "js-ts:secure-token-storage"
     severity: "critical"
-    applies_to: "frontend"
-    rule: "Do not store sensitive tokens in insecure browser-accessible storage unless the architecture explicitly requires and protects it."
+    applies_to: ["frontend"]
+    rule: "Do not store sensitive tokens in `localStorage`, `sessionStorage`, or non-HTTP-only cookies."
+    rationale: |
+      `localStorage`/`sessionStorage` are accessible to any JS on the page; one XSS
+      gives an attacker the token. HTTP-only Secure cookies are not exposed to JS.
+    examples:
+      dont: |
+        localStorage.setItem("auth_token", token)
+      do: |
+        // Server sets: Set-Cookie: auth=<token>; HttpOnly; Secure; SameSite=Lax
+    refs: ["SEC-js-ts-005"]
+    tags: ["owasp:A07", "cwe:922"]
 
   - id: "SEC-js-ts-003"
+    topic: "js-ts:client-validation-not-security"
     severity: "high"
-    applies_to: "frontend"
+    applies_to: ["frontend"]
     rule: "Keep client input validation aligned with server validation; client checks improve UX but do not replace server enforcement."
+    rationale: |
+      Anything in the browser is under the user's control. Server-side validation is
+      the source of truth; client validation only improves UX/latency.
+    refs: ["SEC-global-003"]
+    tags: ["owasp:A04"]
+
+  - id: "SEC-js-ts-004"
+    topic: "js-ts:secure-randomness"
+    severity: "high"
+    applies_to: ["frontend", "backend"]
+    rule: "Use `crypto.getRandomValues` / `crypto.randomUUID` / `crypto.randomBytes` for security-sensitive randomness; never `Math.random`."
+    rationale: |
+      `Math.random` is non-cryptographic and predictable. `crypto.*` wraps the
+      platform CSPRNG and is available in browsers and Node.
+    examples:
+      dont: |
+        const id = Math.random().toString(36).slice(2)
+      do: |
+        const id = crypto.randomUUID()
+        const bytes = new Uint8Array(32); crypto.getRandomValues(bytes)
+    refs: ["SEC-py-003", "SEC-java-kotlin-003"]
+    tags: ["cwe:330"]
+
+  - id: "SEC-js-ts-005"
+    topic: "js-ts:csrf-cookie-flags"
+    severity: "critical"   # v3 bump: missing flags on auth cookies = default-credential class.
+    applies_to: ["frontend", "backend"]
+    rule: "Authentication cookies must set `HttpOnly`, `Secure`, and `SameSite=Lax` (or stricter); state-changing requests must validate CSRF or use SameSite=Strict + custom header."
+    rationale: |
+      Without SameSite, cross-origin POSTs from an attacker-controlled page can carry
+      auth cookies. Without HttpOnly, XSS reads the token. Without Secure, the cookie
+      can leak over HTTP.
+    examples:
+      do: |
+        Set-Cookie: sess=...; HttpOnly; Secure; SameSite=Lax
+        // or use double-submit token + custom X-CSRF-Token header
+    tags: ["owasp:A01", "cwe:352"]
+
+  - id: "SEC-js-ts-006"
+    topic: "js-ts:postmessage-origin-check"
+    severity: "high"
+    applies_to: ["frontend"]
+    rule: "Always check `event.origin` (or `event.source`) in `window.message` listeners against an allow-list."
+    rationale: |
+      `postMessage` listeners that don't filter origin accept messages from any
+      embedding/embedded frame, enabling cross-origin command injection.
+    examples:
+      dont: |
+        window.addEventListener("message", e => handle(e.data))
+      do: |
+        window.addEventListener("message", e => {
+          if (!ALLOWED_ORIGINS.includes(e.origin)) return
+          handle(e.data)
+        })
+    tags: ["cwe:346"]
+
+  - id: "SEC-js-ts-007"
+    topic: "js-ts:no-prototype-pollution"
+    severity: "critical"   # v3 bump: chains to RCE via gadgets in popular Node libs.
+    applies_to: ["frontend", "backend"]
+    rule: "Do not deep-merge or recursive-assign untrusted JSON into objects without filtering `__proto__`, `constructor`, and `prototype` keys."
+    rationale: |
+      Prototype pollution writes to `Object.prototype`, affecting all objects in the
+      runtime. In Node it has repeatedly chained into RCE through gadgets in lodash,
+      mongoose, kibana, etc.
+    examples:
+      dont: |
+        function merge(t, s) {
+          for (const k in s) t[k] = typeof s[k] === "object" ? merge(t[k] ?? {}, s[k]) : s[k]
+        }
+      do: |
+        // Reject dangerous keys explicitly, or use Object.create(null) for maps,
+        // or a vetted library (lodash >=4.17.21 has fixes; structuredClone for cloning).
+    tags: ["cwe:1321"]

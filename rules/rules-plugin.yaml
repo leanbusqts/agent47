@@ -1,8 +1,74 @@
-rules:
-  - topic: "plugin:host-contract"
-    level: "high"
-    rule: "Treat plugin entrypoints, manifests, and host APIs as compatibility contracts. Validate changes against the host lifecycle and expected capabilities."
+metadata:
+  version: 2
+  last_updated: "2026-05-11"
+  owner: "platform-plugins"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
 
-  - topic: "plugin:isolation"
-    level: "high"
-    rule: "Keep plugin-specific state, permissions, and side effects isolated from the host and from other plugins."
+rules:
+  - id: "PL-001"
+    topic: "plugin:host-contract"
+    severity: "critical"
+    applies_to: ["plugin"]
+    rule: "Plugin entrypoints, manifests, and host APIs are compatibility contracts. Changes are validated against the host lifecycle and declared capabilities."
+    rationale: |
+      Breaking a plugin contract silently is worse than failing loudly:
+      consumer plugins compile but misbehave at runtime in user environments.
+
+  - id: "PL-002"
+    topic: "plugin:isolation"
+    severity: "critical"
+    applies_to: ["plugin"]
+    rule: "Plugin-specific state, permissions, and side effects are isolated from the host and from other plugins."
+    rationale: |
+      Shared mutable state between plugins is the source of "plugin A breaks
+      when plugin B is installed". Isolation per-plugin is the only scalable
+      model.
+
+  - id: "PL-003"
+    topic: "plugin:api-surface"
+    severity: "high"
+    applies_to: ["plugin"]
+    rule: "Public plugin APIs follow semver. Breaking changes require a major version bump and a migration note."
+    rationale: |
+      Plugins are written by third parties; breaking changes without notice
+      strand a fraction of the ecosystem at every release.
+    refs: ["CLI-010"]
+
+  - id: "PL-004"
+    topic: "plugin:release-safety"
+    severity: "high"
+    applies_to: ["plugin"]
+    rule: "Plugin packaging and release changes are explicit, reversible, and pin every transitive dependency."
+    rationale: |
+      A plugin install pulls code into a trusted host process. Floating
+      transitive versions = supply-chain risk.
+    refs: ["SEC-global-011"]
+
+  - id: "PL-005"
+    topic: "plugin:capability-scoping"
+    severity: "critical"
+    applies_to: ["plugin"]
+    rule: "Plugins declare the capabilities they need (filesystem paths, network hosts, IPC channels) and the host enforces the declaration at load time."
+    rationale: |
+      Untyped capability access is the desktop equivalent of "all extensions
+      are admin". The declaration is the audit surface for security review.
+    refs: ["SEC-global-003", "SEC-global-004", "DT-007"]
+
+  - id: "PL-006"
+    topic: "plugin:hot-reload-safety"
+    severity: "medium"
+    applies_to: ["plugin"]
+    rule: "If hot-reload or in-place upgrade is supported, define which state is preserved vs reset and document failure modes (partial upgrade, version mismatch)."
+    rationale: |
+      Hot-reload is convenient but moves bugs to subtle state corruption.
+
+  - id: "PL-007"
+    topic: "plugin:identity-and-signing"
+    severity: "high"
+    applies_to: ["plugin"]
+    rule: "Distributed plugins carry a verifiable identity (signed manifest or checksum from a trusted source) before being loaded by the host."
+    rationale: |
+      Same supply-chain reasoning as DT-006: unsigned plugins = arbitrary code
+      execution inside the host trust boundary.
+    refs: ["SEC-global-011", "DT-006"]

@@ -1,15 +1,126 @@
+metadata:
+  version: 2
+  last_updated: "2026-04-29"
+  owner: "platform-security"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
 rules:
   - id: "SEC-java-kotlin-001"
+    topic: "java-kotlin:no-unsafe-deserialization"
     severity: "critical"
-    applies_to: "backend|mobile"
-    rule: "Do not deserialize untrusted data with unsafe object deserialization mechanisms."
+    applies_to: ["backend", "mobile"]
+    rule: "Do not deserialize untrusted data with `ObjectInputStream`, polymorphic Jackson with default typing, or XStream without an allow-list."
+    rationale: |
+      Java's native serialization and polymorphic deserializers reconstruct arbitrary
+      classes; many gadget chains lead to RCE. Use schema-bound formats (JSON with
+      explicit DTOs, protobuf) and concrete types only.
+    examples:
+      dont: |
+        // ObjectInputStream against untrusted bytes -> RCE-prone
+        ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+        Object o = in.readObject();
+        // Polymorphic Jackson with default typing -> RCE-prone
+        ObjectMapper m = new ObjectMapper();
+        m.activateDefaultTyping(...);
+      do: |
+        // Bind to a concrete DTO
+        UserDto dto = mapper.readValue(json, UserDto.class);
+    refs: ["SEC-global-004"]
+    tags: ["owasp:A08", "cwe:502"]
 
   - id: "SEC-java-kotlin-002"
+    topic: "java-kotlin:parameterized-queries"
     severity: "critical"
-    applies_to: "backend|mobile"
-    rule: "Use parameterized queries and safe persistence APIs; never concatenate user input into queries."
+    applies_to: ["backend", "mobile"]
+    rule: "Use parameterized queries (`PreparedStatement`, JPA parameters, jOOQ bind values) and safe persistence APIs; never concatenate user input into queries."
+    rationale: |
+      String concatenation into JDBC SQL or JPQL bypasses driver escaping and creates
+      SQLi/JPQL injection.
+    examples:
+      dont: |
+        stmt.executeQuery("SELECT * FROM u WHERE id=" + id);
+        em.createQuery("from User where name = '" + name + "'");
+      do: |
+        var ps = c.prepareStatement("SELECT * FROM u WHERE id = ?");
+        ps.setLong(1, id);
+        em.createQuery("from User where name = :n").setParameter("n", name);
+    refs: ["SEC-global-003"]
+    tags: ["cwe:89"]
 
   - id: "SEC-java-kotlin-003"
+    topic: "java-kotlin:secure-randomness"
     severity: "high"
-    applies_to: "backend|mobile"
-    rule: "Use cryptographically secure randomness for tokens, secrets, and security-sensitive identifiers."
+    applies_to: ["backend", "mobile"]
+    rule: "Use `SecureRandom` for tokens, secrets, and security-sensitive identifiers; never `java.util.Random` or `Math.random`."
+    rationale: |
+      Material security, reliability, or operability risk can result when this rule is violated.
+      Treat this as an explicit review point and document any compensating control before merge.
+    examples:
+      dont: |
+        String token = String.valueOf(new Random().nextLong());
+      do: |
+        var r = new SecureRandom();
+        var b = new byte[32]; r.nextBytes(b);
+        var token = Base64.getUrlEncoder().withoutPadding().encodeToString(b);
+    tags: ["cwe:330"]
+
+  - id: "SEC-java-kotlin-004"
+    topic: "java-kotlin:safe-xml"
+    severity: "critical"   # v3 bump: XXE in JDK parsers = file disclosure + SSRF + DoS.
+    applies_to: ["backend", "mobile"]
+    rule: "Disable external entities and DOCTYPE on XML parsers (`SAXParserFactory`, `DocumentBuilderFactory`, `XMLInputFactory`)."
+    rationale: |
+      Default XML parsers in the JDK resolve external entities and DOCTYPEs, enabling
+      XXE: file disclosure, SSRF, and DoS via billion-laughs.
+    examples:
+      do: |
+        var f = DocumentBuilderFactory.newInstance();
+        f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        f.setXIncludeAware(false);
+        f.setExpandEntityReferences(false);
+    refs: ["SEC-global-003"]
+    tags: ["cwe:611"]
+
+  - id: "SEC-java-kotlin-005"
+    topic: "java-kotlin:password-hashing"
+    severity: "critical"
+    applies_to: ["backend"]
+    rule: "Hash passwords with a memory-hard KDF (Argon2, bcrypt, scrypt); never raw MD5/SHA-1/SHA-256."
+    rationale: |
+      Same reasoning as `SEC-py-006`; fast hashes are GPU-crackable at scale.
+    refs: ["SEC-py-006"]
+    tags: ["cwe:916"]
+  - id: "SEC-java-kotlin-006"
+    topic: "java-kotlin:cert-pinning"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Production builds of mobile apps that handle auth or PII pin to expected certificates or public-key SPKI hashes via `NetworkSecurityConfig` (Android) for the API hosts."
+    rationale: |
+      Without pinning, a compromised CA or a user-installed root certificate
+      enables network-level interception that defeats TLS for the app.
+    refs: ["SEC-global-008"]
+    tags: ["cwe:295"]
+
+  - id: "SEC-java-kotlin-007"
+    topic: "java-kotlin:webview-hardening"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Android WebViews load only the configured origin; disable `setAllowFileAccess(true)`, `setAllowFileAccessFromFileURLs(true)`, `setAllowUniversalAccessFromFileURLs(true)`; gate `addJavascriptInterface` behind authenticated origins; enable Safe Browsing."
+    rationale: |
+      Permissive WebViews expose native bridges to attacker JS via injected pages
+      or XSS in loaded content; chains to RCE on the device.
+    refs: ["SEC-global-004"]
+    tags: ["cwe:749"]
+
+  - id: "SEC-java-kotlin-008"
+    topic: "java-kotlin:exported-components"
+    severity: "high"
+    applies_to: ["mobile"]
+    rule: "Activities, Services, and Broadcast Receivers default `android:exported=\"false\"` unless intentionally public; exported components validate intent extras and apply permission checks."
+    rationale: |
+      Exported components without input validation are RPC into the app from any
+      installed app on the device. Intent redirection is a known privilege-
+      escalation pattern.
+    refs: ["SEC-global-003", "MO-007"]
+    tags: ["cwe:926"]

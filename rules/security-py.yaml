@@ -1,10 +1,116 @@
+metadata:
+  version: 2
+  last_updated: "2026-04-29"
+  owner: "platform-security"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
 rules:
   - id: "SEC-py-001"
+    topic: "py:no-unsafe-eval"
     severity: "critical"
-    applies_to: "backend"
-    rule: "Avoid `eval`, `exec`, unsafe pickle loading, and shell execution with unsanitized input."
+    applies_to: ["backend"]
+    rule: "Avoid Python's eval/exec built-ins, unsafe pickle loading, and subprocess with shell=True when the input is untrusted."
+    rationale: |
+      These four entry points evaluate arbitrary code or commands from their input.
+      There is no safe way to use them with untrusted data; the safer pattern is
+      ast.literal_eval for literals, json.loads for data, and subprocess.run with a
+      list (no shell).
+    examples:
+      dont: |
+        # All of these execute code/commands derived from untrusted input:
+        result  = eval(request.json["expr"])
+        out     = exec(request.body)
+        data    = pickle.loads(request.body)
+        subprocess.run(cmd, shell=True)
+      do: |
+        result = ast.literal_eval(request.json["expr"])  # literals only
+        data   = json.loads(request.body)
+        subprocess.run([cmd, *args])                     # list, no shell
+    refs: ["SEC-global-004"]
+    tags: ["owasp:A03", "cwe:94", "cwe:78"]
 
   - id: "SEC-py-002"
+    topic: "py:parameterized-queries"
     severity: "critical"
-    applies_to: "backend"
+    applies_to: ["backend"]
     rule: "Use parameterized queries or safe ORM APIs; never compose queries directly from user input."
+    rationale: |
+      String interpolation into SQL bypasses driver-level escaping and creates SQLi.
+      All major drivers (psycopg, sqlite3, SQLAlchemy text) support parameter binding.
+    examples:
+      dont: |
+        cursor.execute(f"SELECT * FROM users WHERE id = {user_id}")
+        session.execute(f"DELETE FROM x WHERE name = '{name}'")
+      do: |
+        cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+        session.execute(text("DELETE FROM x WHERE name = :n"), {"n": name})
+    refs: ["SEC-global-003"]
+    tags: ["owasp:A03", "cwe:89"]
+
+  - id: "SEC-py-003"
+    topic: "py:secure-randomness"
+    severity: "high"
+    applies_to: ["backend"]
+    rule: "Use the `secrets` module for security-sensitive randomness; do not use `random` for tokens, IDs, or salts."
+    rationale: |
+      `random.*` is a Mersenne Twister PRNG, fully deterministic from a 32-bit seed,
+      and predictable. `secrets` wraps the OS CSPRNG.
+    examples:
+      dont: |
+        token = "".join(random.choices(string.ascii_letters, k=32))
+      do: |
+        token = secrets.token_urlsafe(32)
+    refs: ["SEC-java-kotlin-003", "SEC-js-ts-004", "SEC-csharp-003", "SEC-swift-003"]
+    tags: ["cwe:330", "cwe:338"]
+
+  - id: "SEC-py-004"
+    topic: "py:safe-yaml-load"
+    severity: "critical"
+    applies_to: ["backend"]
+    rule: "Use `yaml.safe_load` for untrusted YAML; never `yaml.load` without an explicit safe Loader."
+    rationale: |
+      Default `yaml.load` instantiates arbitrary Python objects via the
+      `!!python/object` tag, enabling RCE on untrusted input.
+    examples:
+      dont: |
+        config = yaml.load(req.body)
+      do: |
+        config = yaml.safe_load(req.body)
+    refs: ["SEC-global-004"]
+    tags: ["cwe:502"]
+
+  - id: "SEC-py-005"
+    topic: "py:safe-xml"
+    severity: "critical"   # v3 bump: XXE yields file disclosure + SSRF + RCE.
+    applies_to: ["backend"]
+    rule: "Parse untrusted XML with `defusedxml` or libraries with external entities and DTD disabled."
+    rationale: |
+      `xml.etree`/`lxml` enable XXE, billion-laughs, and external-entity attacks by
+      default in some configurations. `defusedxml` provides safe drop-in replacements.
+      XXE has the same blast radius as unsafe deserialization.
+    examples:
+      dont: |
+        from xml.etree import ElementTree as ET
+        ET.fromstring(untrusted)
+      do: |
+        from defusedxml.ElementTree import fromstring
+        fromstring(untrusted)
+    refs: ["SEC-global-003"]
+    tags: ["owasp:A05", "cwe:611"]
+
+  - id: "SEC-py-006"
+    topic: "py:password-hashing"
+    severity: "critical"
+    applies_to: ["backend"]
+    rule: "Hash passwords with a memory-hard KDF (argon2, bcrypt, scrypt); never with raw md5/sha1/sha256."
+    rationale: |
+      Fast hashes are GPU-crackable at billions of guesses per second. KDFs apply
+      tunable cost so an offline attacker is rate-limited.
+    examples:
+      dont: |
+        hashlib.sha256(pwd.encode()).hexdigest()
+      do: |
+        from argon2 import PasswordHasher
+        PasswordHasher().hash(pwd)
+    tags: ["owasp:A02", "cwe:916"]

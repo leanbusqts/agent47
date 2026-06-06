@@ -1,13 +1,20 @@
-.PHONY: test agents-check test-checkout test-installed go-test go-build lint-shell smoke-install clean-test vendor-clean
+.PHONY: test agents-check rules-check rules-drift-check test-checkout test-installed go-test go-build lint-shell smoke-install clean-test vendor-clean
 
 # Run the CLI test suite (auto-installs a temporary bats copy from tests/vendor when needed)
 test:
 	@bash scripts/check-agents-md.sh
+	@GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go run ./rules/tests/check_rules.go
 	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go run ./cmd/afstest
 	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go run ./cmd/afsverify
 
 agents-check:
 	@bash scripts/check-agents-md.sh
+
+rules-check:
+	@GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go run ./rules/tests/check_rules.go
+
+rules-drift-check:
+	@bash scripts/check-rules-drift.sh
 
 test-checkout:
 	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go run ./cmd/afstest

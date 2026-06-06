@@ -52,6 +52,7 @@ var (
 		"security-java-kotlin.yaml",
 		"security-swift.yaml",
 		"security-csharp.yaml",
+		"security-go.yaml",
 	}
 	requiredRuleTemplates = []string{
 		"security-global.yaml",
@@ -76,6 +77,7 @@ var (
 		"security-java-kotlin.yaml",
 		"security-swift.yaml",
 		"security-csharp.yaml",
+		"security-go.yaml",
 	}
 	requiredManagedTargets = []string{
 		"AGENTS.md",

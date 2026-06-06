@@ -1,30 +1,459 @@
+metadata:
+  version: 2
+  last_updated: "2026-04-29"
+  owner: "platform-security"
+  review_cadence: "quarterly"
+  schema: "rules/schema.json"
+
 rules:
   - id: "SEC-global-001"
+    topic: "global:no-hardcoded-secrets"
     severity: "critical"
-    applies_to: "all"
+    applies_to: ["all"]
     rule: "Never hardcode secrets, tokens, passwords, API keys, or private credentials."
+    rationale: |
+      Hardcoded credentials end up in git history forever, leak via logs, screenshots,
+      and third-party scanners. Rotation becomes impossible without code changes.
+    how_to_apply: |
+      Applies to source files, config files committed to the repo, test fixtures,
+      and CI definitions. Local-only sample files are allowed under `examples/` if
+      clearly marked and using fake values.
     examples:
       dont: |
-        const apiKey = "hardcoded-key"
+        const apiKey = "sk_live_abc123"
+        DB_PASSWORD = "supersecret"
       do: |
         const apiKey = secrets.get("API_KEY")
+        DB_PASSWORD = os.environ["DB_PASSWORD"]
+    tags: ["owasp:A02", "cwe:798"]
 
   - id: "SEC-global-002"
+    topic: "global:no-secret-leak-in-logs"
     severity: "critical"
-    applies_to: "all"
+    applies_to: ["all"]
     rule: "Do not log or expose secrets, tokens, credentials, or sensitive personal data."
+    rationale: |
+      Logs are aggregated, retained, and visible to far more people than production
+      databases. Anything that ends up in stdout/stderr should be considered public
+      to the org's observability stack.
+    examples:
+      dont: |
+        log.info(f"Authenticated user {user.email} with token {token}")
+      do: |
+        log.info("Authenticated user", user_id=user.id)
+    tags: ["owasp:A09", "cwe:532"]
 
   - id: "SEC-global-003"
+    topic: "global:validate-untrusted-input"
     severity: "critical"
-    applies_to: "all"
+    applies_to: ["all"]
     rule: "Validate and constrain untrusted input at the appropriate boundary before use."
+    rationale: |
+      Input that crosses a trust boundary (HTTP request, IPC, file, user upload, env
+      var under user control) must be validated against an allow-list of shape, length,
+      and type before being used in queries, commands, paths, URLs, or rendered output.
+    how_to_apply: |
+      The "appropriate boundary" is typically the HTTP handler / RPC entrypoint /
+      message consumer. Internal modules may assume validated inputs and document the
+      contract in types.
+    examples:
+      dont: |
+        # Python — no validation, raw interpolation
+        user_id = request.args.get("id")
+        db.query("SELECT * FROM u WHERE id = " + user_id)
+      do: |
+        user_id = int(request.args["id"])  # raises if not int
+        db.query("SELECT * FROM u WHERE id = %s", (user_id,))
+    tags: ["owasp:A03", "cwe:20"]
 
   - id: "SEC-global-004"
+    topic: "global:no-untrusted-code-execution"
     severity: "critical"
-    applies_to: "all"
+    applies_to: ["all"]
     rule: "Do not execute code or commands derived from untrusted input without strict allow-list controls."
+    rationale: |
+      Functions that interpret strings as code (Python's eval/exec built-ins, Ruby's
+      Kernel#eval, the JavaScript Function constructor and friends, dynamic import
+      from a user string, shell composition, reflection over user-controlled names)
+      create RCE paths. Even with escaping, the safer pattern is dispatching from a
+      finite allow-list.
+    examples:
+      dont: |
+        # JS — interpreting user input as a function name then calling it via
+        # dynamic property access on window/global is unsafe.
+        const fn = window[req.body.fn];
+        fn();
+      do: |
+        const handlers = { greet, logout };
+        const fn = handlers[req.body.fn];
+        if (!fn) return res.status(400).end();
+        fn();
+    tags: ["owasp:A03", "cwe:78", "cwe:94"]
 
   - id: "SEC-global-005"
-    severity: "high"
-    applies_to: "all"
+    topic: "global:no-data-exfiltration"
+    severity: "critical"   # v3 bump: was high. Confidentiality breach with regulatory weight.
+    applies_to: ["all"]
     rule: "Do not send repository code, secrets, or user data to external systems unless explicitly approved."
+    rationale: |
+      Code, customer data, and credentials must not leak to third-party services
+      (analytics, AI APIs, telemetry, pastebins) without an approval process.
+      Same blast radius as `SEC-global-001`.
+    how_to_apply: |
+      "Explicitly approved" means documented in `APPROVALS.md` or a referenced
+      ticket linking to a security review. See APPROVALS.md for the process.
+    refs: ["APPROVALS.md#external-data-flow"]
+    tags: ["owasp:A05", "cwe:200"]
+
+  # ─── New rules below ───────────────────────────────────────────────────────
+
+  - id: "SEC-global-006"
+    topic: "global:no-ssrf"
+    severity: "critical"
+    applies_to: ["all"]
+    rule: "Do not make outbound network calls to URLs whose host or scheme is derived from untrusted input without an allow-list."
+    rationale: |
+      User-controlled URLs allow Server-Side Request Forgery: attackers reach internal
+      services (cloud metadata at 169.254.169.254, internal DBs, admin panels) from
+      within the trusted network perimeter.
+    how_to_apply: |
+      Validate against an allow-list of hosts/domains. If arbitrary URLs are required
+      (e.g. webhooks), use an egress proxy that blocks RFC1918, link-local (169.254/16),
+      loopback, and IPv6 ULA ranges, and resolves DNS once before connecting.
+    examples:
+      dont: |
+        // Go — fetches whatever URL the caller supplies
+        resp, _ := http.Get(req.URL.Query().Get("target"))
+      do: |
+        target := req.URL.Query().Get("target")
+        if !allowedHosts.Match(target) {
+            return errBadHost
+        }
+        resp, _ := safeHTTP.Get(target) // proxies through SSRF-safe egress
+    tags: ["owasp:A10", "cwe:918"]
+
+  - id: "SEC-global-007"
+    topic: "global:no-path-traversal"
+    severity: "critical"
+    applies_to: ["all"]
+    rule: "Do not construct filesystem paths from untrusted input without canonicalization and base-directory enforcement."
+    rationale: |
+      `../` sequences, absolute paths, symlinks, and Windows alternate streams allow
+      reading or writing files outside the intended directory.
+    how_to_apply: |
+      Resolve to an absolute canonical path and verify it is a descendant of the
+      intended base directory before any IO. Reject paths containing NUL, control
+      chars, or volume specifiers when not expected.
+    examples:
+      dont: |
+        # Python
+        with open("/var/data/" + request.args["file"]) as f: ...
+      do: |
+        from pathlib import Path
+        base = Path("/var/data").resolve()
+        target = (base / request.args["file"]).resolve()
+        # is_relative_to (3.9+) covers target == base and any descendant.
+        if not target.is_relative_to(base):
+            abort(400)
+    tags: ["owasp:A01", "cwe:22"]
+
+  - id: "SEC-global-008"
+    topic: "global:tls-in-transit"
+    severity: "critical"
+    applies_to: ["all"]
+    rule: "All outbound network calls to non-loopback destinations must use TLS with certificate verification enabled."
+    rationale: |
+      Cleartext connections expose credentials and data to passive observers and to
+      MITM attackers on shared networks. Disabling cert verification defeats TLS.
+    how_to_apply: |
+      Use HTTPS schemes only. Do not pass `verify=False`, `InsecureSkipVerify=true`,
+      `rejectUnauthorized: false`, or equivalent. Loopback (127.0.0.0/8, ::1) and
+      explicit local-dev fixtures are exempt; production code must not rely on them.
+    examples:
+      dont: |
+        # Python
+        requests.get(url, verify=False)
+        # Node
+        new https.Agent({ rejectUnauthorized: false })
+      do: |
+        requests.get(url)  # default verify=True
+    tags: ["owasp:A02", "cwe:295"]
+
+  - id: "SEC-global-009"
+    topic: "global:pii-storage"
+    severity: "critical"   # v3 bump: GDPR fines up to 4% global revenue.
+    applies_to: ["all"]
+    rule: "Store personal data only with explicit purpose, retention, and access controls; encrypt at rest where required."
+    rationale: |
+      GDPR/LGPD/CCPA require purpose limitation, minimization, and bounded retention.
+      Storing PII without these controls causes legal and reputational risk.
+    how_to_apply: |
+      Tag PII fields in schema/migrations. Document retention in the data dictionary.
+      Use field-level encryption for PII categorized as sensitive (health, finance,
+      identifiers). Avoid replicating PII into logs, metrics, caches, or analytics.
+    refs: ["SEC-global-002"]
+    tags: ["gdpr", "cwe:312"]
+
+  - id: "SEC-global-010"
+    topic: "global:open-redirect"
+    severity: "critical"   # v3 bump: when chained with OAuth/OIDC redirect_uri it's account takeover.
+    applies_to: ["all"]
+    rule: "Do not redirect users to URLs derived from untrusted input without an allow-list of destinations."
+    rationale: |
+      Open redirects are abused in phishing campaigns to lend legitimacy to malicious
+      URLs and to chain into OAuth/OIDC flow attacks; in OAuth flows a permissive
+      `redirect_uri` is a direct account-takeover vector.
+    examples:
+      dont: |
+        res.redirect(req.query.next)
+      do: |
+        const next = req.query.next;
+        if (!isSafeRelative(next) && !ALLOWED_RETURN.includes(next)) {
+            return res.redirect("/");
+        }
+        res.redirect(next);
+    tags: ["owasp:A01", "cwe:601"]
+
+  - id: "SEC-global-011"
+    topic: "global:supply-chain-integrity"
+    severity: "critical"   # v3 bump: SolarWinds / xz-utils class events; foundational.
+    applies_to: ["all"]
+    rule: "Pin dependencies with lockfiles and verify integrity (hash, signature, or vendoring) before build."
+    rationale: |
+      Floating versions enable supply-chain attacks (typosquats, account takeovers,
+      malicious release pushes). Lockfiles + integrity hashes pin the audited bytes.
+    how_to_apply: |
+      Commit lockfiles (`package-lock.json`, `poetry.lock`, `Cargo.lock`, `go.sum`,
+      `Gemfile.lock`, `Podfile.lock`, `gradle.lockfile`). Use SBOM generation in CI.
+      Vendor dependencies for high-trust modules.
+    refs: ["X-deps-001"]
+    tags: ["owasp:A06", "cwe:1357"]
+  - id: "SEC-global-012"
+    topic: "global:threat-modeling"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "New public endpoints, auth flows, payment paths, and data export features require a documented threat model (assets, trust boundaries, abuse cases, mitigations) before merge."
+    rationale: |
+      Closes OWASP A04 Insecure Design. Without an explicit abuse-case analysis,
+      authz/authn rules apply only to the cases the developer thought of, not the
+      ones the attacker will try.
+    how_to_apply: |
+      Use STRIDE or attack trees. Attach as PR description or link to a doc.
+      Required only for the categories listed; refactors and bug fixes are exempt.
+    tags: ["owasp:A04", "cwe:1053"]
+
+  - id: "SEC-global-013"
+    topic: "global:jwt-hardening"
+    severity: "critical"
+    applies_to: ["all"]
+    rule: "JWT validation must reject `alg:none`, enforce expected `alg` (no algorithm confusion HS↔RS), validate `iss`, `aud`, `exp`, `nbf`, and verify `kid` against an allow-list of keys."
+    rationale: |
+      Real-world breaches (Auth0, multiple OSS libs) chain through alg-confusion
+      and missing claim validation. `alg:none` makes a JWT a base64 string with
+      no integrity.
+    examples:
+      dont: |
+        # PyJWT permissive
+        jwt.decode(token, key, options={"verify_signature": False})
+      do: |
+        jwt.decode(
+            token, key=public_key,
+            algorithms=["RS256"],
+            audience=EXPECTED_AUD, issuer=EXPECTED_ISS,
+            options={"require": ["exp", "iat", "iss", "aud"]},
+        )
+    refs: ["BE-006"]
+    tags: ["owasp:A07", "cwe:347"]
+
+  - id: "SEC-global-014"
+    topic: "global:no-mass-assignment"
+    severity: "critical"
+    applies_to: ["all"]
+    rule: "Bind external requests to explicit DTOs / allow-listed fields; never assign request bodies directly to ORM/domain models."
+    rationale: |
+      Mass-assignment lets attackers set fields the API didn't intend to expose
+      (`is_admin`, `tenant_id`, `balance`). Famous incidents: GitHub 2012,
+      Rails strong-parameters origin.
+    examples:
+      dont: |
+        # Rails-style
+        User.create(params[:user])
+        # Express + Mongoose
+        User.create(req.body)
+      do: |
+        User.create(params.require(:user).permit(:name, :email))
+        const { name, email } = req.body
+        User.create({ name, email })
+    refs: ["SEC-global-003"]
+    tags: ["owasp:A04", "cwe:915"]
+
+  - id: "SEC-global-015"
+    topic: "global:constant-time-compare"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Compare secrets, tokens, signatures, and HMACs with a constant-time function; never with `==` / `===`."
+    rationale: |
+      String equality short-circuits at the first differing byte; timing leaks
+      bits of the secret to an attacker over many requests.
+    examples:
+      dont: |
+        if (token == expected) { ... }
+      do: |
+        # Python:    hmac.compare_digest(token, expected)
+        # Go:        subtle.ConstantTimeCompare([]byte(token), []byte(expected)) == 1
+        # Java:      MessageDigest.isEqual(a.getBytes(), b.getBytes())
+        # Node:      crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))
+    tags: ["cwe:208"]
+
+  - id: "SEC-global-016"
+    topic: "global:no-crlf-injection"
+    severity: "critical"
+    applies_to: ["all"]
+    rule: "Strip or reject CR/LF (and other control characters) from any user input that ends up in HTTP headers, log records, email headers, or filenames."
+    rationale: |
+      CRLF in headers enables HTTP response splitting and cache poisoning; in logs
+      it forges entries; in email headers it injects new headers / bccs.
+    examples:
+      dont: |
+        res.setHeader("X-Echo", req.query.q)
+      do: |
+        const q = String(req.query.q).replace(/[\r\n]/g, "")
+        res.setHeader("X-Echo", q)
+    tags: ["owasp:A03", "cwe:93", "cwe:113"]
+
+  - id: "SEC-global-017"
+    topic: "global:no-redos"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Do not compile regex patterns from untrusted input, and audit static patterns for catastrophic backtracking (nested quantifiers like `(a+)+`, alternation with overlap)."
+    rationale: |
+      Vulnerable patterns + adversarial input freeze the event loop / request thread
+      indefinitely (ReDoS). Use linear-time engines (RE2 in Go) or `safe-regex`
+      validators in CI.
+    tags: ["cwe:1333"]
+
+  - id: "SEC-global-018"
+    topic: "global:safe-archive-extraction"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "When extracting archives (zip/tar/gzip), verify each entry's resolved path is within the destination directory and reject symlinks pointing outside."
+    rationale: |
+      Zip Slip / Tar Slip writes attacker-controlled files anywhere on the
+      filesystem (overwriting `~/.ssh/authorized_keys`, systemd units, etc.).
+    examples:
+      do: |
+        # Python (zipfile)
+        for member in z.namelist():
+            target = (dest / member).resolve()
+            if not target.is_relative_to(dest.resolve()):
+                raise ValueError("zip slip")
+            z.extract(member, dest)
+    refs: ["SEC-global-007"]
+    tags: ["cwe:22", "cwe:409"]
+
+  - id: "SEC-global-019"
+    topic: "global:dep-confusion"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Internal package names must be reserved on public registries (npm/PyPI/Maven Central) or the build must scope-pin to a private registry that refuses fall-through to public."
+    rationale: |
+      Dependency confusion (Birsan 2021): publishing a higher-version of an
+      internal-only package name to a public registry causes the build to pull
+      the malicious copy.
+    refs: ["SEC-global-011"]
+    tags: ["owasp:A06", "cwe:427"]
+
+  - id: "SEC-global-020"
+    topic: "global:approved-crypto-algorithms"
+    severity: "critical"
+    applies_to: ["all"]
+    rule: "For symmetric encryption use AEAD (AES-GCM, ChaCha20-Poly1305); for digital signatures use Ed25519 or RSA-PSS/ECDSA with SHA-256+; for HMAC use SHA-256+. Banned: DES, 3DES, RC4, MD5/SHA-1 (signatures), AES-ECB, AES-CBC without HMAC."
+    rationale: |
+      Outdated/weak algorithms enable practical attacks (collisions, decryption).
+      AEAD eliminates whole classes of bugs (padding oracle, IV/nonce mishandling
+      when used correctly).
+    tags: ["cwe:327"]
+
+  - id: "SEC-global-021"
+    topic: "global:no-iv-nonce-reuse"
+    severity: "critical"
+    applies_to: ["all"]
+    rule: "Never reuse an IV/nonce with the same key in AES-GCM/ChaCha20-Poly1305. Use a CSPRNG to generate a fresh random nonce per encryption, or a strict counter; never a fixed value."
+    rationale: |
+      Nonce reuse with GCM destroys confidentiality and authenticity (forbidden
+      attack pair). Real incidents: KRACK, several IoT firmwares.
+    refs: ["SEC-global-020"]
+    tags: ["cwe:323"]
+
+  - id: "SEC-global-022"
+    topic: "global:no-padding-oracle"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Avoid CBC + HMAC unless using encrypt-then-MAC with a constant-time MAC verification; prefer AEAD. For RSA, use OAEP/PSS, not PKCS#1 v1.5."
+    rationale: |
+      Padding oracles allow ciphertext recovery byte-by-byte over many requests
+      (BEAST, POODLE, ROBOT). AEAD avoids the issue by construction.
+    refs: ["SEC-global-020", "SEC-global-015"]
+    tags: ["cwe:347"]
+
+  - id: "SEC-global-023"
+    topic: "global:key-management"
+    severity: "critical"
+    applies_to: ["all"]
+    rule: "Cryptographic keys live in a KMS/HSM or a managed secret store; minimum lengths RSA ≥ 2048, ECC ≥ P-256, AES ≥ 128. Keys are rotated on schedule and on suspected compromise; never embedded in code or container images."
+    rationale: |
+      Short keys are brute-forceable; un-rotated keys enable persistent compromise;
+      keys in images leak via image scanners and ECR/GCR introspection.
+    refs: ["SEC-global-001", "SEC-global-011"]
+    tags: ["cwe:798", "cwe:320"]
+
+  - id: "SEC-global-024"
+    topic: "global:secret-rotation"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Document a rotation cadence per secret class (≤ 90 days for service tokens, ≤ 24h on suspected compromise) and verify the rotated value is used end-to-end before retiring the old one."
+    rationale: |
+      Secrets without rotation accumulate exposure surface (logs, screenshots,
+      ex-employee access). Rotation tested in CI ensures the rotation path works
+      before incident time.
+    refs: ["SEC-global-001"]
+    tags: ["cwe:798"]
+
+  - id: "SEC-global-025"
+    topic: "global:secret-scanning"
+    severity: "critical"
+    applies_to: ["all"]
+    rule: "Pre-commit hooks and CI must run secret-scanning (gitleaks, trufflehog) and block merges that introduce credentials; GitHub Push Protection / org-level secret scanning must be enabled for the repo."
+    rationale: |
+      Defense in depth around `SEC-global-001`: hooks catch local mistakes, CI
+      catches forced commits, GitHub catches leaks even after history rewrites.
+    refs: ["SEC-global-001"]
+    tags: ["owasp:A02", "cwe:798"]
+
+  - id: "SEC-global-026"
+    topic: "global:runtime-secret-loading"
+    severity: "high"
+    applies_to: ["all"]
+    rule: "Secrets are loaded at process start from env/secret-store; never baked into Docker layers, build artifacts, or shipped config files."
+    rationale: |
+      Secrets in image layers persist in registry caches and can be extracted
+      from any pull, even after rebuild.
+    refs: ["SEC-global-023"]
+    tags: ["cwe:524"]
+
+  - id: "SEC-global-027"
+    topic: "global:no-ssti"
+    severity: "critical"
+    applies_to: ["all"]
+    rule: "Do not render templates with untrusted content as the template body; treat user input as a value passed into a pre-compiled template, not as template source."
+    rationale: |
+      Server-side template injection (Jinja2, Twig, Razor, Velocity, Freemarker,
+      Thymeleaf, Handlebars) escalates to RCE in most engines.
+    examples:
+      dont: |
+        # Jinja2
+        Template(f"Hello {user_input}").render()
+      do: |
+        Template("Hello {{ name }}").render(name=user_input)
+    refs: ["SEC-global-004"]
+    tags: ["owasp:A03", "cwe:1336"]
