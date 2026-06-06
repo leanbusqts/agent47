@@ -3,7 +3,6 @@ metadata:
   last_updated: "2026-05-11"
   owner: "platform-tooling"
   review_cadence: "quarterly"
-  schema: "rules/schema.json"
 
 rules:
   - id: "CLI-001"

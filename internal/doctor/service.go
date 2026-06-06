@@ -34,6 +34,7 @@ var (
 		"## Context Efficiency",
 		"## Execution",
 		"## Filesystem And Approval Boundaries",
+		"## Approval And Severity",
 		"## Security Expectations",
 		"## Dependency Policy",
 		"## Stack Notes",
@@ -57,8 +58,11 @@ var (
 	requiredRuleTemplates = []string{
 		"security-global.yaml",
 		"security-shell.yaml",
+		"rules-cross.yaml",
 	}
 	catalogRuleTemplates = []string{
+		"rules-cross.yaml",
+		"rules-go.yaml",
 		"rules-cli.yaml",
 		"rules-scripts.yaml",
 		"rules-mobile.yaml",

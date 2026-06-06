@@ -3,7 +3,6 @@ metadata:
   last_updated: "2026-05-11"
   owner: "platform-desktop"
   review_cadence: "quarterly"
-  schema: "rules/schema.json"
 
 rules:
   - id: "DT-001"

@@ -215,6 +215,9 @@ Primary contributor commands:
 
 ```bash
 make test
+make agents-check
+make rules-check
+make rules-drift-check
 make go-test
 make go-build
 make lint-shell
@@ -224,6 +227,9 @@ make smoke-install
 Notes:
 
 - `make test` runs the checkout test runner plus installed-artifact verification.
+- `make agents-check` validates the root/template `AGENTS.md` contract.
+- `make rules-check` validates rule metadata, IDs, refs, required rationale, and template drift.
+- `make rules-drift-check` checks top-level rule/template synchronization.
 - `make go-test` runs `go test ./...` with repo-safe `GOCACHE` and `GOMODCACHE`.
 - `make smoke-install` runs an isolated install plus `doctor` verification.
 - `scripts/lint-shell` is the remaining shell maintenance entrypoint in this repo.

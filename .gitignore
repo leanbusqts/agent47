@@ -111,4 +111,6 @@ pnpm-debug.log*
 ##############################
 *.lock
 *.pid
+.agent47-stage-*/
+.tmp/
 afs

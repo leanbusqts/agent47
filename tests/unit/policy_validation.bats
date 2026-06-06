@@ -195,7 +195,9 @@ template_rule_path() {
   assert_success
   run grep -F 'refs: ["X-deps-001"]' "$ROOT_DIR/templates/base/rules/security-global.yaml"
   assert_success
-  run grep -F "rules/APPROVALS.md#dependencies" "$ROOT_DIR/AGENTS.md"
+  run grep -F "Approval And Severity" "$ROOT_DIR/AGENTS.md"
+  assert_success
+  run grep -F "rules/rules-cross.yaml" "$ROOT_DIR/AGENTS.md"
   assert_success
   run grep -F "A change is add, remove, upgrade, or pinning shift" "$ROOT_DIR/AGENTS.md"
   assert_success

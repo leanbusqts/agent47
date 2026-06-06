@@ -11,6 +11,7 @@ Detected technologies
   infra (medium)
 
 Rules
+  rules-cross.yaml
   rules-infra.yaml
   security-global.yaml
   security-shell.yaml

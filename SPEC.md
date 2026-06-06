@@ -208,6 +208,9 @@ Supported user-facing commands:
 Contributor validation commands:
 
 - `make test`
+- `make agents-check`
+- `make rules-check`
+- `make rules-drift-check`
 - `make go-test`
 - `make go-build`
 - `make lint-shell`
@@ -325,6 +328,8 @@ Current repo validation is centered on:
 
 - Go tests: `make go-test`
 - full checkout + installed-artifact validation: `make test`
+- agent policy validation: `make agents-check`
+- rules schema/ref/drift validation: `make rules-check` and `make rules-drift-check`
 - shell lint: `make lint-shell`
 - isolated install smoke check: `make smoke-install`
 

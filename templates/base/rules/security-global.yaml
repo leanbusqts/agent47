@@ -3,7 +3,6 @@ metadata:
   last_updated: "2026-04-29"
   owner: "platform-security"
   review_cadence: "quarterly"
-  schema: "rules/schema.json"
 
 rules:
   - id: "SEC-global-001"
@@ -100,9 +99,9 @@ rules:
       (analytics, AI APIs, telemetry, pastebins) without an approval process.
       Same blast radius as `SEC-global-001`.
     how_to_apply: |
-      "Explicitly approved" means documented in `APPROVALS.md` or a referenced
-      ticket linking to a security review. See APPROVALS.md for the process.
-    refs: ["APPROVALS.md#external-data-flow"]
+      "Explicitly approved" means documented in `AGENTS.md`, `specs/spec.yml`,
+      a PR, or a referenced ticket linking to a security review.
+    refs: ["AGENTS.md#approval-and-severity"]
     tags: ["owasp:A05", "cwe:200"]
 
   # ─── New rules below ───────────────────────────────────────────────────────

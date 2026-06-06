@@ -3,7 +3,6 @@ metadata:
   last_updated: "2026-04-29"
   owner: "platform-backend"
   review_cadence: "quarterly"
-  schema: "rules/schema.json"
 
 rules:
   - id: "BE-001"

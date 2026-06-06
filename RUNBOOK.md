@@ -32,6 +32,9 @@ Contributor checks:
 
 ```bash
 make test
+make agents-check
+make rules-check
+make rules-drift-check
 make go-test
 make go-build
 make lint-shell

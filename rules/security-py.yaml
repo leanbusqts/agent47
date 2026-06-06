@@ -3,7 +3,6 @@ metadata:
   last_updated: "2026-04-29"
   owner: "platform-security"
   review_cadence: "quarterly"
-  schema: "rules/schema.json"
 
 rules:
   - id: "SEC-py-001"

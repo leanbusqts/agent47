@@ -88,6 +88,7 @@ required_sections=(
   "Context Efficiency"
   "Execution"
   "Filesystem And Approval Boundaries"
+  "Approval And Severity"
   "Security Expectations"
   "Dependency Policy"
   "Stack Notes"
@@ -111,8 +112,8 @@ if [ -n "$dupes" ]; then
 fi
 
 section_count=$(grep -cE '^## ' AGENTS.md || true)
-if [ "$section_count" -ne 18 ]; then
-  fail "expected 18 section headings, found $section_count."
+if [ "$section_count" -ne 19 ]; then
+  fail "expected 19 section headings, found $section_count."
 fi
 
 # shellcheck disable=SC2016

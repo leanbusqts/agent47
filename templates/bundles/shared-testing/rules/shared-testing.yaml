@@ -3,7 +3,6 @@ metadata:
   last_updated: "2026-05-11"
   owner: "platform-quality"
   review_cadence: "quarterly"
-  schema: "rules/schema.json"
 
 rules:
   - id: "SHT-001"   # = X-test-001 in §4.3

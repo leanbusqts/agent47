@@ -20,6 +20,24 @@ func TestResolveLowSignalFallsBackToBaseBundle(t *testing.T) {
 	if len(set.Prompts) != 0 {
 		t.Fatalf("did not expect default scaffold prompts, got %v", set.Prompts)
 	}
+	if !containsString(set.Rules, "rules-cross.yaml") {
+		t.Fatalf("expected base bundle to include rules-cross.yaml, got %v", set.Rules)
+	}
+}
+
+func TestResolveAddsGoRulesForGoTechnology(t *testing.T) {
+	set, err := Resolve(analyze.AnalysisResult{
+		ProjectTypes: []analyze.DetectedProjectType{{ID: "cli", Confidence: analyze.ConfidenceHigh}},
+		Technologies: []analyze.DetectedTechnology{{ID: "go", Confidence: analyze.ConfidenceHigh}},
+	}, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"rules-go.yaml", "security-go.yaml"} {
+		if !containsString(set.Rules, want) {
+			t.Fatalf("expected Go technology to include %s, got %v", want, set.Rules)
+		}
+	}
 }
 
 func TestResolveSupportsCLIScriptsComposition(t *testing.T) {
@@ -283,6 +301,11 @@ func TestAssembleManifestFiltersToResolvedContract(t *testing.T) {
 	if got.RequiredTemplateFiles[0] != "AGENTS.md" {
 		t.Fatalf("expected AGENTS.md in required template files, got %v", got.RequiredTemplateFiles)
 	}
+	for _, unexpected := range []string{"rules/APPROVALS.md", "rules/SEVERITY.md", "rules/schema.json"} {
+		if containsString(got.RequiredTemplateFiles, unexpected) {
+			t.Fatalf("did not expect %s in required template files, got %v", unexpected, got.RequiredTemplateFiles)
+		}
+	}
 	foundPromptDir := false
 	for _, file := range got.RequiredTemplateFiles {
 		if file == "prompts/ss-prompt.txt" {
@@ -321,6 +344,22 @@ func TestBuildSkillsActionPlanForceShowsDirectoryReplacementAndRootRemovals(t *t
 	}
 	if !containsString(plan.Remove, "skills/custom-skill") {
 		t.Fatalf("expected stale skill directory removal in plan, got %v", plan.Remove)
+	}
+}
+
+func TestBuildActionPlanDoesNotRemoveRuleCatalogInTemplateSourceRepo(t *testing.T) {
+	workDir := t.TempDir()
+	mustWriteResolveFile(t, filepath.Join(workDir, "templates", "manifest.txt"), "[rule_templates]\n")
+	mustWriteResolveFile(t, filepath.Join(workDir, "templates", "base", "AGENTS.md"), "agents\n")
+	mustWriteResolveFile(t, filepath.Join(workDir, "rules", "rules-backend.yaml"), "catalog\n")
+
+	plan := BuildActionPlan(workDir, InstallSet{
+		CreateFiles: []string{"AGENTS.md"},
+		Rules:       []string{"security-global.yaml"},
+	}, true)
+
+	if containsString(plan.Remove, "rules/rules-backend.yaml") {
+		t.Fatalf("did not expect template-source rule catalog removal: %v", plan.Remove)
 	}
 }
 

@@ -787,6 +787,7 @@ func validDoctorManifest() string {
 		"[rule_templates]",
 		"security-global.yaml",
 		"security-shell.yaml",
+		"rules-cross.yaml",
 		"[managed_targets]",
 		"AGENTS.md",
 		"rules/*.yaml",

@@ -3,7 +3,6 @@ metadata:
   last_updated: "2026-05-11"
   owner: "platform-plugins"
   review_cadence: "quarterly"
-  schema: "rules/schema.json"
 
 rules:
   - id: "PL-001"

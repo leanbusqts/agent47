@@ -61,7 +61,7 @@ var bundles = map[string]Bundle{
 		ID:             "base",
 		Kind:           "base",
 		Description:    "Conservative default scaffold for low-signal repositories.",
-		IncludesRules:  []string{"security-global.yaml", "security-shell.yaml"},
+		IncludesRules:  []string{"rules-cross.yaml", "security-global.yaml", "security-shell.yaml"},
 		IncludesSkills: universalSkills,
 		IncludesFiles:  []string{"AGENTS.md", "specs/spec.yml", "README.md"},
 	},
@@ -356,6 +356,8 @@ func projectBundleID(bundleID string) string {
 func addLanguageSecurityRules(set *InstallSet, result analyze.AnalysisResult) {
 	for _, technology := range result.Technologies {
 		switch technology.ID {
+		case "go":
+			set.Rules = append(set.Rules, "rules-go.yaml", "security-go.yaml")
 		case "typescript", "react", "node":
 			set.Rules = append(set.Rules, "security-js-ts.yaml")
 		case "python":
@@ -520,6 +522,12 @@ func AssembleManifest(base manifest.Manifest, set InstallSet) manifest.Manifest 
 	}
 
 	requiredFiles := []string{"AGENTS.md", "specs/spec.yml", "manifest.txt"}
+	for _, file := range base.RequiredTemplateFiles {
+		if filepath.Dir(file) == "prompts" {
+			continue
+		}
+		requiredFiles = append(requiredFiles, file)
+	}
 	for _, prompt := range set.Prompts {
 		requiredFiles = append(requiredFiles, filepath.ToSlash(filepath.Join("prompts", prompt)))
 	}
@@ -544,11 +552,13 @@ func staleForceTargets(workDir string, set InstallSet) []string {
 	for _, rule := range set.Rules {
 		selectedRules[rule] = true
 	}
-	ruleFiles, _ := filepath.Glob(filepath.Join(workDir, "rules", "*.yaml"))
-	for _, path := range ruleFiles {
-		name := filepath.Base(path)
-		if !selectedRules[name] {
-			stale = append(stale, filepath.ToSlash(filepath.Join("rules", name)))
+	if !isTemplateSourceRepo(workDir) {
+		ruleFiles, _ := filepath.Glob(filepath.Join(workDir, "rules", "*.yaml"))
+		for _, path := range ruleFiles {
+			name := filepath.Base(path)
+			if !selectedRules[name] {
+				stale = append(stale, filepath.ToSlash(filepath.Join("rules", name)))
+			}
 		}
 	}
 
@@ -599,6 +609,11 @@ func staleSkillsForceTargets(workDir string, set InstallSet) []string {
 	}
 
 	return uniqSorted(stale)
+}
+
+func isTemplateSourceRepo(workDir string) bool {
+	return exists(filepath.Join(workDir, "templates", "manifest.txt")) &&
+		exists(filepath.Join(workDir, "templates", "base", "AGENTS.md"))
 }
 
 var (

@@ -1,7 +1,7 @@
 # AGENTS.md
 
 <!--
-agents-md: { version: 2, last_updated: "2026-06-06", schema_version: 1, owner: platform-policy, review_cadence: quarterly, applies_to: "/Users/leanbusqts/Develops/agent47/", mirror: "/Users/leanbusqts/Develops/agent47/templates/base/AGENTS.md", max_lines: 200, target_lines: 162 }
+agents-md: { version: 3, last_updated: "2026-06-06", schema_version: 1, owner: platform-policy, review_cadence: quarterly, applies_to: "/Users/leanbusqts/Develops/agent47/", mirror: "/Users/leanbusqts/Develops/agent47/templates/base/AGENTS.md", max_lines: 200, target_lines: 170 }
 -->
 
 ## Purpose
@@ -30,7 +30,7 @@ When sources conflict, resolve in this order (highest wins). If two items at the
 
 1. User instructions in the current conversation. [AG-041]
 2. The closest `AGENTS.md` in the directory tree. In this repo: the root one. [AG-042]
-3. Security rules by ID: `security-global.yaml` -> `security-<lang>.yaml` -> `security-shell.yaml` when applicable; see `rules/SEVERITY.md` for severity semantics. [AG-043]
+3. Security rules by ID: `security-global.yaml` -> `security-<lang>.yaml` -> `security-shell.yaml` when applicable; see Severity below. [AG-043]
 4. Stack rules: `rules-<stack>.yaml` for the file under edit. [AG-044]
 5. Skill instructions loaded via `skills/AVAILABLE_SKILLS.xml`. Skills extend, never override sources above. [AG-045]
 6. `specs/spec.yml` for the current task. [AG-046]
@@ -84,13 +84,19 @@ Forbidden to assume an `afs` subcommand not listed there. `SPEC.md` §6 lists "i
 | Ask | Deps add/remove/upgrade — see Dependency Policy [AG-061]; Broad set ops [AG-062]; network / external downloads [AG-063]; Long/expensive jobs [AG-064]; template restore over user edits [AG-065]; run scripts from `skills/scripts/` [AG-066]; new top-level dirs at repo root [AG-067]; modify CI/CD workflows (`.github/workflows/`, `.gitlab-ci.yml`) [AG-068] |
 | Never | Hardcode secrets/tokens/passwords/personal data — SEC-global-001 [AG-071]; exfiltrate source/secrets/user data — SEC-global-005 [AG-072]; bypass approval with hidden side effects [AG-073]; delete unrelated files or revert user changes without approval [AG-074]; rewrite pushed git history (`amend` pushed, `push --force` shared) [AG-075]; write Vendor agent config without authorization [AG-076]; skip pre-commit hooks/signing (`--no-verify`, `--no-gpg-sign`) without authorization [AG-077]; destructive ops (`rm -rf`, `git reset --hard`, `git clean -fd`) outside an authorized scope [AG-078] |
 
+## Approval And Severity
+
+Explicit Approval means user confirmation in the current conversation or a written note in `specs/spec.yml`, a PR, or a referenced ticket. For external data flow include destination, data classes, retention, legal basis, owner, reviewer, risks, and controls; for dependency changes include alternatives, license, maintenance signals, pinned version, and lockfile/integrity evidence. [AG-086]
+
+Severity semantics: `critical` blocks merge and must be fixed; `high` requires explicit review approval or a documented compensating control; `medium` is a review comment that does not block; `low` is optional style/preference. If rules conflict, higher severity wins before lower-severity guidance; equal-severity conflicts follow Authority Order. [AG-087]
+
 ## Security Expectations
 
 Authoritative: `rules/security-*.yaml`. Load order: `security-global.yaml` -> `security-<lang>.yaml` -> `security-shell.yaml` when shell-related. [AG-080] Principles (canonical in the YAMLs, by ID): secrets out of source/logs/prompts/screenshots/tests (SEC-global-001, 002); untrusted input validated at the boundary (SEC-global-003); no execution without an allow-list (SEC-global-004); no exfiltration without Approval (SEC-global-005). Deduplication: security guidance lives ONLY in `security-*.yaml`; cross-ref by ID, do not restate. [AG-082]
 
 ## Dependency Policy
 
-Dependency changes are governed by `X-deps-001` in `rules/rules-cross.yaml` plus `rules/APPROVALS.md#dependencies`. A change is add, remove, upgrade, or pinning shift. [AG-090]
+Dependency changes are governed by `X-deps-001` in `rules/rules-cross.yaml` plus Approval And Severity above. A change is add, remove, upgrade, or pinning shift. [AG-090]
 
 Required justification (in the PR or `specs/spec.yml`): benefit vs cost; acceptable license (default-deny AGPL/SSPL/BUSL); pinning + integrity hash committed (lockfile); wrapper when used in ≥ 3 places. Approval covers the named version; later upgrades require new approval. [AG-091] Optional guidance: prefer existing tooling first, a single package manager, and a small local utility over a new dependency when the utility is genuinely small and stable. [AG-093]
 

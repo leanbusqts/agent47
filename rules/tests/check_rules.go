@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,6 +30,11 @@ var (
 )
 
 func main() {
+	if err := validateSchemaJSON(); err != nil {
+		fmt.Println("ERROR:", err)
+		os.Exit(1)
+	}
+
 	files, err := filepath.Glob("rules/*.yaml")
 	if err != nil || len(files) == 0 {
 		fmt.Fprintln(os.Stderr, "ERROR: no rules/*.yaml found; run from repo root")
@@ -100,7 +106,12 @@ func parseFile(path string) ([]Rule, []string) {
 	seenMetadata := false
 	seenRules := false
 	requiredMetadata := map[string]bool{
-		"version": false, "last_updated": false, "owner": false, "review_cadence": false, "schema": false,
+		"version": false, "last_updated": false, "owner": false, "review_cadence": false,
+	}
+	allowedRuleFields := map[string]bool{
+		"id": true, "topic": true, "severity": true, "applies_to": true, "applies_when": true,
+		"rule": true, "rationale": true, "how_to_apply": true, "verification": true, "examples": true,
+		"refs": true, "tags": true, "superseded_by": true,
 	}
 
 	scanner := bufio.NewScanner(f)
@@ -129,10 +140,6 @@ func parseFile(path string) ([]Rule, []string) {
 		if seenMetadata && !seenRules && strings.HasPrefix(trim, "review_cadence:") {
 			requiredMetadata["review_cadence"] = true
 		}
-		if seenMetadata && !seenRules && strings.HasPrefix(trim, "schema:") {
-			requiredMetadata["schema"] = true
-		}
-
 		if strings.HasPrefix(line, "  - id: ") {
 			if current != nil {
 				rules = append(rules, *current)
@@ -144,6 +151,18 @@ func parseFile(path string) ([]Rule, []string) {
 		}
 		if current == nil {
 			continue
+		}
+		if strings.HasPrefix(line, "    ") && !strings.HasPrefix(line, "      ") {
+			field := strings.TrimSpace(line)
+			if strings.HasPrefix(field, "#") {
+				continue
+			}
+			if idx := strings.Index(field, ":"); idx > 0 {
+				field = field[:idx]
+				if !allowedRuleFields[field] {
+					errors = append(errors, fmt.Sprintf("%s:%d %s: unknown rule field %s", path, lineNo, current.ID, field))
+				}
+			}
 		}
 		switch {
 		case strings.HasPrefix(line, "    topic: "):
@@ -201,6 +220,18 @@ func parseFile(path string) ([]Rule, []string) {
 	return rules, errors
 }
 
+func validateSchemaJSON() error {
+	raw, err := os.ReadFile("rules/schema.json")
+	if err != nil {
+		return fmt.Errorf("rules/schema.json: %v", err)
+	}
+	var decoded any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return fmt.Errorf("rules/schema.json: invalid JSON: %v", err)
+	}
+	return nil
+}
+
 func validateRule(rule Rule) []string {
 	var errors []string
 	prefix := fmt.Sprintf("%s:%d %s", rule.File, rule.LineNumber, rule.ID)
@@ -230,7 +261,7 @@ func validateRule(rule Rule) []string {
 
 func driftErrors() []string {
 	var errors []string
-	base := []string{"security-global", "security-shell", "security-csharp", "security-java-kotlin", "security-js-ts", "security-py", "security-swift", "security-go", "rules-backend", "rules-frontend", "rules-mobile"}
+	base := []string{"security-global", "security-shell", "security-csharp", "security-java-kotlin", "security-js-ts", "security-py", "security-swift", "security-go", "rules-backend", "rules-frontend", "rules-mobile", "rules-cross", "rules-go"}
 	for _, name := range base {
 		a := filepath.Join("rules", name+".yaml")
 		b := filepath.Join("templates", "base", "rules", name+".yaml")

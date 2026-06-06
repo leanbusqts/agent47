@@ -3,7 +3,6 @@ metadata:
   last_updated: "2026-05-11"
   owner: "platform-infra"
   review_cadence: "quarterly"
-  schema: "rules/schema.json"
 
 rules:
   - id: "INF-001"
@@ -14,7 +13,7 @@ rules:
     rationale: |
       An infra change can take down N services or leak secrets at the boundary.
       Pre-change documentation is the minimal guardrail before any mutation.
-    refs: ["SEC-global-005", "APPROVALS.md#infrastructure"]
+    refs: ["SEC-global-005", "AGENTS.md#approval-and-severity"]
 
   - id: "INF-002"
     topic: "infra:state-and-secrets"

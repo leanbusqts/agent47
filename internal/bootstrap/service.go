@@ -204,13 +204,11 @@ func (s *Service) requireTemplates(src templates.Source, m manifest.Manifest, op
 			return templates.MissingTemplateError{Path: projectSpecFile}
 		}
 		for _, file := range m.RequiredTemplateFiles {
-			switch {
-			case file == "manifest.txt":
+			if file == "manifest.txt" {
 				continue
-			case filepath.Dir(file) == projectPromptsDir:
-				if _, err := src.Stat(file); err != nil {
-					return templates.MissingTemplateError{Path: file}
-				}
+			}
+			if _, err := src.Stat(file); err != nil {
+				return templates.MissingTemplateError{Path: file}
 			}
 		}
 	}
@@ -415,7 +413,7 @@ func (s *Service) commitRules(workDir string, m manifest.Manifest, opts Options,
 		return err
 	}
 
-	if opts.Force {
+	if opts.Force && !isTemplateSourceRepo(workDir) {
 		entries, err := filepath.Glob(filepath.Join(rulesDir, "*.yaml"))
 		if err != nil {
 			return err
@@ -639,6 +637,16 @@ func (s *Service) rollback(workDir string, st *state) error {
 	}
 
 	return nil
+}
+
+func isTemplateSourceRepo(workDir string) bool {
+	return fileExists(filepath.Join(workDir, "templates", "manifest.txt")) &&
+		fileExists(filepath.Join(workDir, "templates", "base", "AGENTS.md"))
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func (s *Service) copyTemplateDir(src templates.Source, srcPath, dstPath string) error {

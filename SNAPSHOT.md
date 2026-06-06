@@ -26,7 +26,7 @@
 - **Version reporting:** installed `afs version` now reports the installed runtime version instead of picking up unrelated `VERSION` files from the current project
 - **Entrypoint resolution:** the installed `afs` launcher now resolves runtime metadata from the actual executable path (`os.Executable()`), avoiding cwd-sensitive version reporting when invoked through PATH
 - **Empty repo-root handling:** installed version lookup no longer falls back to a relative `VERSION` file in the current working directory when the runtime is outside a checkout
-- **Testing:** `make test`, `make go-test`, `make go-build`, `make lint-shell`, and `make smoke-install` are the current maintainer entrypoints
+- **Testing:** `make test`, `make agents-check`, `make rules-check`, `make rules-drift-check`, `make go-test`, `make go-build`, `make lint-shell`, and `make smoke-install` are the current maintainer entrypoints
 
 ## 3. Current Commands
 
