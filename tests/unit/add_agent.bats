@@ -91,7 +91,7 @@ EOF
   run "$ROOT_DIR/bin/afs" add-agent --force
   assert_success
 
-  run grep -F "single source of operating policy" AGENTS.md
+  run grep -F "[AG-001]" AGENTS.md
   assert_success
   [ ! -f "rules/rules-backend.yaml" ]
   run grep -F "Never hardcode secrets" rules/security-global.yaml

@@ -26,13 +26,23 @@ func (WarningsError) Error() string {
 var (
 	requiredSections = []string{
 		"## Purpose",
+		"## Scope",
+		"## Glossary",
 		"## Authority Order",
+		"## Required Inputs",
 		"## Executable Commands",
+		"## Context Efficiency",
+		"## Execution",
 		"## Filesystem And Approval Boundaries",
-		"### Always",
-		"### Ask",
-		"### Never",
 		"## Security Expectations",
+		"## Dependency Policy",
+		"## Stack Notes",
+		"## Skills",
+		"## Output Expectations",
+		"## Verification And Rollback",
+		"## Git And Commits",
+		"## Communication Conventions",
+		"## Maintenance Of This File",
 	}
 	securityTemplateFiles = []string{
 		"security-global.yaml",

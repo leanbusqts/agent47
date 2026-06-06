@@ -32,17 +32,13 @@ template_rule_path() {
   assert_success
   local lines
   lines="$(awk '{print $1}' <<<"$output")"
-  [ "$lines" -le 300 ]
+  [ "$lines" -le 200 ]
 
-  run grep -F "## Filesystem And Approval Boundaries" "$ROOT_DIR/templates/base/AGENTS.md"
-  assert_success
-  run grep -F "### Always" "$ROOT_DIR/templates/base/AGENTS.md"
-  assert_success
-  run grep -F "### Ask" "$ROOT_DIR/templates/base/AGENTS.md"
-  assert_success
-  run grep -F "### Never" "$ROOT_DIR/templates/base/AGENTS.md"
-  assert_success
-  run grep -F "## Dependency Policy" "$ROOT_DIR/templates/base/AGENTS.md"
+  for section in "## Glossary" "## Execution" "## Filesystem And Approval Boundaries" "## Dependency Policy" "## Verification And Rollback" "## Maintenance Of This File"; do
+    run grep -F "$section" "$ROOT_DIR/templates/base/AGENTS.md"
+    assert_success
+  done
+  run grep -F "[AG-001]" "$ROOT_DIR/templates/base/AGENTS.md"
   assert_success
 }
 
@@ -201,7 +197,7 @@ template_rule_path() {
   assert_success
   run grep -F "mobile:dependencies" "$ROOT_DIR/templates/base/rules/rules-mobile.yaml"
   assert_success
-  run grep -F "New dependencies or dependency changes require approval" "$ROOT_DIR/AGENTS.md"
+  run grep -F "A change is add, remove, upgrade, or pinning shift" "$ROOT_DIR/AGENTS.md"
   assert_success
 }
 

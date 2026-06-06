@@ -153,7 +153,7 @@ func TestRunAddAgentForcePreservesProjectFilesAndRefreshesManagedArea(t *testing
 		t.Fatalf("expected status 0, got %d", status)
 	}
 
-	assertFileContains(t, filepath.Join(env.workDir, "AGENTS.md"), "single source of operating policy")
+	assertFileContains(t, filepath.Join(env.workDir, "AGENTS.md"), "[AG-001]")
 	assertNotExists(t, filepath.Join(env.workDir, "rules", "rules-backend.yaml"))
 	assertNotExists(t, filepath.Join(env.workDir, "rules", "custom-rule.yaml"))
 	assertFileContains(t, filepath.Join(env.workDir, "rules", "security-global.yaml"), "Never hardcode secrets")

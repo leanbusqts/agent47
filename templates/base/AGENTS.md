@@ -1,170 +1,162 @@
 # AGENTS.md
 
+<!--
+agents-md: { version: 2, last_updated: "2026-06-06", schema_version: 1, owner: platform-policy, review_cadence: quarterly, applies_to: "/Users/leanbusqts/Develops/agent47/", mirror: "/Users/leanbusqts/Develops/agent47/templates/base/AGENTS.md", max_lines: 200, target_lines: 162 }
+-->
+
 ## Purpose
 
-This file is the single source of operating policy for agents in this repository.
-Prompts, README notes, specs, skills, and stack rules must reference this file instead of copying policy text.
+`AGENTS.md` is the agent-operating policy for this repo. `README.md`, `RUNBOOK.md`, `SPEC.md`, `specs/spec.yml`, `skills/`, `rules/*.yaml` reference this file instead of restating policy. Conflicts resolve per Authority Order below. [AG-001]
 
 ## Scope
 
-This contract applies to frontend, backend, mobile, scripts, tests, docs, and repo maintenance work.
+This contract applies to all work in the repo. Project-type bundles defined in `SPEC.md` §5.3: `frontend, backend, mobile, cli, scripts, infra, monorepo-tooling, desktop, plugin`. Repos with no detected type receive the base bundle (`AGENTS.md` + global/shell security rules + universal skills). [AG-003]
+
+## Glossary
+
+| Term | Definition | Threshold | ID |
+|---|---|---|---|
+| **Trivial task** | Change ≤ 2 files, no new tests required, no deps/network/migration impact. Non-trivial = the complement (triggers spec/plan/review). | ≤ 2 files | [AG-005] |
+| **In scope** | (a) named by the user, (b) referenced from a file in scope, or (c) the natural test/doc of a file in scope | — | [AG-007] |
+| **Approval** | Explicit confirmation in the current conversation OR a written note in `specs/spec.yml` / a referenced ticket | current conversation | [AG-008] |
+| **Broad set** | Operation over ≥ 5 files or a `**/*` glob crossing directories | ≥ 5 files | [AG-009] |
+| **Long/expensive** | Wall time ≥ 60s, API calls ≥ 50, or use of a billable resource | ≥ 60s | [AG-010] |
+| **Documented command** | Appears in `RUNBOOK.md`, `README.md`, `SPEC.md`, `Makefile`, `package.json`, `pyproject.toml`, or `docs/*.md` | — | [AG-011] |
+| **Vendor agent config** | `claude.md`, `.cursorrules`, `.codex/config.toml`, `.windsurf*`, undocumented `mcp.json` | — | [AG-017] |
 
 ## Authority Order
 
-Use this order whenever instructions conflict:
-1. User instructions
-2. Nearest `AGENTS.md`
-3. Security rules: global -> language -> stack
-4. Stack rules
-5. Specs and plans such as `specs/spec.yml`
-6. Code and tests
-7. Memories and other hints
+When sources conflict, resolve in this order (highest wins). If two items at the same level conflict, stop and ask. [AG-040]
 
-If two items at the same level conflict, stop and ask.
+1. User instructions in the current conversation. [AG-041]
+2. The closest `AGENTS.md` in the directory tree. In this repo: the root one. [AG-042]
+3. Security rules: `security-global.yaml` -> `security-<lang>.yaml` -> `security-shell.yaml` when applicable. [AG-043]
+4. Stack rules: `rules-<stack>.yaml` for the file under edit. [AG-044]
+5. Skill instructions loaded via `skills/AVAILABLE_SKILLS.xml`. Skills extend, never override sources above. [AG-045]
+6. `specs/spec.yml` for the current task. [AG-046]
+7. Code and tests as evidence of intended behavior. [AG-047]
+8. Memories, hints, prior-session notes. Suggestions, not contracts. [AG-048]
 
 ## Required Inputs
 
-Read what applies before acting:
-- `AGENTS.md`
-- Relevant security and stack rules under `rules/`
-  - In template-source repositories such as `agent47` itself, read the equivalent files under `templates/base/rules/` and the relevant project bundle rules under `templates/bundles/*/rules/`
-  - For shell-heavy repositories, include the shell security rules when present
-- `specs/spec.yml` when the task is non-trivial, plan-driven, or spec-driven
-- In this repository, root `SPEC.md` describes the current-state product spec for `agent47` itself; do not treat it as the default place to draft a new feature spec or implementation plan
-- Relevant code and tests
-- `skills/AVAILABLE_SKILLS.xml` and the selected `skills/*/SKILL.md` when skills are in use
+Load only what the task requires. [AG-018]
+
+| Condition | Files | ID |
+|---|---|---|
+| Always | `AGENTS.md`, `rules/security-global.yaml`, `rules/security-<lang>.yaml` for files in scope; add `security-shell.yaml` + `rules-scripts.yaml` when shell-heavy | [AG-019] |
+| File in a known stack | `rules/rules-<stack>.yaml`; in this template-source repo also `templates/base/rules/*.yaml`, `templates/bundles/<bundle>/rules/*.yaml`, `templates/manifest.txt` | [AG-020] |
+| Non-trivial task | `specs/spec.yml`, `SPEC.md` (if product contract changes), `SNAPSHOT.md`, `CHANGELOG.md` (public-surface change) | [AG-023] |
+| Skills in use / CLI work | `skills/AVAILABLE_SKILLS.xml` + the selected `skills/<name>/SKILL.md`; for CLI/maintenance work `RUNBOOK.md` and `README.md` §"Public commands" | [AG-024] |
+| Never required | files outside scope, build artifacts, `.git/`, `node_modules/`, vendored deps | [AG-026] |
 
 ## Executable Commands
 
-This file does not define universal commands for every project that uses `AGENTS.md`.
+`AGENTS.md` does not enumerate universal commands. In this repo: `RUNBOOK.md`, `README.md` §"Public commands", `Makefile`, `SPEC.md` §6. Use only a Documented command (see Glossary). [AG-027]
 
-Use only commands that are documented or clearly discoverable in the current project, such as:
-- test commands exposed by the repo
-- local bootstrap or setup scripts owned by the repo
-- documented health checks, generators, or maintenance tasks
-
-If a command is not defined by the current project, do not assume an `agent47` CLI command exists.
+Forbidden to assume an `afs` subcommand not listed there. `SPEC.md` §6 lists "intentionally not public" — authoritative. [AG-029]
 
 ## Context Efficiency
 
-- Do not reread files that have not changed unless needed to resolve uncertainty.
-- Do not rerun the same command without a reason.
-- Prefer targeted reads/searches over loading large files repeatedly.
-- Keep quoted source text short; summarize instead of copying.
+- Do not reread a file already loaded unless its contents may have changed. [AG-030]
+- Do not rerun a command unless its output may have changed. [AG-031]
+- Prefer `grep` or `Read offset+limit` over loading > 500-line files in full. [AG-032]
+- Quote ≤ 20 contiguous lines; for longer regions -> summarize + cite line ranges. [AG-033]
+- Run independent reads/searches in parallel when the runtime supports it. [AG-034]
 
-## Execution Model
+## Execution
 
-- Use `specs/spec.yml` as the optional spec/plan/tasks/log location for non-trivial work.
-- If the user asks for a spec or plan and `specs/spec.yml` does not exist, create or update it through normal agent interaction instead of relying on a dedicated CLI scaffold.
-- When drafting or updating a spec or plan through conversation, ask follow-up questions when needed, then suggest that the user review the resulting spec/plan before implementation starts.
-- If `SNAPSHOT.md` or `SPEC.md` already exist and the scoped work materially changes them, consider updating them before commit to keep project documentation aligned with the current state.
-- Trivial tasks do not require a spec or written plan.
-- Prefer an implement-then-review flow for non-trivial changes.
-- Prefer tests in this order: happy path, error handling, edge cases.
-- Finish scoped work end-to-end: implementation, tests, and verification.
-
-## Execution Strategy
-
-- Prefer a single-agent flow for trivial, low-risk, or narrowly scoped tasks.
-- For non-trivial work, prefer a split between implementation and review when the runtime or tool supports multi-agent or sub-agent execution.
-- When a spec or plan is important or high-impact, prefer an independent review of the spec/plan itself by another agent or sub-agent when the runtime supports it.
-- Escalate to a multi-agent workflow when the task is complex, high-impact, multi-file, ambiguous, or spans multiple domains such as backend, frontend, security, documentation, tests, Android, or iOS.
-- Use specialized roles when helpful, such as implementer, reviewer, tester, security reviewer, or documentation editor.
-- Keep one agent responsible for final synthesis so the result is coherent, conflicts are resolved, and the user receives one clear outcome.
-- Treat review as an independent quality check, not as a restatement of the implementation step.
-- If the runtime does not support multi-agent execution, emulate the same separation of responsibilities within a single session.
-- Balance depth against cost and latency; do not use multi-agent orchestration when it adds overhead without improving outcome quality.
-- Do not delegate secrets or sensitive data more broadly than necessary for the task.
+- Trivial: no spec/plan. Implement, test, report. [AG-200]
+- Non-trivial: use `specs/spec.yml` for spec/plan/tasks/log; create through conversation, no CLI scaffold (none exists). [AG-201]
+- Drafting spec/plan: clarify questions first, user review before implementation. [AG-202]
+- Update `SNAPSHOT.md` and `SPEC.md` before commit if the scoped work materially changes them. [AG-203]
+- Tests in order: happy, failure, edge (see `rules/shared-testing.yaml` SHT-001). [AG-204]
+- Implement-then-review by default; plan-then-implement-then-review for work > 8h or multi-session. [AG-206]
+- Single-agent is the default for trivial tasks. Use multi-agent only when the task is complex, multi-file, ambiguous, or clearly multi-domain. [AG-210]
+- Multi-agent for tasks that are complex, multi-file, ambiguous, or multi-domain (backend+frontend, security+docs, Android+iOS). Roles: implementer, reviewer, tester, security reviewer, doc editor. One agent owns the final synthesis. [AG-212]
+- Review is an independent quality check, not a restatement. Without a multi-agent runtime, emulate the implement-phase / review-phase split. [AG-215]
+- Do not use multi-agent when the overhead does not improve outcome quality. [AG-217]
 
 ## Filesystem And Approval Boundaries
 
-### Always
-
-Actions that are safe to do without asking:
-- Read repository files needed for the task
-- Edit existing files already in scope
-- Add or update tests that support the requested change
-- Create small supporting files clearly required by the task inside the repo
-- Run documented local project commands for the current repo, such as its test or verification scripts
-
-Examples:
-- Updating an existing policy or rule file already in scope
-- Adding a missing unit test under the project's test directory
-- Running the project's documented test command
-
-### Ask
-
-Actions that require approval first:
-- Adding, removing, or upgrading dependencies
-- Creating, deleting, moving, or overwriting broad sets of files
-- Network access, external downloads, or calling remote services
-- Running long or potentially expensive jobs
-- Copying or restoring templates in a way that replaces user-edited files
-- Executing scripts from `skills/scripts/` or similar helper locations outside normal repo commands
-
-Examples:
-- Adding a new npm, pip, Gradle, CocoaPods, or Maven dependency
-- Restoring templates from backup over an existing project copy
-- Downloading a new test tool
-
-### Never
-
-Actions that are forbidden:
-- Hardcode secrets, tokens, passwords, or personal data
-- Exfiltrate source, secrets, or user data to external systems
-- Bypass approval requirements with hidden side effects
-- Delete unrelated files or revert user changes without explicit approval
-- Write vendor-specific agent config files such as `claude.md`, `.cursorrules`, `/.codex/config.toml`, or other vendor-only agent config files for tools like Codex, Claude Code, Cursor, or Windsurf without explicit prior user authorization
-
-Examples:
-- Committing `.env` secrets
-- Running destructive cleanup outside the requested scope
+| Bucket | Actions |
+|---|---|
+| Always | Read scoped files [AG-051]; edit existing in scope [AG-052]; add/update tests [AG-053]; create small support files (≤ 3 files, ≤ 200 lines combined) [AG-054]; run Documented commands [AG-055] |
+| Ask | Deps add/remove/upgrade — see Dependency Policy [AG-061]; Broad set ops [AG-062]; network / external downloads [AG-063]; Long/expensive jobs [AG-064]; template restore over user edits [AG-065]; run scripts from `skills/scripts/` [AG-066]; new top-level dirs at repo root [AG-067]; modify CI/CD workflows (`.github/workflows/`, `.gitlab-ci.yml`) [AG-068] |
+| Never | Hardcode secrets/tokens/passwords/personal data — SEC-global-001 [AG-071]; exfiltrate source/secrets/user data — SEC-global-005 [AG-072]; bypass approval with hidden side effects [AG-073]; delete unrelated files or revert user changes without approval [AG-074]; rewrite pushed git history (`amend` pushed, `push --force` shared) [AG-075]; write Vendor agent config without authorization [AG-076]; skip pre-commit hooks/signing (`--no-verify`, `--no-gpg-sign`) without authorization [AG-077]; destructive ops (`rm -rf`, `git reset --hard`, `git clean -fd`) outside an authorized scope [AG-078] |
 
 ## Security Expectations
 
-- Always load the applicable security rules first: `security-global.yaml`, then the applicable language file, then the stack file.
-- Keep secrets out of source, logs, prompts, and tests.
-- Validate untrusted input at the appropriate boundary.
-- Avoid unsafe code execution, unsafe deserialization, and user-controlled outbound destinations.
-- Keep security guidance deduplicated in security rule files; stack rules may add context or reference IDs, not restate the same rule text.
+Authoritative: `rules/security-*.yaml`. Load order: `security-global.yaml` -> `security-<lang>.yaml` -> `security-shell.yaml` when shell-related. [AG-080] Principles (canonical in the YAMLs, by ID): secrets out of source/logs/prompts/screenshots/tests (SEC-global-001, 002); untrusted input validated at the boundary (SEC-global-003); no execution without an allow-list (SEC-global-004); no exfiltration without Approval (SEC-global-005). Deduplication: security guidance lives ONLY in `security-*.yaml`; cross-ref by ID, do not restate. [AG-082]
 
 ## Dependency Policy
 
-New dependencies or dependency changes require approval and must be justified by:
-- clear benefit vs maintenance cost
-- acceptable license
-- stable version pinning
-- a small interface or wrapper when appropriate
+Governed by the repository dependency approval policy in `AGENTS.md` plus the applicable stack/security rules. A change is add, remove, upgrade, or pinning shift. [AG-090]
 
-Prefer existing project tooling and libraries.
+Required justification (in the PR or `specs/spec.yml`): benefit vs cost; acceptable license (default-deny AGPL/SSPL/BUSL); pinning + integrity hash committed (lockfile); wrapper when used in ≥ 3 places. Approval covers the named version; later upgrades require new approval. [AG-091] Optional guidance: prefer existing tooling first, a single package manager, and a small local utility over a new dependency when the utility is genuinely small and stable. [AG-093]
 
 ## Stack Notes
 
-Frontend:
-- Keep business logic off the client when it belongs on the server.
-- Preserve validation, CSP-conscious behavior, SSR/BFF boundaries, and input handling.
+Authoritative: `rules/rules-<stack>.yaml`. Hooks only — full rule text and rule IDs (FE-*, BE-*, MO-*, …) live in the YAMLs. [AG-100]
 
-Backend:
-- Keep transport, service, and data responsibilities separate.
-- Use explicit error contracts and safe external call patterns.
-
-Mobile:
-- Keep UI/main thread work light.
-- Use safe async patterns; avoid force unwraps and unsafe state sharing.
-- Unless the user requests another architecture, prefer a layered mobile architecture with explicit UI, domain, and data layers.
-- Use unidirectional data flow, screen-level state holders, repositories as the data boundary, and dependency injection; map these patterns to platform-native equivalents on Android and iOS.
+| Stack | Canonical YAML |
+|---|---|
+| Frontend | `rules-frontend.yaml` |
+| Backend | `rules-backend.yaml` |
+| Mobile | `rules-mobile.yaml` |
+| CLI | `rules-cli.yaml` |
+| Scripts | `rules-scripts.yaml` |
+| Infra | `rules-infra.yaml` |
+| Desktop | `rules-desktop.yaml` |
+| Plugin | `rules-plugin.yaml` |
+| Monorepo | `rules-monorepo-tooling.yaml` |
 
 ## Skills
 
-- Use a skill when the prompt metadata or user request indicates one.
-- Load only the selected `SKILL.md` and any directly needed references.
-- Skills extend workflow guidance; they do not override this file.
+- Discovery: `skills/AVAILABLE_SKILLS.xml` (canonical), `.json`, `SUMMARY.md`. Load the index first; load a specific `SKILL.md` only when the skill is selected. [AG-120]
+- Trigger: explicit invocation (`/skill-name`) or a match on `description`. Optional guidance: skip the skill when the task is a direct lookup or the skill would add little value relative to the task size. [AG-121]
+- Loading: only the selected `SKILL.md` plus refs it explicitly cites. Do not eagerly load. [AG-122]
+- Authority: skills extend, never override (see AG-045). [AG-123]
+- Conflict: the skill named by the user wins; otherwise the one with the more specific `description`, and report the conflict. [AG-124]
+- Skip when: user opt-out, single-step lookup, prerequisites not satisfied. [AG-125]
 
 ## Output Expectations
 
-Responses should include:
-- what changed or what was found
-- tests/verification performed, or why not
-- residual risks or assumptions
+Structure: (1) what changed/found; (2) verification performed (commands + outcomes, or "not run because X"); (3) residual risks/assumptions. [AG-130] Format: markdown for > 3 lines; code blocks with a language tag for ≥ 2-line snippets; absolute paths for files outside the file under edit. Length: trivial 1–3 sentences; non-trivial 1 paragraph + a flat list; multi-agent synthesis 1 paragraph + a flat list; avoid > 1 page unless requested. Tone: factual, active voice; match the user's language (es/en/pt); switch only on explicit instruction. [AG-131]
 
-Keep reports concise and factual.
+## Verification And Rollback
+
+- Detect early: after each destructive step, verify state before the next one. [AG-180]
+- Re-read the user request; confirm every point is addressed. [AG-141]
+- Every edited file is syntactically valid (compiles/parses). [AG-142]
+- Code changes: run the project's test command per Executable Commands; backend/library: run a build (`make go-build`, `tsc --noEmit`). [AG-143]
+- Rule/policy edits: `diff -q AGENTS.md templates/base/AGENTS.md` empty; `make agents-check` passes. [AG-145]
+- Skipping a check: name the check AND the reason in the response (per AG-130). [AG-146]
+- A test failure not expected by the change is a task failure, not a test failure. Do not "fix the test" without root-cause analysis. [AG-181]
+- Roll back: uncommitted -> `git restore <file>` per file (never `git restore .`); committed-unpushed -> `git revert <sha>`; pushed feature -> follow-up revert commit; pushed `main` -> ALWAYS ask the user. [AG-182]
+- Do not bypass the failed check, delete the failing test without authorization, or catch broadly to silence. [AG-183]
+- Report on rollback: what failed, what was rolled back, what remains known-good. [AG-184]
+
+## Git And Commits
+
+Free: `status`, `diff`, `log`, `show`, `branch --list`, `stash list`, creating a local branch, staging specific files (NOT `git add -A` or `.`). [AG-150]
+
+Requires user request: `commit`, `push`, PR create/edit/merge, switching branches with uncommitted changes, `stash`/`stash pop`. [AG-151]
+
+Forbidden without authorization (see AG-075, AG-077): `amend` pushed, `rebase -i`, `reset --hard`, `checkout --`, `clean -fd`, `push --force[-with-lease]` shared, `--no-verify`, `--no-gpg-sign`. [AG-152]
+
+Commit message: subject ≤ 70 chars present-tense imperative; body wrapped at 72, explains the why; reference rule IDs when applicable; trailer block ≤ 5 lines. Branch names: kebab-case `<verb>-<noun>`; stacking `<feature>/01-foundation`. [AG-153]
+
+## Communication Conventions
+
+- Language: mirror the user (es/en/pt). Switch only when the user switches. [AG-170]
+- Tone: professional, concise, neutral. No filler. No emojis unless the user uses them. [AG-171]
+- Status: pre > 5 steps state the plan in one sentence; mid-operation update only on blocker / direction change / finding; on completion, emit the AG-130 shape. [AG-172]
+- Questions: batch related ones (A/B/C); do not ask about Always actions. [AG-173]
+- Refusals: name the action + the rule ID; offer the closest acceptable alternative. [AG-174]
+
+## Maintenance Of This File
+
+- Owner: `platform-policy`. Reviewers: 1 platform-security + 1 platform-tooling. PR-only. [AG-190]
+- Update when: a new bundle -> Scope + Stack Notes; a new `afs` command -> Executable Commands; rule add/rename/remove -> cross-refs here; `manifest.txt` change -> Glossary if relevant. [AG-191]
+- Versioning: bump `version` for every AG-NNN add/remove/modify; bump `schema_version` only when structure changes; `last_updated` ISO-8601 is mandatory. [AG-192]
+- Mirror invariant: `AGENTS.md` == `templates/base/AGENTS.md`. Validated by `make agents-check`, wired into `make test` + CI. [AG-193]
