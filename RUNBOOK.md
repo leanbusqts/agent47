@@ -77,7 +77,7 @@ afs analyze --verbose
 - `skills/AVAILABLE_SKILLS.json`
 - `skills/SUMMARY.md`
 - an empty `README.md` if missing
-- `specs/spec.yml` if missing
+- `.agents/specs/spec.yml` if missing
 
 Existing managed files are preserved unless you use `--force`.
 
@@ -143,7 +143,7 @@ This is a fresh install of the managed scaffold in the current project. It:
 This preserves:
 
 - `README.md`
-- `specs/spec.yml`
+- `.agents/specs/spec.yml`
 - `SNAPSHOT.md`
 - `SPEC.md`
 
@@ -203,7 +203,7 @@ Managed targets:
 Preserved targets:
 
 - `README.md`
-- `specs/spec.yml`
+- `.agents/specs/spec.yml`
 - `SNAPSHOT.md`
 - `SPEC.md`
 
@@ -257,7 +257,7 @@ Recommended workflow:
 1. Open the repository root.
 2. Ensure the agent reads `AGENTS.md`.
 3. Let `AGENTS.md` drive the next reads, including relevant `rules/*.yaml` or, in template-source repos like `agent47`, `templates/base/rules/*.yaml` plus the relevant `templates/bundles/*/rules/*.yaml`.
-4. Use `specs/spec.yml` only when work actually needs a written spec or plan.
+4. Use `.agents/specs/spec.yml` only when work actually needs a written spec or plan.
 
 Minimal instruction text for tools that do not discover repo policy reliably:
 

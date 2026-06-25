@@ -3,7 +3,7 @@
 ## 1. Project Overview
 
 - **Name:** `agent47`
-- **Purpose:** Go-first CLI plus templates for setting up agent-driven development workflows with explicit policy, rules, skills, prompts, and an optional `specs/spec.yml` planning artifact
+- **Purpose:** Go-first CLI plus templates for setting up agent-driven development workflows with explicit policy, rules, skills, prompts, and an optional `.agents/specs/spec.yml` planning artifact
 
 ## 2. Current Status
 
@@ -13,10 +13,10 @@
 - **Installers:** `install.sh` and `install.ps1` are thin wrappers around the native install service
 - **Analyze:** `afs analyze` is read-only and reports detected project types, testing stacks, evidence, and the resolved install plan; `--evidence` now includes classification evidence as well as raw scan hits
 - **SwiftPM desktop detection:** SwiftPM repos that declare `.macOS(...)` now resolve as `desktop`, and `desktop` + `scripts` is a supported automatic composition for macOS app repos with shell tooling
-- **Bootstrap:** `afs add-agent` analyzes first, previews the resolved bundle set, and then scaffolds `AGENTS.md`, template rules, curated skills, `skills/AVAILABLE_SKILLS.xml`, `skills/AVAILABLE_SKILLS.json`, `skills/SUMMARY.md`, and `specs/spec.yml`; prompt helpers are now opt-in via their own commands
+- **Bootstrap:** `afs add-agent` analyzes first, previews the resolved bundle set, and then scaffolds `AGENTS.md`, template rules, curated skills, `skills/AVAILABLE_SKILLS.xml`, `skills/AVAILABLE_SKILLS.json`, `skills/SUMMARY.md`, and `.agents/specs/spec.yml`; prompt helpers are now opt-in via their own commands
 - **Skills indexes:** the skills contract also supports JSON and Markdown summary indexes alongside `skills/AVAILABLE_SKILLS.xml`
 - **Forced refresh:** `afs add-agent --force` performs a fresh install of the managed scaffold and removes stale managed rules and skills not present in the resolved assembled contract
-- **Preserved targets:** `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md` stay untouched during forced refresh
+- **Preserved targets:** `README.md`, `.agents/specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md` stay untouched during forced refresh
 - **Skills-only mode:** `afs add-agent --only-skills` manages only the skills tree; without `--force`, invalid existing skill files are preserved but omitted from the generated skills indexes; in interactive terminals it follows the same confirmation rules as the main scaffold flow
 - **Skills-only preview:** `afs add-agent --only-skills --force --preview` now reflects the actual managed `skills/` replacement and pending removals under `skills/`
 - **Update checks:** `doctor --check-update` uses a remote `VERSION` when configured or the local git tracking ref when running from a checkout with an upstream branch; `doctor --check-update-force` performs `git fetch --quiet` first
@@ -68,7 +68,7 @@
 ## 7. Verification Notes
 
 - Manual empty-repo verification on April 29, 2026: `afs analyze` reported `type: unknown` and `bundles: base`, then `afs add-agent` installed the expected base scaffold.
-- Manual legacy-scaffold verification on April 29, 2026: `afs add-agent --force --yes` removed stale managed rules and stale managed skills, preserved `README.md` and `specs/spec.yml`, and kept prompt helpers as separate opt-in commands
+- Manual legacy-scaffold verification on April 29, 2026: `afs add-agent --force --yes` removed stale managed rules and stale managed skills, preserved `README.md` and `.agents/specs/spec.yml`, and kept prompt helpers as separate opt-in commands
 - Manual preview verification on April 30, 2026: `afs add-agent --only-skills --force --preview` reported the managed `skills/` replacement plus the concrete entries that would be removed under `skills/`.
 - Manual regression target on June 1, 2026: a SwiftPM macOS menu bar app with `scripts/` should resolve automatically to `desktop + scripts` instead of falling back to the base bundle, and `afs version` should report the installed `agent47` version even inside repos that have their own `VERSION` file.
 - Manual regression target on June 2, 2026: invoking the installed `afs` binary from a target repository should report the installed `agent47` version regardless of the shell-visible command name or the target repo working directory.

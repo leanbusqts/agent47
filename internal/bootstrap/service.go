@@ -22,8 +22,9 @@ const (
 	projectAgents     = "AGENTS.md"
 	projectReadme     = "README.md"
 	projectPromptsDir = "prompts"
-	projectSpecsDir   = "specs"
-	projectSpecFile   = "specs/spec.yml"
+	projectAgentsDir  = ".agents"
+	projectSpecsDir   = ".agents/specs"
+	projectSpecFile   = ".agents/specs/spec.yml"
 )
 
 type Service struct {
@@ -46,6 +47,7 @@ type state struct {
 	backupRoot        string
 	createdReadme     bool
 	createdSpec       bool
+	createdAgentsDir  bool
 	createdSpecsDir   bool
 	createdPromptsDir bool
 	rulesDirCreated   bool
@@ -527,7 +529,12 @@ func (s *Service) commitSpec(src templates.Source, workDir string, st *state) er
 
 	specsDir := filepath.Join(workDir, projectSpecsDir)
 	if !s.FS.IsDir(specsDir) {
+		agentsDir := filepath.Join(workDir, projectAgentsDir)
+		if !s.FS.IsDir(agentsDir) {
+			st.createdAgentsDir = true
+		}
 		if err := s.FS.MkdirAll(specsDir); err != nil {
+			st.createdAgentsDir = false
 			return err
 		}
 		st.createdSpecsDir = true
@@ -585,6 +592,9 @@ func (s *Service) rollback(workDir string, st *state) error {
 	}
 	if st.createdSpecsDir {
 		_ = os.Remove(filepath.Join(workDir, projectSpecsDir))
+	}
+	if st.createdAgentsDir {
+		_ = os.Remove(filepath.Join(workDir, projectAgentsDir))
 	}
 	for _, prompt := range st.createdPrompts {
 		_ = os.Remove(filepath.Join(workDir, projectPromptsDir, prompt))

@@ -189,19 +189,20 @@ skills/AVAILABLE_SKILLS.xml
 
 [preserved_targets]
 README.md
-specs/spec.yml
+.agents/specs/spec.yml
 SNAPSHOT.md
 SPEC.md
 
 [required_template_files]
 AGENTS.md
 manifest.txt
-specs/spec.yml
+.agents/specs/spec.yml
 
 [required_template_dirs]
 rules
 skills
-specs
+.agents
+.agents/specs
 `
 }
 

@@ -286,9 +286,9 @@ func TestAssembleManifestFiltersToResolvedContract(t *testing.T) {
 	base := manifest.Manifest{
 		RuleTemplates:         []string{"rules-backend.yaml", "security-global.yaml", "security-shell.yaml"},
 		ManagedTargets:        []string{"AGENTS.md", "rules/*.yaml", "skills/*", "skills/AVAILABLE_SKILLS.xml", "skills/AVAILABLE_SKILLS.json", "skills/SUMMARY.md"},
-		PreservedTargets:      []string{"README.md", "specs/spec.yml", "SNAPSHOT.md", "SPEC.md"},
-		RequiredTemplateFiles: []string{"AGENTS.md", "manifest.txt", "specs/spec.yml"},
-		RequiredTemplateDirs:  []string{"rules", "skills", "specs"},
+		PreservedTargets:      []string{"README.md", ".agents/specs/spec.yml", "SNAPSHOT.md", "SPEC.md"},
+		RequiredTemplateFiles: []string{"AGENTS.md", "manifest.txt", ".agents/specs/spec.yml"},
+		RequiredTemplateDirs:  []string{"rules", "skills", ".agents", ".agents/specs"},
 	}
 
 	got := AssembleManifest(base, InstallSet{
@@ -298,7 +298,7 @@ func TestAssembleManifestFiltersToResolvedContract(t *testing.T) {
 	if len(got.RuleTemplates) != 2 {
 		t.Fatalf("expected filtered rule templates, got %v", got.RuleTemplates)
 	}
-	if got.RequiredTemplateFiles[0] != "AGENTS.md" {
+	if !containsString(got.RequiredTemplateFiles, "AGENTS.md") {
 		t.Fatalf("expected AGENTS.md in required template files, got %v", got.RequiredTemplateFiles)
 	}
 	for _, unexpected := range []string{"rules/APPROVALS.md", "rules/SEVERITY.md", "rules/schema.json"} {

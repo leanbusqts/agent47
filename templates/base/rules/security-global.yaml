@@ -99,7 +99,7 @@ rules:
       (analytics, AI APIs, telemetry, pastebins) without an approval process.
       Same blast radius as `SEC-global-001`.
     how_to_apply: |
-      "Explicitly approved" means documented in `AGENTS.md`, `specs/spec.yml`,
+      "Explicitly approved" means documented in `AGENTS.md`, `.agents/specs/spec.yml`,
       a PR, or a referenced ticket linking to a security review.
     refs: ["AGENTS.md#approval-and-severity"]
     tags: ["owasp:A05", "cwe:200"]

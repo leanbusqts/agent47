@@ -15,7 +15,7 @@ teardown() {
   assert_success
   assert_file_exists "$AGENT47_HOME/bin/afs"
   assert_file_exists "$AGENT47_HOME/templates/base/AGENTS.md"
-  assert_file_exists "$AGENT47_HOME/templates/base/specs/spec.yml"
+  assert_file_exists "$AGENT47_HOME/templates/base/.agents/specs/spec.yml"
   assert_file_exists "$AGENT47_HOME/templates/base/rules/security-shell.yaml"
   [ ! -d "$AGENT47_HOME/scripts/lib" ]
   [ ! -e "$AGENT47_HOME/scripts/add-agent" ]
@@ -178,12 +178,13 @@ README.md
 [required_template_files]
 AGENTS.md
 manifest.txt
-specs/spec.yml
+.agents/specs/spec.yml
 
 [required_template_dirs]
 rules
 skills
-specs
+.agents
+.agents/specs
 EOF
 done
 PATH="$HOME/bin:$PATH" AGENT47_REPO_ROOT="$1" "$2/install.sh" --non-interactive

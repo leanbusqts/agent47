@@ -1,6 +1,6 @@
 # SPEC
 
-This root `SPEC.md` describes the current product contract and technical behavior of `agent47` itself. It is not the default place to draft a new feature spec or implementation plan; use `specs/spec.yml` for task-scoped planning work.
+This root `SPEC.md` describes the current product contract and technical behavior of `agent47` itself. It is not the default place to draft a new feature spec or implementation plan; use `.agents/specs/spec.yml` for task-scoped planning work.
 
 ## 1. Project Identity
 
@@ -22,7 +22,7 @@ This root `SPEC.md` describes the current product contract and technical behavio
    - `skills/AVAILABLE_SKILLS.json`
    - `skills/SUMMARY.md`
    - prompt helpers
-   - `specs/spec.yml` as an available template artifact
+   - `.agents/specs/spec.yml` as an available template artifact
 
 The product is intentionally conservative:
 
@@ -44,7 +44,7 @@ The product is intentionally conservative:
 
 - Full project generation beyond the agent-workflow scaffold.
 - Hidden remote orchestration, cloud sync, or network dependency for normal operation.
-- Automatic creation of project-specific business specs beyond the optional `specs/spec.yml` template.
+- Automatic creation of project-specific business specs beyond the optional `.agents/specs/spec.yml` template.
 - Enforcement of package-manager dependency manifests in target repos.
 - Vendor-specific repo config by default.
 
@@ -114,14 +114,14 @@ Expected outcome:
 - write the resolved `rules/*.yaml` if absent
 - create the resolved `skills/*` and managed skills indexes
 - create an empty `README.md` if absent
-- create `specs/spec.yml` if absent
+- create `.agents/specs/spec.yml` if absent
 - preserve existing managed files unless `--force` is used
 
 Default resolution behavior:
 
 - low-signal repos install the base bundle only
 - unresolved project-type conflicts install the base bundle only and print an explicit warning
-- the base bundle includes `AGENTS.md`, shell/global security rules, universal skills, and `specs/spec.yml`
+- the base bundle includes `AGENTS.md`, shell/global security rules, universal skills, and `.agents/specs/spec.yml`
 - supported project bundles currently include frontend, backend, mobile, cli, scripts, infra, monorepo-tooling, desktop, and plugin
 - supported automatic bundle composition currently includes `cli` + `scripts`, `cli` + `monorepo-tooling`, `desktop` + `scripts`, and `desktop` + `plugin`
 - in interactive TTY environments, `afs add-agent` asks for confirmation before writing, including skills-only mode, unless `--yes` is supplied
@@ -141,7 +141,7 @@ Expected outcome:
 - remove stale managed rules and skills no longer selected by the current install set
 - preserve:
   - `README.md`
-  - `specs/spec.yml`
+  - `.agents/specs/spec.yml`
   - `SNAPSHOT.md`
   - `SPEC.md`
 
@@ -249,7 +249,7 @@ Repo-local execution detail:
 - `templates/base/skills/*/SKILL.md`
 - `templates/bundles/*/skills/*/SKILL.md`
 - `templates/base/prompts/*.txt`
-- `templates/base/specs/spec.yml`
+- `templates/base/.agents/specs/spec.yml`
 
 ### 7.3 Managed target contract
 
@@ -264,7 +264,7 @@ Defined by `templates/manifest.txt`:
   - `skills/SUMMARY.md`
 - preserved targets:
   - `README.md`
-  - `specs/spec.yml`
+  - `.agents/specs/spec.yml`
   - `SNAPSHOT.md`
   - `SPEC.md`
 

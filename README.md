@@ -11,7 +11,7 @@ It standardizes a portable repo contract around:
 - `skills/AVAILABLE_SKILLS.json`
 - `skills/SUMMARY.md`
 - prompt helpers
-- `specs/spec.yml` as a template artifact for non-trivial planning work
+- `.agents/specs/spec.yml` as a template artifact for non-trivial planning work
 
 The public command is `afs`, short for `Agent Forty-Seven`.
 
@@ -67,7 +67,7 @@ For empty or low-signal repos, the default install is the base bundle:
 - `skills/AVAILABLE_SKILLS.json`
 - `skills/SUMMARY.md`
 - an empty `README.md` if missing
-- `specs/spec.yml` if missing
+- `.agents/specs/spec.yml` if missing
 
 Prompt helpers are available as opt-in commands instead of default scaffold files:
 
@@ -90,7 +90,7 @@ Supported automatic bundle composition currently includes:
 - replaces `skills/*`
 - regenerates the managed skills indexes
 - removes stale managed rules and skills no longer selected by the current install set
-- preserves `README.md`, `specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md`
+- preserves `README.md`, `.agents/specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md`
 
 Because `rules/*.yaml` and `skills/*` are managed paths, local custom files under those paths can be replaced or removed during `--force`.
 
@@ -247,4 +247,4 @@ Document roles:
 - `RUNBOOK.md`: operational guide for using the CLI in depth
 - `SNAPSHOT.md`: concise current-state summary
 - root `SPEC.md`: current-state product contract for `agent47`
-- `specs/spec.yml`: task-specific spec/plan artifact when work needs one
+- `.agents/specs/spec.yml`: task-specific spec/plan artifact when work needs one

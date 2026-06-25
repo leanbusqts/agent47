@@ -22,7 +22,7 @@ teardown() {
   assert_file_exists "skills/AVAILABLE_SKILLS.json"
   assert_file_exists "skills/SUMMARY.md"
   assert_file_exists "README.md"
-  assert_file_exists "specs/spec.yml"
+  assert_file_exists ".agents/specs/spec.yml"
   [ ! -d "prompts" ]
   [ ! -f "rules/rules-backend.yaml" ]
 }
@@ -78,11 +78,11 @@ EOF
 }
 
 @test "add-agent --force updates managed files and preserves user project files" {
-  mkdir -p rules prompts specs skills/analyze
+  mkdir -p rules prompts .agents/specs skills/analyze
   echo "old agents" > AGENTS.md
   echo "old rule" > rules/rules-backend.yaml
   echo "old prompt" > prompts/agent-prompt.txt
-  echo "custom spec" > specs/spec.yml
+  echo "custom spec" > .agents/specs/spec.yml
   echo "custom readme" > README.md
   echo "custom snapshot" > SNAPSHOT.md
   echo "custom product spec" > SPEC.md
@@ -98,7 +98,7 @@ EOF
   assert_success
   run grep -F "old prompt" prompts/agent-prompt.txt
   assert_success
-  run grep -F "custom spec" specs/spec.yml
+  run grep -F "custom spec" .agents/specs/spec.yml
   assert_success
   run grep -F "custom readme" README.md
   assert_success
@@ -161,7 +161,7 @@ EOF
 }
 
 @test "add-agent --force migrates a legacy scaffold while preserving project files" {
-  mkdir -p rules prompts specs skills/custom
+  mkdir -p rules prompts .agents/specs skills/custom
   echo "old agents" > AGENTS.md
   echo "legacy managed rule" > rules/legacy.yaml
   echo "keep me" > rules/custom.txt
@@ -173,7 +173,7 @@ description: Local custom skill.
 EOF
   echo "existing prompt" > prompts/agent-prompt.txt
   echo "existing readme" > README.md
-  echo "existing spec" > specs/spec.yml
+  echo "existing spec" > .agents/specs/spec.yml
 
   run "$ROOT_DIR/bin/afs" add-agent --force --yes
   assert_success
@@ -184,7 +184,7 @@ EOF
   [ ! -d "skills/custom" ]
   run grep -F "existing readme" README.md
   assert_success
-  run grep -F "existing spec" specs/spec.yml
+  run grep -F "existing spec" .agents/specs/spec.yml
   assert_success
   run grep -F "keep me" rules/custom.txt
   assert_success

@@ -168,8 +168,8 @@ func TestRunOnlySkillsSkipsRulesAndAgents(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(workDir, "rules")); !os.IsNotExist(err) {
 		t.Fatalf("did not expect rules directory, err=%v", err)
 	}
-	if _, err := os.Stat(filepath.Join(workDir, "specs")); !os.IsNotExist(err) {
-		t.Fatalf("did not expect specs directory, err=%v", err)
+	if _, err := os.Stat(filepath.Join(workDir, ".agents", "specs")); !os.IsNotExist(err) {
+		t.Fatalf("did not expect .agents/specs directory, err=%v", err)
 	}
 }
 
@@ -251,7 +251,7 @@ func TestRunFailsWhenBundleAssemblyHasConflictingContent(t *testing.T) {
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "manifest.txt"), validAssemblyManifestBody())
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "base", "manifest.txt"), validAssemblyManifestBody())
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "base", "AGENTS.md"), "agents\n")
-	writeTestFile(t, filepath.Join(repoRoot, "templates", "base", "specs", "spec.yml"), "summary: template\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "base", ".agents", "specs", "spec.yml"), "summary: template\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "base", "rules", "shared-cli-behavior.yaml"), "base\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "base", "skills", "analyze", "SKILL.md"), validSkillBody("analyze"))
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "bundles", "project-cli", "manifest.txt"), strings.Join([]string{
@@ -262,7 +262,7 @@ func TestRunFailsWhenBundleAssemblyHasConflictingContent(t *testing.T) {
 		"skills/*",
 		"[preserved_targets]",
 		"README.md",
-		"specs/spec.yml",
+		".agents/specs/spec.yml",
 		"SNAPSHOT.md",
 		"SPEC.md",
 		"[required_template_files]",
@@ -322,7 +322,7 @@ func TestRequireTemplatesFailsWhenSkillsTemplatesMissing(t *testing.T) {
 
 func TestRequireTemplatesFailsWhenAgentsTemplateMissing(t *testing.T) {
 	repoRoot := t.TempDir()
-	writeTestFile(t, filepath.Join(repoRoot, "templates", "specs", "spec.yml"), "summary: template\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", ".agents", "specs", "spec.yml"), "summary: template\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "rules", "rules-backend.yaml"), "rule\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
 	service, err := New(runtime.Config{
@@ -341,7 +341,7 @@ func TestRequireTemplatesFailsWhenAgentsTemplateMissing(t *testing.T) {
 func TestRequireTemplatesFailsWhenRuleTemplateMissing(t *testing.T) {
 	repoRoot := t.TempDir()
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "AGENTS.md"), "agents\n")
-	writeTestFile(t, filepath.Join(repoRoot, "templates", "specs", "spec.yml"), "summary: template\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", ".agents", "specs", "spec.yml"), "summary: template\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
 	service, err := New(runtime.Config{
 		TemplateMode: runtime.TemplateModeFilesystem,
@@ -537,7 +537,7 @@ func TestCommitSpecCreatesFileWhenMissing(t *testing.T) {
 	if err := service.commitSpec(service.Loader.Source, workDir, &st); err != nil {
 		t.Fatal(err)
 	}
-	assertTestFileContains(t, filepath.Join(workDir, "specs", "spec.yml"), "summary:")
+	assertTestFileContains(t, filepath.Join(workDir, ".agents", "specs", "spec.yml"), "summary:")
 	if !st.createdSpec {
 		t.Fatal("expected createdSpec flag")
 	}
@@ -554,12 +554,12 @@ func TestCommitSpecPreservesExistingFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	st := state{}
-	writeTestFile(t, filepath.Join(workDir, "specs", "spec.yml"), "existing spec\n")
+	writeTestFile(t, filepath.Join(workDir, ".agents", "specs", "spec.yml"), "existing spec\n")
 
 	if err := service.commitSpec(service.Loader.Source, workDir, &st); err != nil {
 		t.Fatal(err)
 	}
-	assertTestFileContains(t, filepath.Join(workDir, "specs", "spec.yml"), "existing spec")
+	assertTestFileContains(t, filepath.Join(workDir, ".agents", "specs", "spec.yml"), "existing spec")
 	if st.createdSpec {
 		t.Fatal("did not expect createdSpec flag")
 	}
@@ -877,7 +877,7 @@ func newBootstrapRepo(t *testing.T, withSkills bool) string {
 	repoRoot := t.TempDir()
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "manifest.txt"), testManifestBody())
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "AGENTS.md"), "agents\n")
-	writeTestFile(t, filepath.Join(repoRoot, "templates", "specs", "spec.yml"), "summary: template\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", ".agents", "specs", "spec.yml"), "summary: template\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "rules", "rules-backend.yaml"), "rule\n")
 	if withSkills {
 		writeTestFile(t, filepath.Join(repoRoot, "templates", "skills", "analyze", "SKILL.md"), validSkillBody("analyze"))
@@ -891,7 +891,7 @@ func newBootstrapRepoWithSkills(t *testing.T, skills map[string]string) string {
 	repoRoot := t.TempDir()
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "manifest.txt"), testManifestBody())
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "AGENTS.md"), "agents\n")
-	writeTestFile(t, filepath.Join(repoRoot, "templates", "specs", "spec.yml"), "summary: template\n")
+	writeTestFile(t, filepath.Join(repoRoot, "templates", ".agents", "specs", "spec.yml"), "summary: template\n")
 	writeTestFile(t, filepath.Join(repoRoot, "templates", "rules", "rules-backend.yaml"), "rule\n")
 	for name, body := range skills {
 		writeTestFile(t, filepath.Join(repoRoot, "templates", "skills", name, "SKILL.md"), body)
@@ -913,11 +913,12 @@ func testManifestBody() string {
 		"VERSION",
 		"[required_template_files]",
 		"AGENTS.md",
-		"specs/spec.yml",
+		".agents/specs/spec.yml",
 		"[required_template_dirs]",
 		"rules",
 		"skills",
-		"specs",
+		".agents",
+		".agents/specs",
 	}, "\n") + "\n"
 }
 
@@ -938,16 +939,17 @@ func validAssemblyManifestBody() string {
 		"skills/SUMMARY.md",
 		"[preserved_targets]",
 		"README.md",
-		"specs/spec.yml",
+		".agents/specs/spec.yml",
 		"SNAPSHOT.md",
 		"SPEC.md",
 		"[required_template_files]",
 		"AGENTS.md",
 		"manifest.txt",
-		"specs/spec.yml",
+		".agents/specs/spec.yml",
 		"[required_template_dirs]",
 		"rules",
 		"skills",
-		"specs",
+		".agents",
+		".agents/specs",
 	}, "\n") + "\n"
 }

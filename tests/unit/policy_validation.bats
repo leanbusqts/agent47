@@ -99,7 +99,7 @@ template_rule_path() {
     assert_success
   done
 
-  for target in README.md specs/spec.yml SNAPSHOT.md SPEC.md; do
+  for target in README.md .agents/specs/spec.yml SNAPSHOT.md SPEC.md; do
     run grep -Fx "$target" "$ROOT_DIR/templates/manifest.txt"
     assert_success
   done
@@ -124,7 +124,7 @@ template_rule_path() {
   [[ "$managed" == *"skills/AVAILABLE_SKILLS.json"* ]]
   [[ "$managed" == *"skills/SUMMARY.md"* ]]
   [[ "$preserved" == *"README.md"* ]]
-  [[ "$preserved" == *"specs/spec.yml"* ]]
+  [[ "$preserved" == *".agents/specs/spec.yml"* ]]
   [[ "$preserved" == *"SNAPSHOT.md"* ]]
   [[ "$preserved" == *"SPEC.md"* ]]
 }

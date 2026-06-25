@@ -63,7 +63,7 @@ var bundles = map[string]Bundle{
 		Description:    "Conservative default scaffold for low-signal repositories.",
 		IncludesRules:  []string{"rules-cross.yaml", "security-global.yaml", "security-shell.yaml"},
 		IncludesSkills: universalSkills,
-		IncludesFiles:  []string{"AGENTS.md", "specs/spec.yml", "README.md"},
+		IncludesFiles:  []string{"AGENTS.md", ".agents/specs/spec.yml", "README.md"},
 	},
 	"project-frontend": {
 		ID:            "project-frontend",
@@ -177,7 +177,7 @@ func Resolve(result analyze.AnalysisResult, opts Options) (InstallSet, error) {
 			"skills/AVAILABLE_SKILLS.xml",
 			"skills/AVAILABLE_SKILLS.json",
 			"skills/SUMMARY.md",
-			"specs/spec.yml",
+			".agents/specs/spec.yml",
 		},
 		KeepFiles:            []string{"README.md", "SNAPSHOT.md", "SPEC.md"},
 		UnresolvedConflict:   result.UnresolvedConflict,
@@ -521,7 +521,7 @@ func AssembleManifest(base manifest.Manifest, set InstallSet) manifest.Manifest 
 		assembled.RuleTemplates = append([]string{}, base.RuleTemplates...)
 	}
 
-	requiredFiles := []string{"AGENTS.md", "specs/spec.yml", "manifest.txt"}
+	requiredFiles := []string{"AGENTS.md", ".agents/specs/spec.yml", "manifest.txt"}
 	for _, file := range base.RequiredTemplateFiles {
 		if filepath.Dir(file) == "prompts" {
 			continue
@@ -533,7 +533,7 @@ func AssembleManifest(base manifest.Manifest, set InstallSet) manifest.Manifest 
 	}
 	assembled.RequiredTemplateFiles = uniqSorted(requiredFiles)
 
-	requiredDirs := []string{"skills", "specs"}
+	requiredDirs := []string{"skills", ".agents", ".agents/specs"}
 	if len(assembled.RuleTemplates) > 0 {
 		requiredDirs = append(requiredDirs, "rules")
 	}

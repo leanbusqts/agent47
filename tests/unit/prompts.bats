@@ -18,7 +18,7 @@ teardown() {
   assert_success
   assert_contains "$output" "Use \`AGENTS.md\` as the single source of policy."
   assert_contains "$output" "skills/AVAILABLE_SKILLS.xml"
-  assert_contains "$output" "specs/spec.yml"
+  assert_contains "$output" ".agents/specs/spec.yml"
   assert_contains "$output" "suggest that the user review it"
   assert_contains "$output" "another agent or sub-agent"
   assert_not_contains "$output" "Authoritative order:"

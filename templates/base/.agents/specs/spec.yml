@@ -1,0 +1,49 @@
+# .agents/specs/spec.yml
+
+id: ""
+summary: ""
+context: |
+  Briefly describe the current situation and background.
+
+goals: |
+  Clearly define what you want to achieve with this feature.
+
+requirements:
+  - id: R1
+    desc: ""
+    rationale: ""
+
+acceptance_tests:
+  - id: AT1
+    given: ""
+    when: ""
+    then: ""
+
+risks:
+  - ""
+
+assumptions:
+  - ""
+
+# Optional execution scaffolding (plan before code)
+plan:
+  summary: ""
+  decisions:
+    - ""
+  risks:
+    - ""
+  tests:
+    - ""
+
+tasks:
+  - id: T1
+    title: ""
+    done: false
+    acceptance:
+      - ""
+    tests:
+      - ""
+
+log:
+  - at: ""
+    note: ""

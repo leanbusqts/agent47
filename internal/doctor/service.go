@@ -93,19 +93,20 @@ var (
 	}
 	requiredPreservedTargets = []string{
 		"README.md",
-		"specs/spec.yml",
+		".agents/specs/spec.yml",
 		"SNAPSHOT.md",
 		"SPEC.md",
 	}
 	requiredTemplateFiles = []string{
 		"AGENTS.md",
 		"manifest.txt",
-		"specs/spec.yml",
+		".agents/specs/spec.yml",
 	}
 	requiredTemplateDirs = []string{
 		"rules",
 		"skills",
-		"specs",
+		".agents",
+		".agents/specs",
 	}
 )
 

@@ -303,7 +303,7 @@ func TestCheckTemplateManifestWarnsWhenContractExpands(t *testing.T) {
 		"docs/*",
 		"[preserved_targets]",
 		"README.md",
-		"specs/spec.yml",
+		".agents/specs/spec.yml",
 		"SNAPSHOT.md",
 		"SPEC.md",
 		"[required_template_files]",
@@ -332,12 +332,12 @@ func TestCheckRequiredTemplateFilesWarnsWhenSpecMissing(t *testing.T) {
 	if !service.checkRequiredTemplateFiles(templateDir) {
 		t.Fatal("expected missing template files warning")
 	}
-	if !strings.Contains(stdout.String(), "Missing template file: specs/spec.yml") {
+	if !strings.Contains(stdout.String(), "Missing template file: .agents/specs/spec.yml") {
 		t.Fatalf("unexpected output: %s", stdout.String())
 	}
 }
 
-func TestCheckRequiredTemplateDirsWarnsWhenSpecsDirMissing(t *testing.T) {
+func TestCheckRequiredTemplateDirsWarnsWhenAgentSpecDirMissing(t *testing.T) {
 	templateDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(templateDir, "base", "rules"), 0o755); err != nil {
 		t.Fatal(err)
@@ -351,7 +351,7 @@ func TestCheckRequiredTemplateDirsWarnsWhenSpecsDirMissing(t *testing.T) {
 	if !service.checkRequiredTemplateDirs(templateDir) {
 		t.Fatal("expected missing template dirs warning")
 	}
-	if !strings.Contains(stdout.String(), "Missing template dir: specs") {
+	if !strings.Contains(stdout.String(), "Missing template dir: .agents") {
 		t.Fatalf("unexpected output: %s", stdout.String())
 	}
 }
@@ -740,7 +740,7 @@ func mustSeedDoctorTemplates(t *testing.T, templateDir string) {
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "AGENTS.md"), strings.Join(requiredSections, "\n")+"\n")
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "prompts", "agent-prompt.txt"), "agent prompt\n")
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "prompts", "ss-prompt.txt"), "ss prompt\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "specs", "spec.yml"), "summary: test\n")
+	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", ".agents", "specs", "spec.yml"), "summary: test\n")
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
 	for _, file := range catalogRuleTemplates {
 		body := "rules:\n"
@@ -797,16 +797,17 @@ func validDoctorManifest() string {
 		"skills/SUMMARY.md",
 		"[preserved_targets]",
 		"README.md",
-		"specs/spec.yml",
+		".agents/specs/spec.yml",
 		"SNAPSHOT.md",
 		"SPEC.md",
 		"[required_template_files]",
 		"AGENTS.md",
 		"manifest.txt",
-		"specs/spec.yml",
+		".agents/specs/spec.yml",
 		"[required_template_dirs]",
 		"rules",
 		"skills",
-		"specs",
+		".agents",
+		".agents/specs",
 	}, "\n") + "\n"
 }

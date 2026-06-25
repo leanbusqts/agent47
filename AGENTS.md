@@ -6,7 +6,7 @@ agents-md: { version: 3, last_updated: "2026-06-06", schema_version: 1, owner: p
 
 ## Purpose
 
-`AGENTS.md` is the agent-operating policy for this repo. `README.md`, `RUNBOOK.md`, `SPEC.md`, `specs/spec.yml`, `skills/`, `rules/*.yaml` reference this file instead of restating policy. Conflicts resolve per Authority Order below. [AG-001]
+`AGENTS.md` is the agent-operating policy for this repo. `README.md`, `RUNBOOK.md`, `SPEC.md`, `.agents/specs/spec.yml`, `skills/`, `rules/*.yaml` reference this file instead of restating policy. Conflicts resolve per Authority Order below. [AG-001]
 
 ## Scope
 
@@ -18,7 +18,7 @@ This contract applies to all work in the repo. Project-type bundles defined in `
 |---|---|---|---|
 | **Trivial task** | Change ≤ 2 files, no new tests required, no deps/network/migration impact. Non-trivial = the complement (triggers spec/plan/review). | ≤ 2 files | [AG-005] |
 | **In scope** | (a) named by the user, (b) referenced from a file in scope, or (c) the natural test/doc of a file in scope | — | [AG-007] |
-| **Approval** | Explicit confirmation in the current conversation OR a written note in `specs/spec.yml` / a referenced ticket | current conversation | [AG-008] |
+| **Approval** | Explicit confirmation in the current conversation OR a written note in `.agents/specs/spec.yml` / a referenced ticket | current conversation | [AG-008] |
 | **Broad set** | Operation over ≥ 5 files or a `**/*` glob crossing directories | ≥ 5 files | [AG-009] |
 | **Long/expensive** | Wall time ≥ 60s, API calls ≥ 50, or use of a billable resource | ≥ 60s | [AG-010] |
 | **Documented command** | Appears in `RUNBOOK.md`, `README.md`, `SPEC.md`, `Makefile`, `package.json`, `pyproject.toml`, or `docs/*.md` | — | [AG-011] |
@@ -33,7 +33,7 @@ When sources conflict, resolve in this order (highest wins). If two items at the
 3. Security rules by ID: `security-global.yaml` -> `security-<lang>.yaml` -> `security-shell.yaml` when applicable; see Severity below. [AG-043]
 4. Stack rules: `rules-<stack>.yaml` for the file under edit. [AG-044]
 5. Skill instructions loaded via `skills/AVAILABLE_SKILLS.xml`. Skills extend, never override sources above. [AG-045]
-6. `specs/spec.yml` for the current task. [AG-046]
+6. `.agents/specs/spec.yml` for the current task. [AG-046]
 7. Code and tests as evidence of intended behavior. [AG-047]
 8. Memories, hints, prior-session notes. Suggestions, not contracts. [AG-048]
 
@@ -45,7 +45,7 @@ Load only what the task requires. [AG-018]
 |---|---|---|
 | Always | `AGENTS.md`, `rules/security-global.yaml`, `rules/security-<lang>.yaml` for files in scope; add `security-shell.yaml` + `rules-scripts.yaml` when shell-heavy | [AG-019] |
 | File in a known stack | `rules/rules-<stack>.yaml`; in this template-source repo also `templates/base/rules/*.yaml`, `templates/bundles/<bundle>/rules/*.yaml`, `templates/manifest.txt` | [AG-020] |
-| Non-trivial task | `specs/spec.yml`, `SPEC.md` (if product contract changes), `SNAPSHOT.md`, `CHANGELOG.md` (public-surface change) | [AG-023] |
+| Non-trivial task | `.agents/specs/spec.yml`, `SPEC.md` (if product contract changes), `SNAPSHOT.md`, `CHANGELOG.md` (public-surface change) | [AG-023] |
 | Skills in use / CLI work | `skills/AVAILABLE_SKILLS.xml` + the selected `skills/<name>/SKILL.md`; for CLI/maintenance work `RUNBOOK.md` and `README.md` §"Public commands" | [AG-024] |
 | Never required | files outside scope, build artifacts, `.git/`, `node_modules/`, vendored deps | [AG-026] |
 
@@ -66,7 +66,7 @@ Forbidden to assume an `afs` subcommand not listed there. `SPEC.md` §6 lists "i
 ## Execution
 
 - Trivial: no spec/plan. Implement, test, report. [AG-200]
-- Non-trivial: use `specs/spec.yml` for spec/plan/tasks/log; create through conversation, no CLI scaffold (none exists). [AG-201]
+- Non-trivial: use `.agents/specs/spec.yml` for spec/plan/tasks/log; create through conversation, no CLI scaffold (none exists). [AG-201]
 - Drafting spec/plan: clarify questions first, user review before implementation. [AG-202]
 - Update `SNAPSHOT.md` and `SPEC.md` before commit if the scoped work materially changes them. [AG-203]
 - Tests in order: happy, failure, edge (see `rules/shared-testing.yaml` SHT-001). [AG-204]
@@ -86,7 +86,7 @@ Forbidden to assume an `afs` subcommand not listed there. `SPEC.md` §6 lists "i
 
 ## Approval And Severity
 
-Explicit Approval means user confirmation in the current conversation or a written note in `specs/spec.yml`, a PR, or a referenced ticket. For external data flow include destination, data classes, retention, legal basis, owner, reviewer, risks, and controls; for dependency changes include alternatives, license, maintenance signals, pinned version, and lockfile/integrity evidence. [AG-086]
+Explicit Approval means user confirmation in the current conversation or a written note in `.agents/specs/spec.yml`, a PR, or a referenced ticket. For external data flow include destination, data classes, retention, legal basis, owner, reviewer, risks, and controls; for dependency changes include alternatives, license, maintenance signals, pinned version, and lockfile/integrity evidence. [AG-086]
 
 Severity semantics: `critical` blocks merge and must be fixed; `high` requires explicit review approval or a documented compensating control; `medium` is a review comment that does not block; `low` is optional style/preference. If rules conflict, higher severity wins before lower-severity guidance; equal-severity conflicts follow Authority Order. [AG-087]
 
@@ -98,7 +98,7 @@ Authoritative: `rules/security-*.yaml`. Load order: `security-global.yaml` -> `s
 
 Dependency changes are governed by `X-deps-001` in `rules/rules-cross.yaml` plus Approval And Severity above. A change is add, remove, upgrade, or pinning shift. [AG-090]
 
-Required justification (in the PR or `specs/spec.yml`): benefit vs cost; acceptable license (default-deny AGPL/SSPL/BUSL); pinning + integrity hash committed (lockfile); wrapper when used in ≥ 3 places. Approval covers the named version; later upgrades require new approval. [AG-091] Optional guidance: prefer existing tooling first, a single package manager, and a small local utility over a new dependency when the utility is genuinely small and stable. [AG-093]
+Required justification (in the PR or `.agents/specs/spec.yml`): benefit vs cost; acceptable license (default-deny AGPL/SSPL/BUSL); pinning + integrity hash committed (lockfile); wrapper when used in ≥ 3 places. Approval covers the named version; later upgrades require new approval. [AG-091] Optional guidance: prefer existing tooling first, a single package manager, and a small local utility over a new dependency when the utility is genuinely small and stable. [AG-093]
 
 ## Stack Notes
 
