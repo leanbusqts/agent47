@@ -1,6 +1,7 @@
 package analyze
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -51,13 +52,43 @@ type AnalysisResult struct {
 	Evidence             []EvidenceItem        `json:"evidence"`
 	ManagedState         ManagedState          `json:"managed_state"`
 	Warnings             []string              `json:"warnings"`
+	AgentPolicy          AgentPolicy           `json:"agent_policy"`
+	AnalysisVersion      int                   `json:"analysis_version,omitempty"`
+	AgentReadiness       *AgentReadiness       `json:"agent_readiness,omitempty"`
+	DeepAudit            *DeepAudit            `json:"deep_audit,omitempty"`
 }
 
 type Service struct{}
 
 func (Service) Analyze(root string) (AnalysisResult, error) {
-	signals, err := scan(root)
+	return (Service{}).AnalyzeContext(context.Background(), root, AnalyzeOptions{})
+}
+
+type AnalyzeOptions struct {
+	Deep bool
+}
+
+func (Service) AnalyzeWithOptions(root string, opts AnalyzeOptions) (AnalysisResult, error) {
+	return (Service{}).AnalyzeContext(context.Background(), root, opts)
+}
+
+func (Service) AnalyzeContext(ctx context.Context, root string, opts AnalyzeOptions) (AnalysisResult, error) {
+	inventory, err := inspectRepository(ctx, root)
 	if err != nil {
+		return AnalysisResult{}, err
+	}
+	signals, err := scanInventory(ctx, inventory)
+	if err != nil {
+		return AnalysisResult{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return AnalysisResult{}, err
+	}
+	policy, err := detectAgentPolicyFromInventory(root, inventory)
+	if err != nil {
+		return AnalysisResult{}, err
+	}
+	if err := ctx.Err(); err != nil {
 		return AnalysisResult{}, err
 	}
 
@@ -66,20 +97,79 @@ func (Service) Analyze(root string) (AnalysisResult, error) {
 		ProjectTypes: detectProjectTypes(signals),
 		Technologies: detectTechnologies(signals),
 		ManagedState: detectManagedState(signals),
+		AgentPolicy:  policy,
+		Evidence:     []EvidenceItem{},
+		Warnings:     []string{},
+	}
+	for _, note := range inventory.Truncations {
+		result.Warnings = append(result.Warnings, formatAuditWarning(note))
 	}
 	result.Evidence = sortEvidence(append(append([]EvidenceItem{}, signals.evidence...), classificationEvidence(result.ProjectTypes, result.Technologies)...))
 
 	result.Confidence = overallConfidence(result.ProjectTypes, result.Technologies, signals)
 	result.LowSignal = len(result.ProjectTypes) == 0
 	result.UnresolvedConflict, result.ConflictProjectTypes = detectUnresolvedConflict(result.ProjectTypes)
+	ensureNonNilArrays(&result)
 	if result.LowSignal {
 		result.Warnings = append(result.Warnings, "No strong project signals found.")
 	}
 	if result.UnresolvedConflict {
 		result.Warnings = append(result.Warnings, "Multiple project types detected with no supported automatic composition.")
 	}
+	if opts.Deep {
+		readiness, audit, err := analyzeDeepWithInventory(ctx, root, result, inventory)
+		if err != nil {
+			return AnalysisResult{}, err
+		}
+		result.AnalysisVersion = 1
+		result.AgentReadiness = &readiness
+		result.DeepAudit = &audit
+	}
 
 	return result, nil
+}
+
+func formatAuditWarning(note AuditNote) string {
+	if note.Path == "" {
+		return note.Reason
+	}
+	return note.Reason + ": " + note.Path
+}
+
+func ensureNonNilArrays(result *AnalysisResult) {
+	if result.ProjectTypes == nil {
+		result.ProjectTypes = []DetectedProjectType{}
+	}
+	if result.Technologies == nil {
+		result.Technologies = []DetectedTechnology{}
+	}
+	if result.ConflictProjectTypes == nil {
+		result.ConflictProjectTypes = []string{}
+	}
+	if result.Evidence == nil {
+		result.Evidence = []EvidenceItem{}
+	}
+	if result.ManagedState.Notes == nil {
+		result.ManagedState.Notes = []string{}
+	}
+	if result.Warnings == nil {
+		result.Warnings = []string{}
+	}
+	for index := range result.ProjectTypes {
+		if result.ProjectTypes[index].Evidence == nil {
+			result.ProjectTypes[index].Evidence = []string{}
+		}
+	}
+	for index := range result.Technologies {
+		if result.Technologies[index].Evidence == nil {
+			result.Technologies[index].Evidence = []string{}
+		}
+	}
+	for index := range result.Evidence {
+		if result.Evidence[index].SourcePaths == nil {
+			result.Evidence[index].SourcePaths = []string{}
+		}
+	}
 }
 
 type repoSignals struct {
@@ -94,10 +184,9 @@ type repoSignals struct {
 	goMod           string
 	swiftPackage    string
 	evidence        []EvidenceItem
-	hasAgents       bool
-	hasRules        bool
 	hasSkills       bool
 	hasPrompts      bool
+	hasLegacySpec   bool
 	hasPackageJSON  bool
 	hasGoMod        bool
 	hasGradle       bool
@@ -105,6 +194,14 @@ type repoSignals struct {
 }
 
 func scan(root string) (repoSignals, error) {
+	inventory, err := inspectRepository(context.Background(), root)
+	if err != nil {
+		return repoSignals{}, err
+	}
+	return scanInventory(context.Background(), inventory)
+}
+
+func scanInventory(ctx context.Context, inventory repositoryInventory) (repoSignals, error) {
 	signals := repoSignals{
 		files:         make(map[string]bool),
 		dirs:          make(map[string]bool),
@@ -113,49 +210,25 @@ func scan(root string) (repoSignals, error) {
 		coreDirs:      make(map[string]bool),
 		coreExtCounts: make(map[string]int),
 	}
-
-	entries, err := os.ReadDir(root)
-	if err != nil {
-		return signals, err
-	}
-
-	for _, entry := range entries {
-		name := entry.Name()
-		if strings.HasPrefix(name, ".") && name != ".github" && name != ".codex-plugin" {
+	root := inventory.Root
+	for _, entry := range inventory.Entries {
+		if err := ctx.Err(); err != nil {
+			return signals, err
+		}
+		rel := entry.Path
+		top := strings.Split(rel, "/")[0]
+		if strings.HasPrefix(top, ".") && top != ".github" && top != ".codex-plugin" {
 			continue
 		}
-		signals.entries = append(signals.entries, name)
-		if entry.IsDir() {
-			signals.dirs[name] = true
-		} else {
-			signals.files[name] = true
+		if !strings.Contains(rel, "/") {
+			signals.entries = append(signals.entries, rel)
 		}
-	}
-
-	sort.Strings(signals.entries)
-	if err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if path == root {
-			return nil
-		}
-
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
-		base := filepath.Base(path)
-		if d.IsDir() {
-			if strings.HasPrefix(base, ".") && base != ".github" && base != ".codex-plugin" {
-				return filepath.SkipDir
-			}
+		if entry.IsDir {
 			signals.dirs[rel] = true
 			if isCorePath(rel) {
 				signals.coreDirs[rel] = true
 			}
-			return nil
+			continue
 		}
 
 		signals.files[rel] = true
@@ -173,40 +246,38 @@ func scan(root string) (repoSignals, error) {
 		switch rel {
 		case "package.json":
 			signals.hasPackageJSON = true
-			body, err := os.ReadFile(path)
-			if err == nil {
-				signals.packageJSON = string(body)
-				signals.evidence = append(signals.evidence, evidence("technology", "package-json", "Detected package.json", rel))
+			read, readErr := safeReadRepositoryFile(root, rel, maxInspectedFileBytes)
+			if readErr == nil && !read.Truncated {
+				signals.packageJSON = string(read.Body)
 			}
+			signals.evidence = append(signals.evidence, evidence("technology", "package-json", "Detected package.json", rel))
 		case "go.mod":
 			signals.hasGoMod = true
-			body, err := os.ReadFile(path)
-			if err == nil {
-				signals.goMod = string(body)
-				signals.evidence = append(signals.evidence, evidence("technology", "go-mod", "Detected go.mod", rel))
+			read, readErr := safeReadRepositoryFile(root, rel, maxInspectedFileBytes)
+			if readErr == nil && !read.Truncated {
+				signals.goMod = string(read.Body)
 			}
+			signals.evidence = append(signals.evidence, evidence("technology", "go-mod", "Detected go.mod", rel))
 		case "Package.swift":
 			signals.hasSwiftPackage = true
-			body, err := os.ReadFile(path)
-			if err == nil {
-				signals.swiftPackage = string(body)
+			read, readErr := safeReadRepositoryFile(root, rel, maxInspectedFileBytes)
+			if readErr == nil && !read.Truncated {
+				signals.swiftPackage = string(read.Body)
 			}
 			signals.evidence = append(signals.evidence, evidence("technology", "swift-package", "Detected Package.swift", rel))
 		case "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts":
 			signals.hasGradle = true
 			signals.evidence = append(signals.evidence, evidence("technology", "gradle", "Detected Gradle build file", rel))
-		case "AGENTS.md":
-			signals.hasAgents = true
 		}
 
-		return nil
-	}); err != nil {
-		return signals, err
 	}
+	sort.Strings(signals.entries)
 
-	signals.hasRules = signals.dirs["rules"]
 	signals.hasSkills = signals.dirs["skills"]
 	signals.hasPrompts = signals.dirs["prompts"]
+	if info, statErr := os.Lstat(filepath.Join(root, ".agents", "specs", "spec.yml")); statErr == nil && info.Mode().IsRegular() {
+		signals.hasLegacySpec = true
+	}
 	return signals, nil
 }
 
@@ -393,10 +464,10 @@ func detectProjectTypes(signals repoSignals) []DetectedProjectType {
 
 func detectManagedState(signals repoSignals) ManagedState {
 	state := ManagedState{
-		LegacyScaffold: signals.hasAgents || signals.hasRules || signals.hasSkills,
+		LegacyScaffold: signals.hasSkills || signals.hasLegacySpec,
 	}
 	if state.LegacyScaffold {
-		state.Notes = append(state.Notes, "Existing managed scaffold signals detected.")
+		state.Notes = append(state.Notes, "Legacy scaffold payloads detected.")
 	}
 	if signals.hasPrompts {
 		state.Notes = append(state.Notes, "Prompts directory already exists.")

@@ -33,10 +33,10 @@ func TestNewLoaderFilesystemUsesBasePlusBundleCatalogWhenPresent(t *testing.T) {
 	repoRoot := t.TempDir()
 	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "manifest.txt"), "root-manifest\n")
 	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "base", "manifest.txt"), "base-manifest\n")
-	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "base", "prompts", "agent-prompt.txt"), "base-prompt\n")
+	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "base", "NOTICE.md"), "base-notice\n")
 	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "bundles", "project-cli", "rules", "rules-cli.yaml"), "bundle-rule\n")
-	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "bundles", "project-cli", "skills", "cli-design", "SKILL.md"), "bundle-skill\n")
-	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "skills", "legacy-skill", "SKILL.md"), "legacy-skill\n")
+	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "bundles", "project-cli", "docs", "cli.md"), "bundle-doc\n")
+	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "docs", "legacy.md"), "legacy-doc\n")
 
 	loader, err := NewLoader(runtime.TemplateModeFilesystem, repoRoot)
 	if err != nil {
@@ -51,12 +51,12 @@ func TestNewLoaderFilesystemUsesBasePlusBundleCatalogWhenPresent(t *testing.T) {
 		t.Fatalf("expected base manifest, got %q", string(data))
 	}
 
-	skill, err := loader.Source.ReadFile("skills/cli-design/SKILL.md")
+	doc, err := loader.Source.ReadFile("docs/cli.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(skill, []byte("bundle-skill\n")) {
-		t.Fatalf("expected bundle skill through catalog source, got %q", string(skill))
+	if !bytes.Equal(doc, []byte("bundle-doc\n")) {
+		t.Fatalf("expected bundle document through catalog source, got %q", string(doc))
 	}
 
 	rule, err := loader.Source.ReadFile("rules/rules-cli.yaml")
@@ -67,8 +67,8 @@ func TestNewLoaderFilesystemUsesBasePlusBundleCatalogWhenPresent(t *testing.T) {
 		t.Fatalf("expected bundle rule through catalog source, got %q", string(rule))
 	}
 
-	if _, err := loader.Source.ReadFile("skills/legacy-skill/SKILL.md"); err == nil {
-		t.Fatal("expected catalog source to reject legacy flat skill fallback")
+	if _, err := loader.Source.ReadFile("docs/legacy.md"); err == nil {
+		t.Fatal("expected catalog source to reject legacy flat-tree fallback")
 	}
 
 	entries, err := loader.Source.ReadDir(".")
@@ -97,9 +97,9 @@ func TestBundleSourceAssemblesBaseAndBundleContentWithoutLegacyCopies(t *testing
 	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "manifest.txt"), "root-manifest\n")
 	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "base", "manifest.txt"), "base-manifest\n")
 	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "base", "AGENTS.md"), "base-agents\n")
-	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "base", "skills", "analyze", "SKILL.md"), "base-skill\n")
+	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "base", "NOTICE.md"), "base-notice\n")
 	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "bundles", "project-cli", "rules", "rules-cli.yaml"), "bundle-rule\n")
-	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "bundles", "project-cli", "skills", "cli-design", "SKILL.md"), "bundle-skill\n")
+	mustWriteTemplateFile(t, filepath.Join(repoRoot, "templates", "bundles", "project-cli", "docs", "cli.md"), "bundle-doc\n")
 
 	loader, err := NewLoader(runtime.TemplateModeFilesystem, repoRoot)
 	if err != nil {
@@ -124,12 +124,12 @@ func TestBundleSourceAssemblesBaseAndBundleContentWithoutLegacyCopies(t *testing
 		t.Fatalf("expected bundle rule content, got %q", string(rule))
 	}
 
-	skill, err := source.ReadFile("skills/cli-design/SKILL.md")
+	doc, err := source.ReadFile("docs/cli.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(skill, []byte("bundle-skill\n")) {
-		t.Fatalf("expected bundle skill content, got %q", string(skill))
+	if !bytes.Equal(doc, []byte("bundle-doc\n")) {
+		t.Fatalf("expected bundle document content, got %q", string(doc))
 	}
 
 	entries, err := source.ReadDir(".")
@@ -158,6 +158,57 @@ func TestBundleSourceDoesNotFallBackToLegacyFlatTree(t *testing.T) {
 	source := loader.BundleSource([]string{"base"})
 	if _, err := source.ReadFile("rules/legacy-only.yaml"); err == nil {
 		t.Fatal("expected bundle source to reject legacy-only payload fallback")
+	}
+}
+
+func TestRootFilteredSourceHidesOnlyNamedRootEntries(t *testing.T) {
+	root := t.TempDir()
+	mustWriteTemplateFile(t, filepath.Join(root, "visible.txt"), "visible\n")
+	mustWriteTemplateFile(t, filepath.Join(root, "hidden", "nested.txt"), "nested\n")
+	mustWriteTemplateFile(t, filepath.Join(root, "nested", "hidden"), "not hidden below root\n")
+	source := NewRootFilteredSource(NewFilesystemSource(root), "hidden")
+
+	if _, err := source.ReadFile("hidden"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected hidden root file to be absent, got %v", err)
+	}
+	if _, err := source.Stat("hidden"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expected hidden root entry to be absent, got %v", err)
+	}
+	data, err := source.ReadFile("nested/hidden")
+	if err != nil || string(data) != "not hidden below root\n" {
+		t.Fatalf("nested entry must remain visible: %q, %v", data, err)
+	}
+	entries, err := source.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if entry.Name() == "hidden" {
+			t.Fatal("hidden root entry leaked through ReadDir")
+		}
+	}
+	nested, err := source.ReadDir("nested")
+	if err != nil || len(nested) != 1 || nested[0].Name() != "hidden" {
+		t.Fatalf("nested directory must be delegated unchanged: %+v, %v", nested, err)
+	}
+}
+
+func TestTemplateErrorsDescribePathAndOptionalDetail(t *testing.T) {
+	cases := []struct {
+		err  error
+		want string
+	}{
+		{MissingTemplateError{Path: "AGENTS.md"}, "template not found: AGENTS.md"},
+		{MissingBundleManifestError{Path: "bundles/project-cli/manifest.txt"}, "missing bundle manifest: bundles/project-cli/manifest.txt"},
+		{InvalidBundleManifestError{Path: "manifest.txt"}, "invalid bundle manifest: manifest.txt"},
+		{InvalidBundleManifestError{Path: "manifest.txt", Detail: "bad section"}, "invalid bundle manifest manifest.txt: bad section"},
+		{AssemblyConflictError{Path: "rules/a.yaml"}, "assembly conflict for rules/a.yaml"},
+		{AssemblyConflictError{Path: "rules/a.yaml", Detail: "different owners"}, "assembly conflict for rules/a.yaml: different owners"},
+	}
+	for _, test := range cases {
+		if got := test.err.Error(); got != test.want {
+			t.Fatalf("unexpected error text: got %q want %q", got, test.want)
+		}
 	}
 }
 

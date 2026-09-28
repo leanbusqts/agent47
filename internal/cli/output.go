@@ -26,7 +26,7 @@ func (o Output) Info(format string, args ...any) {
 }
 
 func (o Output) Warn(format string, args ...any) {
-	fmt.Fprintf(o.stdout, "[WARN] "+format+"\n", args...)
+	fmt.Fprintf(o.stderr, "[WARN] "+format+"\n", args...)
 }
 
 func (o Output) OK(format string, args ...any) {
@@ -35,4 +35,8 @@ func (o Output) OK(format string, args ...any) {
 
 func (o Output) Err(format string, args ...any) {
 	fmt.Fprintf(o.stderr, "[ERR] "+format+"\n", args...)
+}
+
+func (o Output) Diagnosticf(format string, args ...any) {
+	fmt.Fprintf(o.stderr, format, args...)
 }

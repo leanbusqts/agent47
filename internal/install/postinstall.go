@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	postInstallHasTTY = hasTTY
+	postInstallHasTTY    = hasTTY
 	postInstallReadReply = func(r io.Reader) (string, error) {
 		return bufio.NewReader(r).ReadString('\n')
 	}

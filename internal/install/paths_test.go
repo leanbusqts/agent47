@@ -17,9 +17,6 @@ func TestDoctorPathHelpersMatchInternalPathsUnix(t *testing.T) {
 	if ManagedBinaryPathForDoctor(cfg) != filepath.Join(cfg.Agent47Home, "bin", "afs") {
 		t.Fatalf("unexpected managed binary path: %s", ManagedBinaryPathForDoctor(cfg))
 	}
-	if PublishedHelperPathForDoctor(cfg, "add-agent") != filepath.Join(cfg.UserBinDir, "add-agent") {
-		t.Fatalf("unexpected helper path: %s", PublishedHelperPathForDoctor(cfg, "add-agent"))
-	}
 	if PublishedAfsPathForDoctor(cfg) != filepath.Join(cfg.UserBinDir, "afs") {
 		t.Fatalf("unexpected afs path: %s", PublishedAfsPathForDoctor(cfg))
 	}
@@ -34,9 +31,6 @@ func TestDoctorPathHelpersMatchInternalPathsWindows(t *testing.T) {
 
 	if ManagedBinaryPathForDoctor(cfg) != filepath.Join(cfg.Agent47Home, "bin", "afs.exe") {
 		t.Fatalf("unexpected managed binary path: %s", ManagedBinaryPathForDoctor(cfg))
-	}
-	if PublishedHelperPathForDoctor(cfg, "add-agent") != filepath.Join(cfg.UserBinDir, "add-agent.cmd") {
-		t.Fatalf("unexpected helper path: %s", PublishedHelperPathForDoctor(cfg, "add-agent"))
 	}
 	if PublishedAfsPathForDoctor(cfg) != filepath.Join(cfg.UserBinDir, "afs.exe") {
 		t.Fatalf("unexpected afs path: %s", PublishedAfsPathForDoctor(cfg))

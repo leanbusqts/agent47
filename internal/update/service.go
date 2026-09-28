@@ -2,11 +2,15 @@ package update
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,12 +24,17 @@ import (
 	"github.com/leanbusqts/agent47/internal/runtime"
 )
 
-const cacheTTL = 24 * time.Hour
+const (
+	cacheTTL            = 24 * time.Hour
+	maxVersionBodyBytes = 4 * 1024
+	maxUpdateRedirects  = 10
+)
 
 type Service struct {
 	FS         fsx.Service
 	Out        cli.Output
 	HTTPClient *http.Client
+	hadWarning bool
 }
 
 type CheckOptions struct {
@@ -47,6 +56,7 @@ func New(out cli.Output) *Service {
 }
 
 func (s *Service) Check(ctx context.Context, cfg runtime.Config, opts CheckOptions) error {
+	s.hadWarning = false
 	if !opts.Force {
 		if rec, ok := s.loadCache(cfg); ok {
 			s.Out.Info("Using cached update check (age %dh)", int(time.Since(rec.CheckedAt).Hours()))
@@ -82,6 +92,10 @@ func (s *Service) Check(ctx context.Context, cfg runtime.Config, opts CheckOptio
 	}
 	s.print(rec, cfg)
 	return nil
+}
+
+func (s *Service) HadWarning() bool {
+	return s.hadWarning
 }
 
 func (s *Service) loadCache(cfg runtime.Config) (CacheRecord, bool) {
@@ -126,20 +140,32 @@ func (s *Service) saveCache(cfg runtime.Config, rec CacheRecord) {
 
 func (s *Service) remoteCheck(ctx context.Context, url string, rec *CacheRecord) error {
 	rec.Method = "remote"
+	parsed, err := validateRemoteURL(url)
+	if err != nil {
+		rec.Status = "error"
+		rec.Message = err.Error()
+		return err
+	}
 
-	if strings.HasPrefix(url, "file://") {
-		path := strings.TrimPrefix(url, "file://")
-		data, err := os.ReadFile(path)
+	if parsed.Scheme == "file" {
+		file, err := os.Open(filepath.FromSlash(parsed.Path))
 		if err != nil {
 			rec.Status = "error"
-			rec.Message = fmt.Sprintf("failed to read VERSION from %s", url)
+			rec.Message = "failed to read local VERSION fixture"
+			return err
+		}
+		defer file.Close()
+		data, err := readBounded(file, maxVersionBodyBytes)
+		if err != nil {
+			rec.Status = "error"
+			rec.Message = err.Error()
 			return err
 		}
 		rec.LatestVersion = strings.TrimSpace(string(data))
 		return s.finishRemote(rec)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
 	if err != nil {
 		rec.Status = "error"
 		rec.Message = err.Error()
@@ -152,14 +178,21 @@ func (s *Service) remoteCheck(ctx context.Context, url string, rec *CacheRecord)
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.Request != nil && resp.Request.URL != nil {
+		if _, err := validateRemoteURL(resp.Request.URL.String()); err != nil {
+			rec.Status = "error"
+			rec.Message = "update endpoint redirected to an unsafe URL"
+			return errors.New(rec.Message)
+		}
+	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		rec.Status = "error"
-		rec.Message = fmt.Sprintf("failed to download VERSION from %s", url)
+		rec.Message = "failed to download VERSION"
 		return errors.New(rec.Message)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := readBounded(resp.Body, maxVersionBodyBytes)
 	if err != nil {
 		rec.Status = "error"
 		rec.Message = err.Error()
@@ -168,6 +201,62 @@ func (s *Service) remoteCheck(ctx context.Context, url string, rec *CacheRecord)
 
 	rec.LatestVersion = strings.TrimSpace(string(body))
 	return s.finishRemote(rec)
+}
+
+func validateRemoteURL(raw string) (*url.URL, error) {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return nil, fmt.Errorf("invalid update URL: %w", err)
+	}
+	if parsed.User != nil {
+		return nil, errors.New("invalid update URL: embedded credentials are not allowed")
+	}
+	if parsed.Fragment != "" {
+		return nil, errors.New("invalid update URL: fragments are not allowed")
+	}
+
+	switch parsed.Scheme {
+	case "https":
+		if parsed.Hostname() == "" {
+			return nil, errors.New("invalid update URL: HTTPS host is required")
+		}
+	case "http":
+		if !isLoopbackHost(parsed.Hostname()) {
+			return nil, errors.New("unsafe update URL: non-loopback endpoints require HTTPS")
+		}
+	case "file":
+		if os.Getenv("AGENT47_ENABLE_TEST_HOOKS") != "true" {
+			return nil, errors.New("unsafe update URL: file fixtures require test hooks")
+		}
+		if parsed.Host != "" && !strings.EqualFold(parsed.Host, "localhost") {
+			return nil, errors.New("invalid update URL: remote file hosts are not allowed")
+		}
+		if parsed.Path == "" || !filepath.IsAbs(filepath.FromSlash(parsed.Path)) {
+			return nil, errors.New("invalid update URL: file fixture path must be absolute")
+		}
+	default:
+		return nil, fmt.Errorf("unsafe update URL scheme: %q", parsed.Scheme)
+	}
+	return parsed, nil
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func readBounded(reader io.Reader, limit int64) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(reader, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("VERSION response exceeds %d bytes", limit)
+	}
+	return data, nil
 }
 
 func (s *Service) finishRemote(rec *CacheRecord) error {
@@ -288,8 +377,10 @@ func (s *Service) print(rec CacheRecord, cfg runtime.Config) {
 		s.Out.Printf("Update available from git upstream: %s\n", rec.Message)
 		s.Out.Info(install.UpdateInstructions(cfg))
 	case "git-diverged":
+		s.hadWarning = true
 		s.Out.Warn("Local git checkout has diverged from upstream: %s", rec.Message)
 	default:
+		s.hadWarning = true
 		s.Out.Warn("Cannot check for updates: %s", rec.Message)
 	}
 }
@@ -411,7 +502,8 @@ func trackingMessage(upstream string, ahead, behind int, fetched bool) string {
 
 func sourceKey(cfg runtime.Config) string {
 	if url := os.Getenv("AGENT47_VERSION_URL"); url != "" {
-		return "remote:" + url
+		digest := sha256.Sum256([]byte(url))
+		return fmt.Sprintf("remote:%x", digest)
 	}
 	if cfg.RepoRoot != "" {
 		return "git:" + filepath.Clean(cfg.RepoRoot)
@@ -420,8 +512,26 @@ func sourceKey(cfg runtime.Config) string {
 }
 
 func (s *Service) httpClient() *http.Client {
+	var client http.Client
 	if s.HTTPClient != nil {
-		return s.HTTPClient
+		client = *s.HTTPClient
+	} else {
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		client = http.Client{Timeout: 10 * time.Second, Transport: transport}
 	}
-	return &http.Client{Timeout: 10 * time.Second}
+	previousRedirectCheck := client.CheckRedirect
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) >= maxUpdateRedirects {
+			return errors.New("too many update redirects")
+		}
+		if _, err := validateRemoteURL(req.URL.String()); err != nil {
+			return err
+		}
+		if previousRedirectCheck != nil {
+			return previousRedirectCheck(req, via)
+		}
+		return nil
+	}
+	return &client
 }

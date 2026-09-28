@@ -113,5 +113,5 @@ pnpm-debug.log*
 *.pid
 .agent47-stage-*/
 .tmp/
-afs
+/afs
 .agents/

@@ -1,5 +1,8 @@
 [rule_templates]
 shared-cli-behavior.yaml
 
+[managed_targets]
+rules/shared-cli-behavior.yaml
+
 [required_template_files]
 rules/shared-cli-behavior.yaml

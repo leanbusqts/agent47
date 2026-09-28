@@ -16,14 +16,12 @@ Rules
   security-global.yaml
   security-shell.yaml
 
-Skills
-  analyze
-  implement
-  plan
-  review
-  spec-clarify
-  troubleshoot
-
 Evidence
   project-type: Resolved project type infra (medium) (.tf files, helmfile.yaml, charts/, terraform/, infra/)
   technology: Resolved technology infra (medium) (.tf files, helmfile.yaml, charts/, terraform/)
+
+Agent policy
+  AGENTS.md files: 0
+  claude: absent
+  codex: absent
+  opencode: absent

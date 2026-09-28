@@ -1,6 +1,35 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [2.0.0] - 2026-09-28
+
+### Added
+- Added `afs init` with deterministic previews, explicit bundle selection, non-interactive application, symlink checks, staged writes, and rollback.
+- Added bounded `afs analyze --deep` agent-readiness auditing with project-local policy discovery and stable findings.
+- Added `afs map [--force]` and generated `.agent47/context.md` as a bounded CodeGraph Lite with deterministic structural freshness, body-integrity protection, and safe single-file replacement.
+- Added declarative Harness Lite guidance so agents refresh and load repository context automatically for non-trivial code tasks while preserving source and policy authority.
+
+### Fixed
+- Scoped the root binary ignore rule to `/afs` so the native `cmd/afs` entrypoint is versioned instead of being silently ignored.
+- Added signal-aware cancellation and transactional rollback, shared one bounded repository inventory across analysis phases, and surfaced traversal/policy warnings consistently.
+- Hardened runtime ownership, install, rollback, and uninstall so unsafe or symlinked homes are rejected, user-owned entries and modified backups are preserved, and lifecycle errors are no longer hidden.
+- Hardened `afs init` against symlink swaps and concurrent modification while preserving exact pre-run content during safe rollback.
+- Bounded repository traversal, manifest reads, and deep-audit output; strengthened secret redaction and config parsing; removed directory, code-syntax, historical, and placeholder false positives; and made readiness claims and structured conflicts affect the reported state.
+- Routed usage diagnostics and warnings to stderr, rejected extra arguments for argumentless commands, made update warnings honor `doctor --fail-on-warn`, surfaced policy conflicts in init previews, and added manifest/rule-drift enforcement to tests and CI.
+
+### Changed
+- Reduced the public CLI to `help`, `version`, `analyze`, `map`, `init`, `doctor`, and `uninstall`.
+- Reduced the generated repository contract to `AGENTS.md`, applicable known `rules/*.yaml`, and generated `.agent47/context.md`.
+- Simplified `afs init` by removing interactive confirmation and `--yes`; `--preview` is now the single inspection boundary before applying a plan.
+- Added versioned `afs doctor --json` output and clarified source-install prerequisites and JSON compatibility guarantees.
+- Made `afs init --force` the single legacy migration path: it transactionally replaces `rules/`, removes `skills/` and `prompts/`, and deletes the known legacy task-spec files while preserving unrelated project content.
+- Extended init's transaction to create missing `.agent47/context.md`; normal and forced init preserve any existing context, while `afs map --force` remains the only replacement path.
+- Updated the base agent policy to use native conversational planning, prefer the strongest internal reasoning language available, and preserve the requested output language.
+
+### Removed
+- Removed the completed `agent47-lite-spec-plan.md`; `SPEC.md`, `RUNBOOK.md`, `SNAPSHOT.md`, and `README.md` now carry the active product and operational contract without a duplicate implementation plan.
+- Removed `add-agent`, prompt helpers, helper executables, bundled skills, skill indexes, prompt templates, and task-spec scaffolding.
+
 ## [1.3.4] - 2026-06-02
 ### Fixed
 - Fixed `afs version` and `afs doctor` so installed runtimes no longer read a `VERSION` file from the current working directory when no checkout repo root applies.

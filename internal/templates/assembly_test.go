@@ -43,7 +43,6 @@ func TestAssembleManifestAcceptsPartialBundleManifests(t *testing.T) {
 	mustWriteAssemblyFile(t, filepath.Join(repoRoot, "templates", "bundles", "shared-cli-behavior", "manifest.txt"), partialSharedBundleManifest("shared-cli-behavior"))
 	mustWriteAssemblyFile(t, filepath.Join(repoRoot, "templates", "bundles", "shared-testing", "manifest.txt"), partialSharedBundleManifest("shared-testing"))
 	mustWriteAssemblyFile(t, filepath.Join(repoRoot, "templates", "bundles", "project-cli", "rules", "rules-cli.yaml"), "rule\n")
-	mustWriteAssemblyFile(t, filepath.Join(repoRoot, "templates", "bundles", "project-cli", "skills", "cli-design", "SKILL.md"), "skill\n")
 	mustWriteAssemblyFile(t, filepath.Join(repoRoot, "templates", "bundles", "shared-cli-behavior", "rules", "shared-cli-behavior.yaml"), "shared-cli\n")
 	mustWriteAssemblyFile(t, filepath.Join(repoRoot, "templates", "bundles", "shared-testing", "rules", "shared-testing.yaml"), "shared-testing\n")
 
@@ -63,8 +62,11 @@ func TestAssembleManifestAcceptsPartialBundleManifests(t *testing.T) {
 	if !got.ContainsRuleTemplate("shared-cli-behavior.yaml") || !got.ContainsRuleTemplate("shared-testing.yaml") {
 		t.Fatalf("expected shared rule templates, got %v", got.RuleTemplates)
 	}
-	if len(got.ManagedTargets) != 4 {
-		t.Fatalf("expected managed targets to be inherited from base, got %v", got.ManagedTargets)
+	if len(got.ManagedTargets) != 5 {
+		t.Fatalf("expected exact base and CLI managed targets, got %v", got.ManagedTargets)
+	}
+	if len(got.GeneratedTargets) != 1 || got.GeneratedTargets[0] != ".agent47/context.md" {
+		t.Fatalf("expected generated context target, got %v", got.GeneratedTargets)
 	}
 }
 
@@ -183,26 +185,34 @@ security-global.yaml
 
 [managed_targets]
 AGENTS.md
-rules/*.yaml
-skills/*
-skills/AVAILABLE_SKILLS.xml
+rules/security-global.yaml
+rules/security-shell.yaml
+rules/rules-cross.yaml
+
+[generated_targets]
+.agent47/context.md
 
 [preserved_targets]
 README.md
-.agents/specs/spec.yml
 SNAPSHOT.md
 SPEC.md
+.agents/
+skills/
+prompts/
+
+[force_cleanup_targets]
+rules/
+skills/
+prompts/
+specs/spec.yml
+.agents/specs/spec.yml
 
 [required_template_files]
 AGENTS.md
 manifest.txt
-.agents/specs/spec.yml
 
 [required_template_dirs]
 rules
-skills
-.agents
-.agents/specs
 `
 }
 
@@ -210,9 +220,11 @@ func partialCliBundleManifest() string {
 	return `[rule_templates]
 rules-cli.yaml
 
+[managed_targets]
+rules/rules-cli.yaml
+
 [required_template_files]
 rules/rules-cli.yaml
-skills/cli-design/SKILL.md
 `
 }
 

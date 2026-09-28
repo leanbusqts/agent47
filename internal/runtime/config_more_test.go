@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -204,5 +205,39 @@ func TestDetectConfigRejectsLocalAppDataRootOnWindows(t *testing.T) {
 	localAppData := filepath.Join(t.TempDir(), "LocalAppData")
 	if _, err := validateAgent47Home(homeDir, localAppData, localAppData, filepath.Join(localAppData, "agent47", "bin"), true); err == nil {
 		t.Fatal("expected LOCALAPPDATA root rejection")
+	}
+}
+
+func TestValidateAgent47HomeRejectsBroadAndNestedPublishedPaths(t *testing.T) {
+	homeDir := t.TempDir()
+	userBinDir := filepath.Join(homeDir, "bin")
+	volumeRoot := filepath.Clean(filepath.VolumeName(homeDir) + string(filepath.Separator))
+	if _, err := ValidateAgent47HomePath(homeDir, filepath.Join(volumeRoot, "agent47"), userBinDir, false); err == nil {
+		t.Fatal("expected top-level runtime home rejection")
+	}
+	if _, err := ValidateAgent47HomePath(homeDir, filepath.Dir(homeDir), userBinDir, false); err == nil {
+		t.Fatal("expected HOME ancestor rejection")
+	}
+	agentHome := filepath.Join(homeDir, ".agent47")
+	if _, err := ValidateAgent47HomePath(homeDir, agentHome, filepath.Join(agentHome, "published"), false); err == nil {
+		t.Fatal("expected published bin containment rejection")
+	}
+}
+
+func TestValidateAgent47HomeRejectsSymlinkComponent(t *testing.T) {
+	if platform.IsWindows() {
+		t.Skip("symlink setup differs on Windows")
+	}
+	homeDir := t.TempDir()
+	realDir := filepath.Join(homeDir, "real")
+	if err := os.Mkdir(realDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	linkDir := filepath.Join(homeDir, "runtime-link")
+	if err := os.Symlink(realDir, linkDir); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ValidateAgent47HomePath(homeDir, filepath.Join(linkDir, ".agent47"), filepath.Join(homeDir, "bin"), false); err == nil {
+		t.Fatal("expected symlink component rejection")
 	}
 }

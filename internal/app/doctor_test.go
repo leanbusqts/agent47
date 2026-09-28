@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,11 +48,52 @@ func TestRunDoctorReportsMissingAfsInPath(t *testing.T) {
 	if status != 0 {
 		t.Fatalf("expected status 0, got %d: %s", status, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "afs not in PATH") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "afs not in PATH") {
+		t.Fatalf("unexpected diagnostic: %s", stderr.String())
 	}
 	if !strings.Contains(stdout.String(), "Skipping update check by default") {
 		t.Fatalf("unexpected output: %s", stdout.String())
+	}
+}
+
+func TestRunDoctorJSONKeepsStdoutMachineReadable(t *testing.T) {
+	baseDir := t.TempDir()
+	repoRoot := filepath.Join(baseDir, "repo")
+	copyDirFromRepo(t, filepath.Join(repoRoot, "templates"), "templates")
+	homeDir := filepath.Join(baseDir, "home")
+	templateDir := filepath.Join(homeDir, ".agent47", "templates")
+	if err := os.MkdirAll(templateDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyDir(filepath.Join(repoRoot, "templates"), templateDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", "/usr/bin:/bin")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	root := NewRoot(cli.NewOutput(&stdout, &stderr))
+	status := root.Run(context.Background(), runtime.Config{
+		Version:         "vtest",
+		TemplateMode:    runtime.TemplateModeFilesystem,
+		RepoRoot:        repoRoot,
+		HomeDir:         homeDir,
+		UserBinDir:      filepath.Join(homeDir, "bin"),
+		Agent47Home:     filepath.Join(homeDir, ".agent47"),
+		UpdateCacheFile: filepath.Join(homeDir, ".agent47", "cache", "update.cache"),
+	}, []string{"doctor", "--json"})
+	if status != 0 {
+		t.Fatalf("expected status 0, got %d: %s", status, stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("expected clean stderr, got %s", stderr.String())
+	}
+	var report doctorJSONReport
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("expected valid JSON, got %v: %s", err, stdout.String())
+	}
+	if report.SchemaVersion != 1 || report.Status != "warning" || len(report.Warnings) == 0 {
+		t.Fatalf("unexpected report: %+v", report)
 	}
 }
 
@@ -70,6 +112,7 @@ func TestRunDoctorCheckUpdateUsesRemoteVersion(t *testing.T) {
 	}
 
 	t.Setenv("PATH", "/usr/bin:/bin")
+	t.Setenv("AGENT47_ENABLE_TEST_HOOKS", "true")
 	t.Setenv("AGENT47_VERSION_URL", "file://"+filepath.Join(repoRoot, "VERSION"))
 	if err := os.WriteFile(filepath.Join(repoRoot, "VERSION"), []byte("vtest\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -148,7 +191,7 @@ func TestRunDoctorRejectsUnexpectedFlag(t *testing.T) {
 	if status == 0 {
 		t.Fatal("expected non-zero status")
 	}
-	if !strings.Contains(stdout.String(), "Usage: afs doctor") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if stdout.Len() != 0 || !strings.Contains(stderr.String(), "Usage: afs doctor") {
+		t.Fatalf("unexpected streams: stdout=%s stderr=%s", stdout.String(), stderr.String())
 	}
 }

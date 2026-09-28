@@ -1,5 +1,8 @@
 [rule_templates]
 rules-desktop.yaml
 
+[managed_targets]
+rules/rules-desktop.yaml
+
 [required_template_files]
 rules/rules-desktop.yaml

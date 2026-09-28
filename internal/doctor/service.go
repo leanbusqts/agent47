@@ -38,7 +38,6 @@ var (
 		"## Security Expectations",
 		"## Dependency Policy",
 		"## Stack Notes",
-		"## Skills",
 		"## Output Expectations",
 		"## Verification And Rollback",
 		"## Git And Commits",
@@ -85,28 +84,34 @@ var (
 	}
 	requiredManagedTargets = []string{
 		"AGENTS.md",
-		"rules/*.yaml",
-		"skills/*",
-		"skills/AVAILABLE_SKILLS.xml",
-		"skills/AVAILABLE_SKILLS.json",
-		"skills/SUMMARY.md",
+		"rules/rules-cross.yaml",
+		"rules/security-global.yaml",
+		"rules/security-shell.yaml",
+	}
+	requiredGeneratedTargets = []string{
+		".agent47/context.md",
 	}
 	requiredPreservedTargets = []string{
 		"README.md",
-		".agents/specs/spec.yml",
 		"SNAPSHOT.md",
 		"SPEC.md",
+		".agents/",
+		"skills/",
+		"prompts/",
+	}
+	requiredForceCleanupTargets = []string{
+		"rules/",
+		"skills/",
+		"prompts/",
+		"specs/spec.yml",
+		".agents/specs/spec.yml",
 	}
 	requiredTemplateFiles = []string{
 		"AGENTS.md",
 		"manifest.txt",
-		".agents/specs/spec.yml",
 	}
 	requiredTemplateDirs = []string{
 		"rules",
-		"skills",
-		".agents",
-		".agents/specs",
 	}
 )
 
@@ -154,20 +159,6 @@ func (s *Service) Run(ctx context.Context, cfg runtime.Config, opts Options) err
 		s.Out.Info(install.ReinstallHint(cfg))
 	}
 
-	for _, script := range install.HelperCommands() {
-		if helperMatches(script, managedAfs, install.PublishedHelperPathForDoctor(cfg, script)) {
-			s.Out.OK("%s available", script)
-		} else if _, err := exec.LookPath(script); err == nil {
-			hadWarn = true
-			s.Out.Warn("%s in PATH, but not the managed installed copy", script)
-			s.Out.Info(install.ReinstallHint(cfg))
-		} else {
-			hadWarn = true
-			s.Out.Warn("%s missing", script)
-			s.Out.Info(install.ReinstallHint(cfg))
-		}
-	}
-
 	templateDir := filepath.Join(cfg.Agent47Home, "templates")
 	if info, err := os.Stat(templateDir); err == nil && info.IsDir() {
 		s.Out.OK("Templates installed")
@@ -183,14 +174,6 @@ func (s *Service) Run(ctx context.Context, cfg runtime.Config, opts Options) err
 		hadWarn = true
 		s.Out.Warn("Templates missing")
 		s.Out.Info(install.ReinstallHint(cfg))
-	}
-
-	skillsDir := layoutPath(templateDir, "skills")
-	if info, err := os.Stat(skillsDir); err == nil && info.IsDir() {
-		s.Out.OK("Skills templates (.md) present")
-	} else {
-		hadWarn = true
-		s.Out.Warn("Skills templates missing")
 	}
 
 	if cfg.RepoRoot != "" {
@@ -255,6 +238,7 @@ func (s *Service) Run(ctx context.Context, cfg runtime.Config, opts Options) err
 		if err := s.Update.Check(ctx, cfg, update.CheckOptions{Force: opts.ForceUpdate}); err != nil {
 			return err
 		}
+		hadWarn = s.Update.HadWarning() || hadWarn
 		if opts.FailOnWarn && hadWarn {
 			return WarningsError{}
 		}
@@ -297,23 +281,6 @@ func commandMatches(name, managedTarget string) bool {
 		return false
 	}
 	return sameResolvedPath(actualResolved, expectedResolved)
-}
-
-func helperMatches(name, managedTarget, userTarget string) bool {
-	actualPath, err := exec.LookPath(name)
-	if err != nil {
-		return false
-	}
-	actualResolved, err := resolvePath(actualPath)
-	if err == nil {
-		if managedResolved, managedErr := resolvePath(managedTarget); managedErr == nil && sameResolvedPath(actualResolved, managedResolved) {
-			return true
-		}
-		if userResolved, userErr := resolvePath(userTarget); userErr == nil && sameResolvedPath(actualResolved, userResolved) {
-			return true
-		}
-	}
-	return false
 }
 
 func resolvesExecutable(path string) bool {
@@ -372,7 +339,15 @@ func (s *Service) checkTemplateManifest(templateDir string) bool {
 		s.Out.Warn("Template manifest contract invalid")
 		return true
 	}
+	if !matchesManifestTargets(m.GeneratedTargets, requiredGeneratedTargets) {
+		s.Out.Warn("Template manifest contract invalid")
+		return true
+	}
 	if !matchesManifestTargets(m.PreservedTargets, requiredPreservedTargets) {
+		s.Out.Warn("Template manifest contract invalid")
+		return true
+	}
+	if !matchesManifestTargets(m.ForceCleanupTargets, requiredForceCleanupTargets) {
 		s.Out.Warn("Template manifest contract invalid")
 		return true
 	}

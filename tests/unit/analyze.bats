@@ -68,7 +68,7 @@ teardown() {
   assert_contains "$output" "fallback: base bundle only"
 }
 
-@test "afs analyze --verbose reports testing stacks and mapped skills" {
+@test "afs analyze --verbose reports testing stacks without skill mapping" {
   mkdir -p tests
   cat > package.json <<'JSON'
 {"devDependencies":{"vitest":"1.0.0","playwright":"1.0.0"}}
@@ -86,6 +86,5 @@ JSON
   assert_contains "$output" "playwright"
   assert_contains "$output" "go-test"
   assert_contains "$output" "bats"
-  assert_contains "$output" "refactor"
-  assert_contains "$output" "optimize"
+  assert_not_contains "$output" "Skills"
 }

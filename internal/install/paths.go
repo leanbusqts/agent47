@@ -39,10 +39,6 @@ func ManagedBinaryPathForDoctor(cfg runtime.Config) string {
 	return managedBinaryPath(cfg)
 }
 
-func PublishedHelperPathForDoctor(cfg runtime.Config, command string) string {
-	return publishedHelperPath(cfg, command)
-}
-
 func PublishedAfsPathForDoctor(cfg runtime.Config) string {
 	return publishedAfsPath(cfg)
 }

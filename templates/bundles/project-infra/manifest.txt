@@ -1,5 +1,8 @@
 [rule_templates]
 rules-infra.yaml
 
+[managed_targets]
+rules/rules-infra.yaml
+
 [required_template_files]
 rules/rules-infra.yaml

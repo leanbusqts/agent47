@@ -10,7 +10,9 @@ import (
 type Manifest struct {
 	RuleTemplates         []string
 	ManagedTargets        []string
+	GeneratedTargets      []string
 	PreservedTargets      []string
+	ForceCleanupTargets   []string
 	RequiredTemplateFiles []string
 	RequiredTemplateDirs  []string
 }
@@ -28,7 +30,9 @@ func parse(data []byte, validate bool) (Manifest, error) {
 	sections := map[string]*[]string{
 		"rule_templates":          &result.RuleTemplates,
 		"managed_targets":         &result.ManagedTargets,
+		"generated_targets":       &result.GeneratedTargets,
 		"preserved_targets":       &result.PreservedTargets,
+		"force_cleanup_targets":   &result.ForceCleanupTargets,
 		"required_template_files": &result.RequiredTemplateFiles,
 		"required_template_dirs":  &result.RequiredTemplateDirs,
 	}
@@ -73,7 +77,9 @@ func (m Manifest) Validate() error {
 	required := map[string][]string{
 		"rule_templates":          m.RuleTemplates,
 		"managed_targets":         m.ManagedTargets,
+		"generated_targets":       m.GeneratedTargets,
 		"preserved_targets":       m.PreservedTargets,
+		"force_cleanup_targets":   m.ForceCleanupTargets,
 		"required_template_files": m.RequiredTemplateFiles,
 		"required_template_dirs":  m.RequiredTemplateDirs,
 	}

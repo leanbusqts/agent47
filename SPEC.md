@@ -1,351 +1,168 @@
-# SPEC
+# SPEC — agent47 Lite
 
-This root `SPEC.md` describes the current product contract and technical behavior of `agent47` itself. It is not the default place to draft a new feature spec or implementation plan; use `.agents/specs/spec.yml` for task-scoped planning work.
+## 1. Product direction
 
-## 1. Project Identity
+`agent47` is a lightweight, vendor-neutral repository harness for coding agents. Its job is to make repository instructions and structural context discoverable, bounded, and verifiable without becoming an orchestration framework or a large prompt distribution system.
 
-- **Name:** `agent47`
-- **Type:** Go-first CLI plus template payload for bootstrapping agent-oriented repository scaffolding
-- **Public command:** `afs`
-- **Primary purpose:** install a local CLI runtime and scaffold a portable repository contract for agent workflows without coupling target repos to vendor-specific agent config
+The product optimizes for:
 
-## 2. Product Summary
+1. the smallest practical public command surface;
+2. explicit repository policy;
+3. safe and deterministic inspection;
+4. conservative, reversible initialization;
+5. minimal context added to an agent session.
 
-`agent47` has two layers:
+## 2. Repository contract
 
-1. A local CLI runtime installed on the machine and exposed through `afs`.
-2. A template payload copied into target repositories to establish:
-   - `AGENTS.md`
-   - `rules/*.yaml`
-   - `skills/*`
-   - `skills/AVAILABLE_SKILLS.xml`
-   - `skills/AVAILABLE_SKILLS.json`
-   - `skills/SUMMARY.md`
-   - prompt helpers
-   - `.agents/specs/spec.yml` as an available template artifact
+The generated contract contains:
 
-The product is intentionally conservative:
+- root `AGENTS.md`;
+- applicable known `rules/*.yaml` templates;
+- generated `.agent47/context.md`, a bounded CodeGraph Lite artifact derived from repository evidence.
 
-- bootstrap is explicit
-- refresh is opt-in
-- `--force` is required for destructive reconciliation
-- preserved project docs remain untouched during refresh
-- policy is centralized in `AGENTS.md`
+`AGENTS.md` and rules are stable policy. `.agent47/context.md` is repository-specific evidence, is safe to version, and is never authoritative over source or policy. It is generated rather than copied from a template.
 
-## 3. Goals
+The following are outside the generated contract:
 
-- Keep policy, stack guidance, security rules, skills, and optional prompt helpers versioned as normal files when they are installed into the target repo.
-- Make managed vs preserved ownership explicit and machine-checkable through `templates/manifest.txt`.
-- Support agent CLIs and IDE agents through repo conventions instead of vendor-specific config.
-- Keep install, refresh, uninstall, and doctor flows safe and testable.
-- Support both installed use and checkout-based development without maintaining separate products.
+- `README.md`, `SNAPSHOT.md`, and root `SPEC.md`;
+- `.agents/`, except the legacy `.agents/specs/spec.yml` migration target;
+- `specs/`, except the legacy `specs/spec.yml` migration target;
+- any path unrelated to the legacy `rules/`, `skills/`, and `prompts/` namespaces.
 
-## 4. Non-Goals
+Normal initialization preserves all existing out-of-contract content. The explicit `--force` migration removes the legacy Agent47 namespaces and exact task files listed above before installing the current minimal contract.
 
-- Full project generation beyond the agent-workflow scaffold.
-- Hidden remote orchestration, cloud sync, or network dependency for normal operation.
-- Automatic creation of project-specific business specs beyond the optional `.agents/specs/spec.yml` template.
-- Enforcement of package-manager dependency manifests in target repos.
-- Vendor-specific repo config by default.
+Agent policy requires the strongest internal reasoning language available, defaults technical work to English internally, and preserves the output language requested by the user.
 
-## 5. Core Workflows
+## 3. Public CLI
 
-### 5.1 Local install
+The complete public surface is:
 
-Public entrypoints:
+```text
+afs help
+afs version
+afs analyze [--json] [--verbose] [--evidence] [--deep]
+afs map [--force]
+afs init [--bundle NAME ...] [--exclude-bundle NAME ...] [--force] [--preview]
+afs doctor [--json] [--check-update|--check-update-force|--fail-on-warn]
+afs uninstall
+```
 
-- `./install.sh [--force] [--non-interactive]`
-- `.\install.ps1 [-Force] [-NonInteractive]`
+`afs init --dry-run` is a hidden alias for `--preview`.
 
-Expected outcome:
+Public exit codes:
 
-- install managed templates under the agent47 home directory
-- install a managed `afs` launcher
-- publish helper entrypoints (`add-agent`, `add-agent-prompt`, `add-ss-prompt`)
-- expose `afs` on the user PATH
+- `0`: successful execution, including analysis that reports findings;
+- `1`: operational failure;
+- `2`: invalid usage or unknown command.
 
-Default install locations:
+Primary results use stdout; diagnostics use stderr.
 
-- Unix-like systems:
-  - home: `~/.agent47`
-  - managed launcher: `~/.agent47/bin/afs`
-  - user entry: `~/bin/afs`
-- Windows:
-  - home: `%LOCALAPPDATA%\agent47` by default
-  - managed launcher: `%LOCALAPPDATA%\agent47\bin\afs.exe`
-  - user PATH target: `%LOCALAPPDATA%\agent47\bin`
+## 4. Analyze
 
-### 5.2 Verify local installation
+`afs analyze` is read-only and deterministic. It detects repository types and technologies, resolves bundles and rule templates, and may emit raw or classification evidence.
 
-Public command:
+`--deep` adds an agent-readiness audit. It recognizes project-local, scoped policy for common agent ecosystems while remaining vendor-neutral. Detection of a vendor file is evidence, not permission to create or modify vendor configuration.
 
-- `afs doctor [--check-update|--check-update-force|--fail-on-warn]`
+Deep analysis evaluates at least:
 
-Expected outcome:
+- instruction discoverability and nested scope;
+- verification commands and test/build documentation;
+- contradictions, duplication, and oversized policy;
+- repository documentation and structure relevant to autonomous work;
+- common noise sources and unsafe guidance.
 
-- confirm managed launcher and helper commands are available
-- confirm templates and helper commands are available
-- validate template integrity and required `AGENTS.md` sections
-- optionally perform an update check
-- allow combining `--fail-on-warn` with update-check flags in one invocation
+Every finding has a stable rule ID, severity, title, evidence, explanation, and recommendation. The audit obeys explicit bounds for traversal depth, files, bytes, and findings, reports truncation, ignores common generated/vendor directories, never executes repository code, and never prints secret values.
 
-Update-check behavior:
+Historical migration/rejection material is not a live contract, and glob or placeholder paths are not interpreted as exact stale references. Any applied inspection truncation prevents the overall result from being `ready`; only prompt-surface uncertainty affects the `policy.consistency` claim.
 
-- if `AGENT47_VERSION_URL` is configured, compare local version with remote `VERSION`
-- otherwise, when running from a git checkout with an upstream branch, compare `HEAD` against the upstream branch
-- regular git checks compare against the local tracking ref
-- `--check-update-force` performs `git fetch --quiet` before comparing
-- remote checks may be cached; git tracking checks are not cached
-- cached remote checks are scoped to the configured update source
+The deterministic V1 audit rules are:
 
-### 5.3 Bootstrap a target repository
+- `PA-001`: exact or safely normalized duplicate instructions;
+- `PA-002`: same-authority structured conflicts;
+- `PA-007`: explicit vendor/model coupling inside a vendor-neutral contract;
+- `PA-008`: deterministically stale paths, commands, or managed references.
 
-Public command:
+## 5. Repository map and initialization
 
-- `afs analyze [--json|--verbose|--evidence]`
-- `afs add-agent [--preview|--dry-run]`
+### 5.1 Map
 
-Expected outcome:
+`afs map` scans the current repository without executing its code and synchronizes `.agent47/context.md`. The map is intentionally bounded: it summarizes components, package/workspace roots, entrypoints, direct local relationships with confidence and evidence, tests, manifests/configuration, applicable policy, and allow-listed verification commands. It excludes complete symbol/call graphs, external dependencies, embeddings, databases, daemons, watchers, LSP/MCP services, and repository-code execution.
 
-- `afs analyze` inspects the repository, resolves the install set, and never writes files
-- `afs analyze --evidence` includes both direct scan evidence and the evidence attached to resolved classifications
-- `afs add-agent` runs the same analysis and resolution flow before writing
-- write `AGENTS.md` if absent
-- write the resolved `rules/*.yaml` if absent
-- create the resolved `skills/*` and managed skills indexes
-- create an empty `README.md` if absent
-- create `.agents/specs/spec.yml` if absent
-- preserve existing managed files unless `--force` is used
+The first line contains machine-readable `afs-context` metadata with `schema_version`, `source_fingerprint`, and `body_sha256`. The source fingerprint covers normalized structural observations and a renderer version; the body hash detects manual edits. `.agent47/` and common generated/vendor directories are excluded from the scan so the output cannot fingerprint itself.
 
-Default resolution behavior:
+Rules:
 
-- low-signal repos install the base bundle only
-- unresolved project-type conflicts install the base bundle only and print an explicit warning
-- the base bundle includes `AGENTS.md`, shell/global security rules, universal skills, and `.agents/specs/spec.yml`
-- supported project bundles currently include frontend, backend, mobile, cli, scripts, infra, monorepo-tooling, desktop, and plugin
-- supported automatic bundle composition currently includes `cli` + `scripts`, `cli` + `monorepo-tooling`, `desktop` + `scripts`, and `desktop` + `plugin`
-- in interactive TTY environments, `afs add-agent` asks for confirmation before writing, including skills-only mode, unless `--yes` is supplied
+1. A missing context is created.
+2. A recognized, unchanged context is left untouched when the candidate is identical.
+3. Structural or renderer changes regenerate an unmodified context.
+4. A manually modified or unrecognized context is rejected unless `--force` is supplied.
+5. `--force` replaces only `.agent47/context.md`; it does not broaden repository ownership.
+6. Output is deterministic, size-bounded, secret-safe, and treats discovered paths and commands as evidence rather than instructions.
+7. Paths and command names are allow-listed before rendering to prevent generated Markdown from carrying repository-controlled instructions.
+8. There is no `--preview`, separate freshness command, background watcher, daemon, or Git hook. Idempotence, hashes, and the narrow single-file target provide the safety boundary.
 
-### 5.4 Fresh reinstall of the managed scaffold
+The generated `AGENTS.md` makes synchronization automatic from the user's perspective: for non-trivial code tasks an agent runs `afs map` from the repository root before broad exploration, then reads `.agent47/context.md`; after structural changes it runs `afs map` again. Trivial tasks skip it. If terminal access or `afs` is unavailable, the agent may use the existing context but must report that it may be stale. If synchronization fails because the context was edited, the agent must not force or trust it without explicit user authorization.
 
-Public command:
+Together, `AGENTS.md`, applicable `rules/*.yaml`, and `.agent47/context.md` form the declarative Harness Lite: stable operating policy, stack constraints, and fresh repository evidence. The harness does not execute agents or verification commands.
 
-- `afs add-agent --force`
+### 5.2 Init
 
-Expected outcome:
+`afs init` analyzes the current directory, resolves the selected bundles, prints a deterministic plan, and optionally applies it.
 
-- replace `AGENTS.md`
-- reconcile resolved `rules/*.yaml` against the selected install set
-- replace `skills/*` with the selected install set
-- regenerate the managed skills indexes
-- remove stale managed rules and skills no longer selected by the current install set
-- preserve:
-  - `README.md`
-  - `.agents/specs/spec.yml`
-  - `SNAPSHOT.md`
-  - `SPEC.md`
+Plan groups are `create`, `update`, `keep`, and `remove`. The removal group is empty unless `--force` is supplied and legacy Agent47 content is present.
 
-Implication:
+Rules:
 
-- local custom files placed under managed paths such as `rules/` or `skills/` can be removed during `--force`
+1. Missing managed targets and `.agent47/context.md` are created in one rollback-capable operation.
+2. Existing managed targets are kept by default. Existing `.agent47/context.md` is always preserved by init, including `init --force`.
+3. `--force` replaces `rules/` with exactly the resolved current rule set and removes the complete legacy `skills/` and `prompts/` namespaces.
+4. `--force` also removes the known legacy task files `specs/spec.yml` and `.agents/specs/spec.yml`, pruning their parent directories only when empty.
+5. Repository documentation, other `.agents/` and `specs/` content, vendor configuration, source, and all unrelated paths are preserved.
+6. `--preview` and `--dry-run` never write.
+7. Initialization is non-interactive; absence of `--preview` is the explicit request to apply the displayed plan.
+8. Unsafe roots, symlinked cleanup parents, and path-escape conditions are rejected.
+9. Writes and legacy removals are staged; a partial operation is rolled back on failure or cancellation.
+10. Preview reports relevant nested-policy, vendor-policy, traversal, and bundle-conflict warnings.
+11. Commit, cleanup, and rollback revalidate path identity and content so concurrent user edits are never silently overwritten.
 
-### 5.5 Skills-only refresh
+Supported project bundles are `frontend`, `backend`, `mobile`, `cli`, `scripts`, `infra`, `monorepo-tooling`, `desktop`, and `plugin`, plus shared dependencies and the base bundle. An unresolved automatic composition falls back to the base bundle; incompatible explicit compositions fail.
 
-Public commands:
+## 6. Installation and maintenance
 
-- `afs add-agent --only-skills`
-- `afs add-agent --only-skills --force`
+`install.sh` and `install.ps1` are the public installation entrypoints. The installed payload includes one `afs` executable and the policy/rule templates. It does not publish helper commands.
 
-Expected outcome:
+`afs doctor` validates the executable, installed template manifest, required files/directories, rule/security templates, policy sections, PATH integration, and optional update state. `--json` emits a versioned machine-readable health report.
 
-- manage only `skills/*` and the managed skills indexes
-- do not touch `AGENTS.md` or `rules/*.yaml`
-- without `--force`, preserve existing invalid skill files and omit them from the generated skills indexes
-- with `--force`, replace the managed skills directory with the template set
-- with `--force --preview`, report the full managed `skills/` replacement and any entries under `skills/` that will be removed
-- the same validated skill set is rendered into the XML, JSON, and Markdown summary indexes
+The runtime home is a dedicated non-symlinked directory with an explicit ownership marker. `afs uninstall` removes only managed runtime artifacts. Legacy helper names may be cleaned up only when ownership can be proven; unmanaged entries are preserved. Template backups are removed only while both their ownership marker and recorded digest remain valid; modified or unverified backups are preserved.
 
-### 5.6 Prompt helpers
+## 7. Explicit non-goals
 
-Public commands:
+The Lite core does not provide:
 
-- `afs add-agent-prompt [--force]`
-- `afs add-ss-prompt`
+- skills or skill indexes;
+- task-spec scaffolding;
+- prompt or clipboard helpers;
+- vendor-specific config generation;
+- subagent orchestration, memory, queues, daemons, or a dashboard;
+- speculative “spec grill” workflows;
+- repository-code execution during analysis;
+- dependency installation in a target repository.
 
-Expected outcome:
+Deep analysis is diagnostics, not a second framework. Future extensions must justify their command, dependency, context, and maintenance cost.
 
-- create or refresh `prompts/agent-prompt.txt` on demand
-- copy the snapshot/spec helper prompt to a supported clipboard tool when available
-- otherwise print the snapshot/spec helper prompt from installed templates
+## 8. Verification contract
 
-### 5.7 Uninstall
+Maintainer checks are:
 
-Public command:
+```bash
+make agents-check
+make rules-check
+make rules-drift-check
+make go-test
+make go-build
+make lint-shell
+make smoke-install
+make test
+```
 
-- `afs uninstall`
-
-Expected outcome:
-
-- remove published commands
-- remove managed runtime assets
-- remove managed template backups
-
-## 6. Public Command Surface
-
-Supported user-facing commands:
-
-- `afs help`
-- `afs version`
-- `afs uninstall`
-- `afs doctor [--check-update|--check-update-force|--fail-on-warn]`
-- `afs analyze [--json|--verbose|--evidence]`
-- `afs add-agent [--force] [--only-skills] [--preview|--dry-run] [--yes] [--bundle <name>] [--exclude-bundle <name>]`
-- `afs add-agent-prompt [--force]`
-- `afs add-ss-prompt`
-- `./install.sh [--force] [--non-interactive]`
-- `.\install.ps1 [-Force] [-NonInteractive]`
-
-Contributor validation commands:
-
-- `make test`
-- `make agents-check`
-- `make rules-check`
-- `make rules-drift-check`
-- `make go-test`
-- `make go-build`
-- `make lint-shell`
-- `make smoke-install`
-
-Commands intentionally outside the supported public surface:
-
-- `afs install`
-- `afs upgrade`
-- `afs add-spec`
-- `afs add-cli-prompt`
-- `afs templates`
-- `afs check-update`
-
-## 7. Repository Structure Contract
-
-### 7.1 Repo-owned source
-
-- `bin/`
-- `cmd/`
-- `internal/`
-- `scripts/`
-- `tests/`
-- root metadata such as `README.md`, `RUNBOOK.md`, `VERSION`, `SNAPSHOT.md`, and `SPEC.md`
-
-Repo-local execution detail:
-
-- checkout-based `bin/afs` execution uses repo-safe `GOCACHE` and `GOMODCACHE` defaults when falling back to `go run`
-
-### 7.2 Template payload
-
-- `templates/base/AGENTS.md`
-- `templates/manifest.txt`
-- `templates/base/rules/*.yaml`
-- `templates/bundles/*/rules/*.yaml`
-- `templates/base/skills/*/SKILL.md`
-- `templates/bundles/*/skills/*/SKILL.md`
-- `templates/base/prompts/*.txt`
-- `templates/base/.agents/specs/spec.yml`
-
-### 7.3 Managed target contract
-
-Defined by `templates/manifest.txt`:
-
-- managed targets:
-  - `AGENTS.md`
-  - `rules/*.yaml`
-  - `skills/*`
-  - `skills/AVAILABLE_SKILLS.xml`
-  - `skills/AVAILABLE_SKILLS.json`
-  - `skills/SUMMARY.md`
-- preserved targets:
-  - `README.md`
-  - `.agents/specs/spec.yml`
-  - `SNAPSHOT.md`
-  - `SPEC.md`
-
-### 7.4 Ownership model
-
-`agent47` has two ownership layers:
-
-1. the source repository that builds and verifies `agent47` itself
-2. the scaffold payload under `templates/` that gets copied into target projects
-
-Practical rules:
-
-- files under managed target paths belong to the scaffold contract
-- `afs add-agent` is conservative and preserves existing managed files
-- `afs add-agent --force` reconciles managed targets to the current manifest and template payload
-- local custom files under `rules/` or `skills/` can be replaced or removed during `--force`
-- project-owned docs such as `README.md`, root `SPEC.md`, and `SNAPSHOT.md` remain outside the default managed scaffold
-
-## 8. Architecture
-
-### 8.1 Repo launcher
-
-`bin/afs` is the checkout launcher for repository-local development. It:
-
-- prefers an explicit compiled Go CLI via `AGENT47_GO_CLI`
-- otherwise prefers an explicit repo CLI via `AGENT47_REPO_CLI`
-- otherwise runs `go run ./cmd/afs` when Go is available
-- does not execute a legacy shell runtime
-
-### 8.2 Native runtime
-
-`cmd/afs` plus `internal/*` implement the product runtime in Go. Major responsibilities include:
-
-- command routing
-- runtime path detection
-- template loading from filesystem or embedded sources
-- manifest parsing
-- skill validation and XML generation
-- install/uninstall
-- bootstrap staging, commit, and rollback
-- doctor and update checks
-- prompt helpers
-
-### 8.3 Install wrappers
-
-`install.sh` and `install.ps1` are thin wrappers that invoke the native install service through the repo launcher. They are part of the public install surface, but they do not contain the core product logic.
-
-### 8.4 Shell surface
-
-The repo still contains a small shell layer for:
-
-- `bin/afs` checkout launching
-- `scripts/lint-shell`
-- contributor-oriented shell verification around tests and install flows
-
-The product runtime itself is no longer Bash-first.
-
-## 9. Testing And Validation
-
-Current repo validation is centered on:
-
-- Go tests: `make go-test`
-- full checkout + installed-artifact validation: `make test`
-- agent policy validation: `make agents-check`
-- rules schema/ref/drift validation: `make rules-check` and `make rules-drift-check`
-- shell lint: `make lint-shell`
-- isolated install smoke check: `make smoke-install`
-
-The test suite covers:
-
-- install and uninstall flows
-- bootstrap and rollback behavior
-- prompt helpers
-- template integrity
-- skills validation and XML generation
-- doctor and update-check behavior
-- helper publication and launcher behavior
-
-## 10. Constraints And Risks
-
-- `afs add-agent --force` is intentionally destructive within managed paths.
-- Regular git-based update checks reflect the local tracking ref; `--check-update-force` refreshes that state with `git fetch`.
-- Checkout-based development still depends on Go unless an explicit compiled CLI is provided.
-- The runtime contains Windows-aware paths and a PowerShell installer, but day-to-day repo validation remains strongest on Unix-like systems.
+Policy mirrors and security-rule mirrors must remain byte-identical. Public behavior must be covered at unit, checkout, and installed-artifact levels.

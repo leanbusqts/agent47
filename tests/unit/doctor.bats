@@ -19,23 +19,27 @@ teardown() {
   assert_contains "$output" "Skipping update check by default"
 }
 
-@test "doctor reports ok when tools are on PATH" {
+@test "doctor json keeps a versioned machine-readable envelope" {
+  PATH="/usr/bin:/bin"
+  run "$ROOT_DIR/bin/afs" doctor --json
+  assert_success
+  assert_contains "$output" '"schema_version": 1'
+  assert_contains "$output" '"status": "warning"'
+  assert_contains "$output" '"checks": ['
+  assert_contains "$output" '"warnings": ['
+}
+
+@test "doctor reports ok when the managed CLI is on PATH" {
   export PATH="$HOME/bin:$PATH"
   export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
   mkdir -p "$HOME/bin" "$AGENT47_HOME/bin"
-  rm -f "$HOME/bin/afs" "$HOME/bin/add-agent" "$HOME/bin/add-agent-prompt" "$HOME/bin/add-ss-prompt"
+  rm -f "$HOME/bin/afs"
   cp "$ROOT_DIR/bin/afs" "$AGENT47_HOME/bin/afs"
   chmod +x "$AGENT47_HOME/bin/afs"
   ln -s "$AGENT47_HOME/bin/afs" "$HOME/bin/afs"
-  ln -s "$AGENT47_HOME/bin/afs" "$HOME/bin/add-agent"
-  ln -s "$AGENT47_HOME/bin/afs" "$HOME/bin/add-agent-prompt"
-  ln -s "$AGENT47_HOME/bin/afs" "$HOME/bin/add-ss-prompt"
   run "$ROOT_DIR/bin/afs" doctor
   assert_success
   assert_contains "$output" "[OK] afs in PATH"
-  assert_contains "$output" "[OK] add-agent available"
-  assert_contains "$output" "[OK] add-agent-prompt available"
-  assert_contains "$output" "[OK] add-ss-prompt available"
   assert_contains "$output" "[OK] Templates installed"
   assert_contains "$output" "[OK] Required template files present"
   assert_contains "$output" "[OK] Required template dirs present"
@@ -50,6 +54,7 @@ teardown() {
 
 @test "doctor runs update check only when requested" {
   export PATH="$ROOT_DIR/bin:$PATH"
+  export AGENT47_ENABLE_TEST_HOOKS="true"
   export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
 
   run "$ROOT_DIR/bin/afs" doctor --check-update
@@ -57,23 +62,18 @@ teardown() {
   assert_contains "$output" "Up to date"
 }
 
-@test "doctor warns when PATH contains non-managed afs or helper scripts" {
+@test "doctor warns when PATH contains a non-managed afs" {
   mkdir -p "$TEST_WORKDIR/fake-bin"
   cat > "$TEST_WORKDIR/fake-bin/afs" <<'EOF'
 #!/bin/bash
 exit 0
 EOF
-  cat > "$TEST_WORKDIR/fake-bin/add-agent" <<'EOF'
-#!/bin/bash
-exit 0
-EOF
-  chmod +x "$TEST_WORKDIR/fake-bin/afs" "$TEST_WORKDIR/fake-bin/add-agent"
+  chmod +x "$TEST_WORKDIR/fake-bin/afs"
   export PATH="$TEST_WORKDIR/fake-bin:/usr/bin:/bin"
 
   run "$ROOT_DIR/bin/afs" doctor
   assert_success
   assert_contains "$output" "afs in PATH, but not the managed launcher"
-  assert_contains "$output" "add-agent in PATH, but not the managed installed copy"
 }
 
 @test "doctor warns when ~/bin afs symlink is broken" {

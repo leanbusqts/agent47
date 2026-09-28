@@ -1,5 +1,8 @@
 [rule_templates]
 rules-backend.yaml
 
+[managed_targets]
+rules/rules-backend.yaml
+
 [required_template_files]
 rules/rules-backend.yaml

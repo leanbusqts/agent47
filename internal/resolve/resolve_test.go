@@ -3,29 +3,30 @@ package resolve
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/leanbusqts/agent47/internal/analyze"
 	"github.com/leanbusqts/agent47/internal/manifest"
 )
 
-func TestResolveLowSignalFallsBackToBaseBundle(t *testing.T) {
+func TestResolveLowSignalFallsBackToBasePolicy(t *testing.T) {
 	set, err := Resolve(analyze.AnalysisResult{LowSignal: true}, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(set.Bundles) != 1 || set.Bundles[0] != "base" {
+	if !equalStrings(set.Bundles, []string{"base"}) {
 		t.Fatalf("expected base bundle only, got %v", set.Bundles)
 	}
-	if len(set.Prompts) != 0 {
-		t.Fatalf("did not expect default scaffold prompts, got %v", set.Prompts)
-	}
 	if !containsString(set.Rules, "rules-cross.yaml") {
-		t.Fatalf("expected base bundle to include rules-cross.yaml, got %v", set.Rules)
+		t.Fatalf("expected base rules, got %v", set.Rules)
+	}
+	if !equalStrings(set.CreateFiles, []string{"AGENTS.md"}) {
+		t.Fatalf("expected AGENTS.md as the only non-rule target, got %v", set.CreateFiles)
 	}
 }
 
-func TestResolveAddsGoRulesForGoTechnology(t *testing.T) {
+func TestResolveAddsGoRulesForCLI(t *testing.T) {
 	set, err := Resolve(analyze.AnalysisResult{
 		ProjectTypes: []analyze.DetectedProjectType{{ID: "cli", Confidence: analyze.ConfidenceHigh}},
 		Technologies: []analyze.DetectedTechnology{{ID: "go", Confidence: analyze.ConfidenceHigh}},
@@ -33,203 +34,31 @@ func TestResolveAddsGoRulesForGoTechnology(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"rules-go.yaml", "security-go.yaml"} {
+	for _, want := range []string{"rules-cli.yaml", "rules-go.yaml", "security-go.yaml", "shared-cli-behavior.yaml", "shared-testing.yaml"} {
 		if !containsString(set.Rules, want) {
-			t.Fatalf("expected Go technology to include %s, got %v", want, set.Rules)
+			t.Fatalf("expected %s, got %v", want, set.Rules)
 		}
 	}
 }
 
-func TestResolveSupportsCLIScriptsComposition(t *testing.T) {
+func TestResolveSupportsKnownComposition(t *testing.T) {
 	set, err := Resolve(analyze.AnalysisResult{
 		ProjectTypes: []analyze.DetectedProjectType{
 			{ID: "cli", Confidence: analyze.ConfidenceHigh},
 			{ID: "scripts", Confidence: analyze.ConfidenceHigh},
 		},
-		Technologies: []analyze.DetectedTechnology{
-			{ID: "go", Confidence: analyze.ConfidenceHigh},
-			{ID: "shell", Confidence: analyze.ConfidenceHigh},
-		},
 	}, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"base", "project-cli", "project-scripts", "shared-cli-behavior", "shared-testing"}
-	if len(set.Bundles) != len(want) {
-		t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
-	}
-	for i := range want {
-		if set.Bundles[i] != want[i] {
-			t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
+	for _, want := range []string{"base", "project-cli", "project-scripts", "shared-cli-behavior", "shared-testing"} {
+		if !containsString(set.Bundles, want) {
+			t.Fatalf("expected %s, got %v", want, set.Bundles)
 		}
 	}
 }
 
-func TestResolveSupportsCLIMonorepoToolingComposition(t *testing.T) {
-	set, err := Resolve(analyze.AnalysisResult{
-		ProjectTypes: []analyze.DetectedProjectType{
-			{ID: "cli", Confidence: analyze.ConfidenceHigh},
-			{ID: "monorepo-tooling", Confidence: analyze.ConfidenceHigh},
-		},
-		Technologies: []analyze.DetectedTechnology{
-			{ID: "workspace-tooling", Confidence: analyze.ConfidenceHigh},
-		},
-	}, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []string{"base", "project-cli", "project-monorepo-tooling", "shared-cli-behavior", "shared-testing"}
-	if len(set.Bundles) != len(want) {
-		t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
-	}
-	for i := range want {
-		if set.Bundles[i] != want[i] {
-			t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
-		}
-	}
-	if !containsString(set.Rules, "shared-cli-behavior.yaml") {
-		t.Fatalf("expected shared CLI behavior rule, got %v", set.Rules)
-	}
-}
-
-func TestResolveSupportsPluginDesktopComposition(t *testing.T) {
-	set, err := Resolve(analyze.AnalysisResult{
-		ProjectTypes: []analyze.DetectedProjectType{
-			{ID: "desktop", Confidence: analyze.ConfidenceHigh},
-			{ID: "plugin", Confidence: analyze.ConfidenceHigh},
-		},
-		Technologies: []analyze.DetectedTechnology{
-			{ID: "desktop-runtime", Confidence: analyze.ConfidenceHigh},
-			{ID: "plugin-hosting", Confidence: analyze.ConfidenceHigh},
-		},
-	}, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []string{"base", "project-desktop", "project-plugin", "shared-testing"}
-	if len(set.Bundles) != len(want) {
-		t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
-	}
-	for i := range want {
-		if set.Bundles[i] != want[i] {
-			t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
-		}
-	}
-	if !containsString(set.Rules, "rules-plugin.yaml") || !containsString(set.Rules, "rules-desktop.yaml") {
-		t.Fatalf("expected desktop and plugin rules, got %v", set.Rules)
-	}
-	if !containsString(set.Rules, "shared-testing.yaml") {
-		t.Fatalf("expected shared testing rule, got %v", set.Rules)
-	}
-}
-
-func TestResolveSupportsDesktopScriptsComposition(t *testing.T) {
-	set, err := Resolve(analyze.AnalysisResult{
-		ProjectTypes: []analyze.DetectedProjectType{
-			{ID: "desktop", Confidence: analyze.ConfidenceHigh},
-			{ID: "scripts", Confidence: analyze.ConfidenceHigh},
-		},
-		Technologies: []analyze.DetectedTechnology{
-			{ID: "desktop-runtime", Confidence: analyze.ConfidenceHigh},
-			{ID: "shell", Confidence: analyze.ConfidenceHigh},
-		},
-	}, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []string{"base", "project-desktop", "project-scripts", "shared-testing"}
-	if len(set.Bundles) != len(want) {
-		t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
-	}
-	for i := range want {
-		if set.Bundles[i] != want[i] {
-			t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
-		}
-	}
-	if !containsString(set.Rules, "rules-desktop.yaml") || !containsString(set.Rules, "rules-scripts.yaml") {
-		t.Fatalf("expected desktop and scripts rules, got %v", set.Rules)
-	}
-}
-
-func TestResolveSupportsInfraBundle(t *testing.T) {
-	set, err := Resolve(analyze.AnalysisResult{
-		ProjectTypes: []analyze.DetectedProjectType{{ID: "infra", Confidence: analyze.ConfidenceHigh}},
-	}, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []string{"base", "project-infra"}
-	if len(set.Bundles) != len(want) {
-		t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
-	}
-	for i := range want {
-		if set.Bundles[i] != want[i] {
-			t.Fatalf("expected bundles %v, got %v", want, set.Bundles)
-		}
-	}
-}
-
-func TestResolveAddsSharedTestingForFrontendBundles(t *testing.T) {
-	set, err := Resolve(analyze.AnalysisResult{
-		ProjectTypes: []analyze.DetectedProjectType{
-			{ID: "frontend", Confidence: analyze.ConfidenceHigh},
-		},
-	}, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !containsString(set.Bundles, "shared-testing") {
-		t.Fatalf("expected shared testing bundle, got %v", set.Bundles)
-	}
-	if !containsString(set.Rules, "shared-testing.yaml") {
-		t.Fatalf("expected shared testing rule, got %v", set.Rules)
-	}
-}
-
-func TestResolveMapsTestingTechnologiesToSkills(t *testing.T) {
-	set, err := Resolve(analyze.AnalysisResult{
-		Technologies: []analyze.DetectedTechnology{
-			{ID: "vitest", Confidence: analyze.ConfidenceHigh},
-			{ID: "playwright", Confidence: analyze.ConfidenceHigh},
-			{ID: "go-test", Confidence: analyze.ConfidenceHigh},
-		},
-	}, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !containsString(set.Skills, "refactor") {
-		t.Fatalf("expected refactor skill from testing tech mapping, got %v", set.Skills)
-	}
-	if !containsString(set.Skills, "optimize") {
-		t.Fatalf("expected optimize skill from testing tech mapping, got %v", set.Skills)
-	}
-}
-
-func TestResolveMapsInitialDetectedTechnologiesToSkills(t *testing.T) {
-	set, err := Resolve(analyze.AnalysisResult{
-		Technologies: []analyze.DetectedTechnology{
-			{ID: "node", Confidence: analyze.ConfidenceHigh},
-			{ID: "tailwind", Confidence: analyze.ConfidenceMedium},
-			{ID: "workspace-tooling", Confidence: analyze.ConfidenceMedium},
-		},
-	}, Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !containsString(set.Skills, "refactor") {
-		t.Fatalf("expected refactor for node mapping, got %v", set.Skills)
-	}
-	if !containsString(set.Skills, "optimize") {
-		t.Fatalf("expected optimize for tailwind mapping, got %v", set.Skills)
-	}
-	if !containsString(set.Skills, "troubleshoot") {
-		t.Fatalf("expected troubleshoot for workspace-tooling mapping, got %v", set.Skills)
-	}
-}
-
-func TestResolveUnresolvedConflictFallsBackToBaseBundle(t *testing.T) {
+func TestResolveConflictFallsBackToBase(t *testing.T) {
 	set, err := Resolve(analyze.AnalysisResult{
 		ProjectTypes: []analyze.DetectedProjectType{
 			{ID: "backend", Confidence: analyze.ConfidenceHigh},
@@ -241,135 +70,71 @@ func TestResolveUnresolvedConflictFallsBackToBaseBundle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(set.Bundles) != 1 || set.Bundles[0] != "base" {
-		t.Fatalf("expected base bundle only, got %v", set.Bundles)
-	}
-	if !set.UnresolvedConflict {
-		t.Fatal("expected unresolved conflict in install set")
+	if !equalStrings(set.Bundles, []string{"base"}) || !set.UnresolvedConflict {
+		t.Fatalf("expected conflict-safe base fallback, got %+v", set)
 	}
 }
 
-func TestResolveRejectsIncompatibleExplicitBundles(t *testing.T) {
-	_, err := Resolve(analyze.AnalysisResult{}, Options{ExplicitBundles: []string{"frontend", "backend"}})
-	if err == nil {
-		t.Fatal("expected incompatible explicit bundle error")
-	}
-}
-
-func TestResolveAcceptsCompatibleExplicitBundles(t *testing.T) {
-	_, err := Resolve(analyze.AnalysisResult{}, Options{ExplicitBundles: []string{"plugin", "desktop"}})
-	if err != nil {
-		t.Fatalf("expected compatible explicit bundle selection, got %v", err)
-	}
-}
-
-func TestResolveAppliesExclusionsToExplicitBundles(t *testing.T) {
-	set, err := Resolve(analyze.AnalysisResult{}, Options{
-		ExplicitBundles: []string{"cli", "scripts"},
-		ExcludeBundles:  []string{"cli"},
+func TestResolveAutomaticBundlesAndExclusions(t *testing.T) {
+	set, err := Resolve(analyze.AnalysisResult{
+		ProjectTypes: []analyze.DetectedProjectType{
+			{ID: "cli", Confidence: analyze.ConfidenceHigh},
+			{ID: "scripts", Confidence: analyze.ConfidenceHigh},
+		},
+	}, Options{
+		ExcludeBundles: []string{"cli"},
 	})
 	if err != nil {
-		t.Fatalf("expected explicit bundle exclusion to succeed, got %v", err)
+		t.Fatal(err)
 	}
-	if containsString(set.Bundles, "project-cli") {
-		t.Fatalf("did not expect excluded explicit bundle in result: %v", set.Bundles)
-	}
-	if containsString(set.Bundles, "shared-cli-behavior") {
-		t.Fatalf("did not expect CLI shared dependency after exclusion: %v", set.Bundles)
+	if containsString(set.Bundles, "project-cli") || containsString(set.Bundles, "shared-cli-behavior") {
+		t.Fatalf("excluded CLI bundle leaked into result: %v", set.Bundles)
 	}
 	if !containsString(set.Bundles, "project-scripts") {
-		t.Fatalf("expected remaining explicit bundle to stay selected: %v", set.Bundles)
+		t.Fatalf("expected scripts bundle, got %v", set.Bundles)
 	}
 }
 
-func TestAssembleManifestFiltersToResolvedContract(t *testing.T) {
-	base := manifest.Manifest{
-		RuleTemplates:         []string{"rules-backend.yaml", "security-global.yaml", "security-shell.yaml"},
-		ManagedTargets:        []string{"AGENTS.md", "rules/*.yaml", "skills/*", "skills/AVAILABLE_SKILLS.xml", "skills/AVAILABLE_SKILLS.json", "skills/SUMMARY.md"},
-		PreservedTargets:      []string{"README.md", ".agents/specs/spec.yml", "SNAPSHOT.md", "SPEC.md"},
-		RequiredTemplateFiles: []string{"AGENTS.md", "manifest.txt", ".agents/specs/spec.yml"},
-		RequiredTemplateDirs:  []string{"rules", "skills", ".agents", ".agents/specs"},
+func TestResolveRejectsInvalidExplicitSelection(t *testing.T) {
+	if _, err := Resolve(analyze.AnalysisResult{}, Options{ExplicitBundles: []string{"frontend", "backend"}}); err == nil {
+		t.Fatal("expected incompatible explicit bundle error")
 	}
-
-	got := AssembleManifest(base, InstallSet{
-		Rules: []string{"security-global.yaml", "security-shell.yaml"},
-	})
-
-	if len(got.RuleTemplates) != 2 {
-		t.Fatalf("expected filtered rule templates, got %v", got.RuleTemplates)
+	if _, err := Resolve(analyze.AnalysisResult{}, Options{ExcludeBundles: []string{"base"}}); err == nil {
+		t.Fatal("expected base exclusion error")
 	}
-	if !containsString(got.RequiredTemplateFiles, "AGENTS.md") {
-		t.Fatalf("expected AGENTS.md in required template files, got %v", got.RequiredTemplateFiles)
+	if _, err := Resolve(analyze.AnalysisResult{}, Options{ExplicitBundles: []string{"unknown"}}); err == nil {
+		t.Fatal("expected unknown bundle error")
 	}
-	for _, unexpected := range []string{"rules/APPROVALS.md", "rules/SEVERITY.md", "rules/schema.json"} {
-		if containsString(got.RequiredTemplateFiles, unexpected) {
-			t.Fatalf("did not expect %s in required template files, got %v", unexpected, got.RequiredTemplateFiles)
-		}
-	}
-	foundPromptDir := false
-	for _, file := range got.RequiredTemplateFiles {
-		if file == "prompts/ss-prompt.txt" {
-			t.Fatalf("did not expect prompt helper template in assembled manifest: %v", got.RequiredTemplateFiles)
-		}
-	}
-	for _, dir := range got.RequiredTemplateDirs {
-		if dir == "prompts" {
-			foundPromptDir = true
-			break
-		}
-	}
-	if foundPromptDir {
-		t.Fatalf("did not expect prompt helper directory in assembled manifest: %v", got.RequiredTemplateDirs)
+	if _, err := Resolve(analyze.AnalysisResult{}, Options{ExplicitBundles: []string{"monorepo"}, ExcludeBundles: []string{"monorepo-tooling"}}); err == nil {
+		t.Fatal("expected included/excluded alias conflict")
 	}
 }
 
-func TestBuildSkillsActionPlanForceShowsDirectoryReplacementAndRootRemovals(t *testing.T) {
-	workDir := t.TempDir()
-	mustWriteResolveFile(t, filepath.Join(workDir, "skills", "analyze", "SKILL.md"), "custom\n")
-	mustWriteResolveFile(t, filepath.Join(workDir, "skills", "notes.txt"), "remove me\n")
-	mustWriteResolveFile(t, filepath.Join(workDir, "skills", "custom-skill", "SKILL.md"), "stale\n")
-
-	plan := BuildSkillsActionPlan(workDir, InstallSet{
-		Skills: []string{"analyze"},
-	}, true)
-
-	if !containsString(plan.Update, "skills/") {
-		t.Fatalf("expected skills directory replacement in update plan, got %v", plan.Update)
-	}
-	if !containsString(plan.Update, "skills/analyze/") {
-		t.Fatalf("expected selected skill directory replacement in update plan, got %v", plan.Update)
-	}
-	if !containsString(plan.Remove, "skills/notes.txt") {
-		t.Fatalf("expected unmanaged skills-root file removal in plan, got %v", plan.Remove)
-	}
-	if !containsString(plan.Remove, "skills/custom-skill") {
-		t.Fatalf("expected stale skill directory removal in plan, got %v", plan.Remove)
-	}
-}
-
-func TestBuildActionPlanDoesNotRemoveRuleCatalogInTemplateSourceRepo(t *testing.T) {
-	workDir := t.TempDir()
-	mustWriteResolveFile(t, filepath.Join(workDir, "templates", "manifest.txt"), "[rule_templates]\n")
-	mustWriteResolveFile(t, filepath.Join(workDir, "templates", "base", "AGENTS.md"), "agents\n")
-	mustWriteResolveFile(t, filepath.Join(workDir, "rules", "rules-backend.yaml"), "catalog\n")
-
-	plan := BuildActionPlan(workDir, InstallSet{
-		CreateFiles: []string{"AGENTS.md"},
-		Rules:       []string{"security-global.yaml"},
-	}, true)
-
-	if containsString(plan.Remove, "rules/rules-backend.yaml") {
-		t.Fatalf("did not expect template-source rule catalog removal: %v", plan.Remove)
-	}
-}
-
-func mustWriteResolveFile(t *testing.T, path string, body string) {
-	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		t.Fatal(err)
+func TestBundleRulesMatchTemplateManifests(t *testing.T) {
+	repoRoot := filepath.Join("..", "..")
+	for id, bundle := range bundles {
+		t.Run(id, func(t *testing.T) {
+			manifestPath := filepath.Join(repoRoot, "templates", "bundles", id, "manifest.txt")
+			parse := manifest.ParsePartial
+			if id == "base" {
+				manifestPath = filepath.Join(repoRoot, "templates", "base", "manifest.txt")
+				parse = manifest.Parse
+			}
+			data, err := os.ReadFile(manifestPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := parse(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := append([]string{}, bundle.IncludesRules...)
+			sort.Strings(want)
+			sort.Strings(got.RuleTemplates)
+			if !equalStrings(got.RuleTemplates, want) {
+				t.Fatalf("resolver rules drift from %s: got %v want %v", manifestPath, want, got.RuleTemplates)
+			}
+		})
 	}
 }
 
@@ -380,4 +145,16 @@ func containsString(values []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func equalStrings(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }

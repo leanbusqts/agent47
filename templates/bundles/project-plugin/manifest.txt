@@ -1,5 +1,8 @@
 [rule_templates]
 rules-plugin.yaml
 
+[managed_targets]
+rules/rules-plugin.yaml
+
 [required_template_files]
 rules/rules-plugin.yaml

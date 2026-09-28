@@ -15,11 +15,12 @@ func TestOutputWritesExpectedPrefixes(t *testing.T) {
 	out.Warn("warn")
 	out.OK("ok")
 	out.Err("err")
+	out.Diagnosticf("usage\n")
 
-	if stdout.String() != "plain text[INFO] info\n[WARN] warn\n[OK] ok\n" {
+	if stdout.String() != "plain text[INFO] info\n[OK] ok\n" {
 		t.Fatalf("unexpected stdout: %q", stdout.String())
 	}
-	if stderr.String() != "[ERR] err\n" {
+	if stderr.String() != "[WARN] warn\n[ERR] err\nusage\n" {
 		t.Fatalf("unexpected stderr: %q", stderr.String())
 	}
 }

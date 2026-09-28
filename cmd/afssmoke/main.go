@@ -13,15 +13,15 @@ import (
 )
 
 var (
-	smokeOS                = goRuntime.GOOS
-	smokeGetwd             = os.Getwd
-	smokeDetectRepoRootFrom = testutil.DetectRepoRootFrom
-	smokeMkdirTemp         = os.MkdirTemp
-	smokeMkdirAll          = os.MkdirAll
-	smokeRemoveAll         = os.RemoveAll
-	smokeExecCommand       = exec.Command
-	smokeStdout  io.Writer = os.Stdout
-	smokeStderr  io.Writer = os.Stderr
+	smokeOS                           = goRuntime.GOOS
+	smokeGetwd                        = os.Getwd
+	smokeDetectRepoRootFrom           = testutil.DetectRepoRootFrom
+	smokeMkdirTemp                    = os.MkdirTemp
+	smokeMkdirAll                     = os.MkdirAll
+	smokeRemoveAll                    = os.RemoveAll
+	smokeExecCommand                  = exec.Command
+	smokeStdout             io.Writer = os.Stdout
+	smokeStderr             io.Writer = os.Stderr
 )
 
 func main() {

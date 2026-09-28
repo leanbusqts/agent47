@@ -23,8 +23,14 @@ func TestParseManifestFromTemplates(t *testing.T) {
 	if !got.ContainsRuleTemplate("security-shell.yaml") {
 		t.Fatalf("expected security-shell.yaml in rule templates: %#v", got.RuleTemplates)
 	}
-	if len(got.ManagedTargets) != 6 {
-		t.Fatalf("expected 6 managed targets, got %d", len(got.ManagedTargets))
+	if len(got.ManagedTargets) != 4 {
+		t.Fatalf("expected 4 managed targets, got %d", len(got.ManagedTargets))
+	}
+	if len(got.GeneratedTargets) != 1 || got.GeneratedTargets[0] != ".agent47/context.md" {
+		t.Fatalf("expected generated context target, got %v", got.GeneratedTargets)
+	}
+	if len(got.ForceCleanupTargets) != 5 {
+		t.Fatalf("expected 5 force cleanup targets, got %d", len(got.ForceCleanupTargets))
 	}
 }
 

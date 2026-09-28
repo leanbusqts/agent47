@@ -19,13 +19,13 @@ func TestCheckSecurityRuleIDsDetectsDuplicates(t *testing.T) {
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "rules", "security-a.yaml"), "rules:\n  -\n    id: \"SEC-test-001\"\n")
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "rules", "security-b.yaml"), "rules:\n  -\n    id: \"SEC-test-001\"\n")
 
-	var stdout bytes.Buffer
-	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
+	var stderr bytes.Buffer
+	service := Service{Out: cli.NewOutput(ioDiscard{}, &stderr)}
 	if !service.checkSecurityRuleIDs(templateDir) {
 		t.Fatal("expected duplicate security IDs warning")
 	}
-	if !strings.Contains(stdout.String(), "Duplicate security rule IDs detected") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "Duplicate security rule IDs detected") {
+		t.Fatalf("unexpected output: %s", stderr.String())
 	}
 }
 
@@ -33,13 +33,13 @@ func TestCheckAgentsSectionsWarnsOnMissingRequiredSection(t *testing.T) {
 	agentsFile := filepath.Join(t.TempDir(), "AGENTS.md")
 	mustWriteDoctorFile(t, agentsFile, "## Purpose\n## Authority Order\n")
 
-	var stdout bytes.Buffer
-	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
+	var stderr bytes.Buffer
+	service := Service{Out: cli.NewOutput(ioDiscard{}, &stderr)}
 	if !service.checkAgentsSections(agentsFile) {
 		t.Fatal("expected missing sections warning")
 	}
-	if !strings.Contains(stdout.String(), "AGENTS missing section") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "AGENTS missing section") {
+		t.Fatalf("unexpected output: %s", stderr.String())
 	}
 }
 
@@ -63,80 +63,6 @@ func TestCheckSecurityRuleIDsSucceedsWhenUnique(t *testing.T) {
 	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
 	if service.checkSecurityRuleIDs(templateDir) {
 		t.Fatal("did not expect duplicate warning")
-	}
-}
-
-func TestRunWarnsWhenSkillsTemplatesMissing(t *testing.T) {
-	homeDir := t.TempDir()
-	agentHome := filepath.Join(homeDir, ".agent47")
-	userBin := filepath.Join(homeDir, "bin")
-	templateDir := filepath.Join(agentHome, "templates")
-	managedBin := filepath.Join(agentHome, "bin")
-
-	mustSeedDoctorTemplates(t, templateDir)
-	if err := os.RemoveAll(filepath.Join(templateDir, "base", "skills")); err != nil {
-		t.Fatal(err)
-	}
-
-	managedAfs := filepath.Join(managedBin, executableName("afs"))
-	mustWriteDoctorExecutable(t, managedAfs)
-	mustWriteDoctorExecutable(t, filepath.Join(userBin, executableName("afs")))
-	for _, helper := range []string{"add-agent", "add-agent-prompt", "add-ss-prompt"} {
-		mustWriteDoctorExecutable(t, filepath.Join(userBin, executableName(helper)))
-	}
-
-	t.Setenv("PATH", userBin)
-
-	var stdout bytes.Buffer
-	out := cli.NewOutput(&stdout, ioDiscard{})
-	service := Service{
-		Out:    out,
-		Update: update.New(out),
-	}
-	cfg := runtimecfg.Config{
-		OS:          runtimecfg.Config{}.OS,
-		HomeDir:     homeDir,
-		UserBinDir:  userBin,
-		Agent47Home: agentHome,
-		Version:     "1.2.3",
-	}
-	if runtime.GOOS == "windows" {
-		cfg.OS = "windows"
-	} else {
-		cfg.OS = runtime.GOOS
-	}
-
-	err := service.Run(context.Background(), cfg, Options{FailOnWarn: true})
-	if err == nil {
-		t.Fatal("expected doctor to fail on missing skills templates")
-	}
-	if !strings.Contains(stdout.String(), "Skills templates missing") {
-		t.Fatalf("unexpected output: %s", stdout.String())
-	}
-}
-
-func TestRunWarnsWhenBundleOwnedTemplatePayloadMissing(t *testing.T) {
-	cfg := runtimecfg.Config{
-		Agent47Home: t.TempDir(),
-		UserBinDir:  t.TempDir(),
-		OS:          runtimecfg.Config{}.OS,
-	}
-	templateDir := filepath.Join(cfg.Agent47Home, "templates")
-	mustSeedDoctorTemplates(t, templateDir)
-	if err := os.Remove(filepath.Join(templateDir, "bundles", "project-cli", "skills", "cli-design", "SKILL.md")); err != nil {
-		t.Fatal(err)
-	}
-
-	var stdout bytes.Buffer
-	out := cli.NewOutput(&stdout, ioDiscard{})
-	service := Service{Out: out, Update: update.New(out)}
-
-	err := service.Run(context.Background(), cfg, Options{})
-	if err != nil {
-		t.Fatalf("expected warnings only, got %v", err)
-	}
-	if !strings.Contains(stdout.String(), "Bundle assembly invalid") {
-		t.Fatalf("expected bundle assembly warning, got %s", stdout.String())
 	}
 }
 
@@ -164,14 +90,11 @@ func TestRunHealthyUnixConfiguration(t *testing.T) {
 	if err := os.Symlink(managedAfs, filepath.Join(userBin, "afs")); err != nil {
 		t.Fatal(err)
 	}
-	for _, helper := range []string{"add-agent", "add-agent-prompt", "add-ss-prompt"} {
-		mustWriteDoctorExecutable(t, filepath.Join(userBin, helper))
-	}
-
 	t.Setenv("PATH", userBin)
 
 	var stdout bytes.Buffer
-	out := cli.NewOutput(&stdout, ioDiscard{})
+	var stderr bytes.Buffer
+	out := cli.NewOutput(&stdout, &stderr)
 	service := Service{Out: out, Update: update.New(out)}
 	cfg := runtimecfg.Config{
 		OS:          "darwin",
@@ -186,11 +109,8 @@ func TestRunHealthyUnixConfiguration(t *testing.T) {
 		t.Fatalf("expected healthy doctor run, got %v", err)
 	}
 	output := stdout.String()
-	if strings.Contains(output, "[WARN]") {
-		t.Fatalf("did not expect warnings: %s", output)
-	}
-	if !strings.Contains(output, "Skills templates (.md) present") {
-		t.Fatalf("unexpected output: %s", output)
+	if strings.Contains(output, "[WARN]") || stderr.Len() != 0 {
+		t.Fatalf("did not expect warnings: stdout=%s stderr=%s", output, stderr.String())
 	}
 }
 
@@ -252,14 +172,14 @@ func TestTemplateChecksWarnWhenFilesAreMissing(t *testing.T) {
 func TestCheckTemplateManifestWarnsWhenInvalid(t *testing.T) {
 	templateDir := t.TempDir()
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), "[broken]\n")
-	var stdout bytes.Buffer
-	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
+	var stderr bytes.Buffer
+	service := Service{Out: cli.NewOutput(ioDiscard{}, &stderr)}
 
 	if !service.checkTemplateManifest(templateDir) {
 		t.Fatal("expected invalid manifest warning")
 	}
-	if !strings.Contains(stdout.String(), "Template manifest invalid") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "Template manifest invalid") {
+		t.Fatalf("unexpected output: %s", stderr.String())
 	}
 }
 
@@ -270,21 +190,25 @@ func TestCheckTemplateManifestWarnsWhenContractDrifts(t *testing.T) {
 		"security-global.yaml",
 		"[managed_targets]",
 		"AGENTS.md",
+		"[generated_targets]",
+		".agent47/context.md",
 		"[preserved_targets]",
 		"README.md",
+		"[force_cleanup_targets]",
+		"rules/",
 		"[required_template_files]",
 		"AGENTS.md",
 		"[required_template_dirs]",
 		"rules",
 	}, "\n")+"\n")
-	var stdout bytes.Buffer
-	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
+	var stderr bytes.Buffer
+	service := Service{Out: cli.NewOutput(ioDiscard{}, &stderr)}
 
 	if !service.checkTemplateManifest(templateDir) {
 		t.Fatal("expected manifest contract warning")
 	}
-	if !strings.Contains(stdout.String(), "Template manifest contract invalid") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "Template manifest contract invalid") {
+		t.Fatalf("unexpected output: %s", stderr.String())
 	}
 }
 
@@ -295,64 +219,40 @@ func TestCheckTemplateManifestWarnsWhenContractExpands(t *testing.T) {
 		"security-global.yaml",
 		"[managed_targets]",
 		"AGENTS.md",
-		"rules/*.yaml",
+		"rules/security-global.yaml",
+		"rules/security-shell.yaml",
+		"rules/rules-cross.yaml",
 		"skills/*",
 		"skills/AVAILABLE_SKILLS.xml",
 		"skills/AVAILABLE_SKILLS.json",
 		"skills/SUMMARY.md",
 		"docs/*",
+		"[generated_targets]",
+		".agent47/context.md",
 		"[preserved_targets]",
 		"README.md",
 		".agents/specs/spec.yml",
 		"SNAPSHOT.md",
 		"SPEC.md",
+		"[force_cleanup_targets]",
+		"rules/",
+		"skills/",
+		"prompts/",
+		"specs/spec.yml",
+		".agents/specs/spec.yml",
 		"[required_template_files]",
 		"AGENTS.md",
 		"[required_template_dirs]",
 		"rules",
 	}, "\n")+"\n")
-	var stdout bytes.Buffer
-	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
+	var stderr bytes.Buffer
+	service := Service{Out: cli.NewOutput(ioDiscard{}, &stderr)}
 
 	if !service.checkTemplateManifest(templateDir) {
 		t.Fatal("expected manifest contract warning")
 	}
-	if !strings.Contains(stdout.String(), "Template manifest contract invalid") {
-		t.Fatalf("unexpected output: %s", stdout.String())
-	}
-}
-
-func TestCheckRequiredTemplateFilesWarnsWhenSpecMissing(t *testing.T) {
-	templateDir := t.TempDir()
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "AGENTS.md"), "agents\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), "manifest\n")
-	var stdout bytes.Buffer
-	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
-
-	if !service.checkRequiredTemplateFiles(templateDir) {
-		t.Fatal("expected missing template files warning")
-	}
-	if !strings.Contains(stdout.String(), "Missing template file: .agents/specs/spec.yml") {
-		t.Fatalf("unexpected output: %s", stdout.String())
-	}
-}
-
-func TestCheckRequiredTemplateDirsWarnsWhenAgentSpecDirMissing(t *testing.T) {
-	templateDir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(templateDir, "base", "rules"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(filepath.Join(templateDir, "base", "skills"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	var stdout bytes.Buffer
-	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
-
-	if !service.checkRequiredTemplateDirs(templateDir) {
-		t.Fatal("expected missing template dirs warning")
-	}
-	if !strings.Contains(stdout.String(), "Missing template dir: .agents") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "Template manifest contract invalid") {
+		t.Fatalf("unexpected output: %s", stderr.String())
 	}
 }
 
@@ -364,14 +264,14 @@ func TestCheckRuleTemplatesWarnsWhenStackRuleMissing(t *testing.T) {
 		}
 		mustWriteDoctorFile(t, ruleTemplatePath(templateDir, file), "rules:\n")
 	}
-	var stdout bytes.Buffer
-	service := Service{Out: cli.NewOutput(&stdout, ioDiscard{})}
+	var stderr bytes.Buffer
+	service := Service{Out: cli.NewOutput(ioDiscard{}, &stderr)}
 
 	if !service.checkRuleTemplates(templateDir) {
 		t.Fatal("expected missing rule template warning")
 	}
-	if !strings.Contains(stdout.String(), "Missing rule template: rules/rules-backend.yaml") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "Missing rule template: rules/rules-backend.yaml") {
+		t.Fatalf("unexpected output: %s", stderr.String())
 	}
 }
 
@@ -469,7 +369,8 @@ func TestRunWarnsWhenTemplatesMissing(t *testing.T) {
 	t.Setenv("PATH", userBin)
 
 	var stdout bytes.Buffer
-	out := cli.NewOutput(&stdout, ioDiscard{})
+	var stderr bytes.Buffer
+	out := cli.NewOutput(&stdout, &stderr)
 	service := Service{Out: out, Update: update.New(out)}
 	cfg := runtimecfg.Config{
 		OS:          runtime.GOOS,
@@ -482,8 +383,8 @@ func TestRunWarnsWhenTemplatesMissing(t *testing.T) {
 	if err := service.Run(context.Background(), cfg, Options{}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(stdout.String(), "Templates missing") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "Templates missing") {
+		t.Fatalf("unexpected streams: stdout=%s stderr=%s", stdout.String(), stderr.String())
 	}
 }
 
@@ -498,13 +399,14 @@ func TestRunCheckUpdateFailOnWarnReturnsError(t *testing.T) {
 	}
 
 	var stdout bytes.Buffer
-	out := cli.NewOutput(&stdout, ioDiscard{})
+	var stderr bytes.Buffer
+	out := cli.NewOutput(&stdout, &stderr)
 	service := Service{Out: out, Update: update.New(out)}
 	if err := service.Run(context.Background(), cfg, Options{CheckUpdate: true, FailOnWarn: true}); err == nil {
 		t.Fatal("expected doctor warnings error")
 	}
-	if !strings.Contains(stdout.String(), "no update source available") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "no update source available") {
+		t.Fatalf("unexpected streams: stdout=%s stderr=%s", stdout.String(), stderr.String())
 	}
 }
 
@@ -534,7 +436,8 @@ func TestRunWarnsOnBrokenAfsSymlink(t *testing.T) {
 	t.Setenv("PATH", userBin)
 
 	var stdout bytes.Buffer
-	out := cli.NewOutput(&stdout, ioDiscard{})
+	var stderr bytes.Buffer
+	out := cli.NewOutput(&stdout, &stderr)
 	service := Service{Out: out, Update: update.New(out)}
 	cfg := runtimecfg.Config{
 		OS:          "darwin",
@@ -548,8 +451,8 @@ func TestRunWarnsOnBrokenAfsSymlink(t *testing.T) {
 	if err := service.Run(context.Background(), cfg, Options{}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(stdout.String(), "broken or points to a non-executable target") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "broken or points to a non-executable target") {
+		t.Fatalf("unexpected streams: stdout=%s stderr=%s", stdout.String(), stderr.String())
 	}
 }
 
@@ -575,7 +478,8 @@ func TestRunWarnsWhenAfsSymlinkMissing(t *testing.T) {
 	t.Setenv("PATH", userBin)
 
 	var stdout bytes.Buffer
-	out := cli.NewOutput(&stdout, ioDiscard{})
+	var stderr bytes.Buffer
+	out := cli.NewOutput(&stdout, &stderr)
 	service := Service{Out: out, Update: update.New(out)}
 	cfg := runtimecfg.Config{
 		OS:          "darwin",
@@ -589,8 +493,8 @@ func TestRunWarnsWhenAfsSymlinkMissing(t *testing.T) {
 	if err := service.Run(context.Background(), cfg, Options{}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(stdout.String(), "afs symlink missing") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "afs symlink missing") {
+		t.Fatalf("unexpected streams: stdout=%s stderr=%s", stdout.String(), stderr.String())
 	}
 }
 
@@ -616,7 +520,8 @@ func TestRunWarnsWhenBatsMissingInSourceRepo(t *testing.T) {
 	t.Setenv("PATH", userBin)
 
 	var stdout bytes.Buffer
-	out := cli.NewOutput(&stdout, ioDiscard{})
+	var stderr bytes.Buffer
+	out := cli.NewOutput(&stdout, &stderr)
 	service := Service{Out: out, Update: update.New(out)}
 	cfg := runtimecfg.Config{
 		OS:          runtime.GOOS,
@@ -630,8 +535,8 @@ func TestRunWarnsWhenBatsMissingInSourceRepo(t *testing.T) {
 	if err := service.Run(context.Background(), cfg, Options{}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(stdout.String(), "bats missing") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "bats missing") {
+		t.Fatalf("unexpected streams: stdout=%s stderr=%s", stdout.String(), stderr.String())
 	}
 }
 
@@ -681,28 +586,6 @@ func TestCommandMatchesDetectsMismatch(t *testing.T) {
 	}
 }
 
-func TestHelperMatchesPublishedHelper(t *testing.T) {
-	tempDir := t.TempDir()
-	target := filepath.Join(tempDir, executableName("add-agent"))
-	mustWriteDoctorExecutable(t, target)
-	t.Setenv("PATH", tempDir)
-
-	if !helperMatches("add-agent", filepath.Join(t.TempDir(), executableName("managed-add-agent")), target) {
-		t.Fatalf("expected add-agent in PATH to match published helper %s", target)
-	}
-}
-
-func TestHelperMatchesDetectsMismatch(t *testing.T) {
-	tempDir := t.TempDir()
-	target := filepath.Join(tempDir, executableName("add-agent"))
-	mustWriteDoctorExecutable(t, target)
-	t.Setenv("PATH", tempDir)
-
-	if helperMatches("add-agent", filepath.Join(t.TempDir(), executableName("managed-add-agent")), filepath.Join(t.TempDir(), executableName("published-add-agent"))) {
-		t.Fatal("did not expect helper match")
-	}
-}
-
 type ioDiscard struct{}
 
 func (ioDiscard) Write(p []byte) (int, error) { return len(p), nil }
@@ -738,10 +621,6 @@ func mustSeedDoctorTemplates(t *testing.T, templateDir string) {
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "manifest.txt"), validDoctorManifest())
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "manifest.txt"), validDoctorManifest())
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "AGENTS.md"), strings.Join(requiredSections, "\n")+"\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "prompts", "agent-prompt.txt"), "agent prompt\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "prompts", "ss-prompt.txt"), "ss prompt\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", ".agents", "specs", "spec.yml"), "summary: test\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "base", "skills", "analyze", "SKILL.md"), "---\nname: analyze\ndescription: test\n---\n")
 	for _, file := range catalogRuleTemplates {
 		body := "rules:\n"
 		if strings.HasPrefix(file, "security-") {
@@ -755,9 +634,7 @@ func mustSeedDoctorTemplates(t *testing.T, templateDir string) {
 		"",
 		"[required_template_files]",
 		"rules/rules-cli.yaml",
-		"skills/cli-design/SKILL.md",
 	}, "\n")+"\n")
-	mustWriteDoctorFile(t, filepath.Join(templateDir, "bundles", "project-cli", "skills", "cli-design", "SKILL.md"), "---\nname: cli-design\ndescription: test\n---\n")
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "bundles", "project-scripts", "manifest.txt"), "[rule_templates]\nrules-scripts.yaml\n\n[required_template_files]\nrules/rules-scripts.yaml\n")
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "bundles", "project-backend", "manifest.txt"), "[rule_templates]\nrules-backend.yaml\n\n[required_template_files]\nrules/rules-backend.yaml\n")
 	mustWriteDoctorFile(t, filepath.Join(templateDir, "bundles", "project-frontend", "manifest.txt"), "[rule_templates]\nrules-frontend.yaml\n\n[required_template_files]\nrules/rules-frontend.yaml\n")
@@ -790,24 +667,28 @@ func validDoctorManifest() string {
 		"rules-cross.yaml",
 		"[managed_targets]",
 		"AGENTS.md",
-		"rules/*.yaml",
-		"skills/*",
-		"skills/AVAILABLE_SKILLS.xml",
-		"skills/AVAILABLE_SKILLS.json",
-		"skills/SUMMARY.md",
+		"rules/security-global.yaml",
+		"rules/security-shell.yaml",
+		"rules/rules-cross.yaml",
+		"[generated_targets]",
+		".agent47/context.md",
 		"[preserved_targets]",
 		"README.md",
-		".agents/specs/spec.yml",
 		"SNAPSHOT.md",
 		"SPEC.md",
+		".agents/",
+		"skills/",
+		"prompts/",
+		"[force_cleanup_targets]",
+		"rules/",
+		"skills/",
+		"prompts/",
+		"specs/spec.yml",
+		".agents/specs/spec.yml",
 		"[required_template_files]",
 		"AGENTS.md",
 		"manifest.txt",
-		".agents/specs/spec.yml",
 		"[required_template_dirs]",
 		"rules",
-		"skills",
-		".agents",
-		".agents/specs",
 	}, "\n") + "\n"
 }

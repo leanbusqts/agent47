@@ -1,5 +1,8 @@
 [rule_templates]
 shared-testing.yaml
 
+[managed_targets]
+rules/shared-testing.yaml
+
 [required_template_files]
 rules/shared-testing.yaml

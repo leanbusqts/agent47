@@ -73,8 +73,8 @@ func TestGitCheckWarnsWhenUpstreamIsNotConfigured(t *testing.T) {
 	runGitCommand(t, repoRoot, "add", "README.md")
 	runGitCommand(t, repoRoot, "commit", "-m", "initial")
 
-	var stdout bytes.Buffer
-	service := New(cli.NewOutput(&stdout, ioDiscard{}))
+	var stderr bytes.Buffer
+	service := New(cli.NewOutput(ioDiscard{}, &stderr))
 	cfg := runtime.Config{
 		Version:         "vtest",
 		RepoRoot:        repoRoot,
@@ -84,8 +84,8 @@ func TestGitCheckWarnsWhenUpstreamIsNotConfigured(t *testing.T) {
 	if err := service.Check(context.Background(), cfg, CheckOptions{Force: true}); err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
-	if !strings.Contains(stdout.String(), "Cannot check for updates: git upstream not configured") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "Cannot check for updates: git upstream not configured") {
+		t.Fatalf("unexpected output: %s", stderr.String())
 	}
 }
 
@@ -95,8 +95,8 @@ func TestGitCheckHonorsCanceledContext(t *testing.T) {
 	}
 
 	repoRoot := newTrackedRepo(t)
-	var stdout bytes.Buffer
-	service := New(cli.NewOutput(&stdout, ioDiscard{}))
+	var stderr bytes.Buffer
+	service := New(cli.NewOutput(ioDiscard{}, &stderr))
 	cfg := runtime.Config{
 		Version:         "vtest",
 		RepoRoot:        repoRoot,
@@ -109,8 +109,8 @@ func TestGitCheckHonorsCanceledContext(t *testing.T) {
 	if err := service.Check(ctx, cfg, CheckOptions{Force: true}); err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
-	if !strings.Contains(stdout.String(), "git update check canceled") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "git update check canceled") {
+		t.Fatalf("unexpected output: %s", stderr.String())
 	}
 }
 
@@ -230,8 +230,8 @@ func TestGitCheckDetectsDivergedHistory(t *testing.T) {
 	mustWriteRepoFile(t, filepath.Join(clone, "README.md"), "local change\n")
 	runGitCommand(t, clone, "commit", "-am", "local change")
 
-	var stdout bytes.Buffer
-	service := New(cli.NewOutput(&stdout, ioDiscard{}))
+	var stderr bytes.Buffer
+	service := New(cli.NewOutput(ioDiscard{}, &stderr))
 	cfg := runtime.Config{
 		Version:         "vtest",
 		RepoRoot:        clone,
@@ -241,8 +241,8 @@ func TestGitCheckDetectsDivergedHistory(t *testing.T) {
 	if err := service.Check(context.Background(), cfg, CheckOptions{Force: true}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(stdout.String(), "diverged") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "diverged") {
+		t.Fatalf("unexpected output: %s", stderr.String())
 	}
 }
 
@@ -312,6 +312,7 @@ func TestRemoteCheckRejectsInvalidURL(t *testing.T) {
 }
 
 func TestRemoteCheckRejectsEmptyFileVersion(t *testing.T) {
+	t.Setenv("AGENT47_ENABLE_TEST_HOOKS", "true")
 	versionFile := filepath.Join(t.TempDir(), "VERSION")
 	if err := os.WriteFile(versionFile, []byte(" \n "), 0o644); err != nil {
 		t.Fatal(err)
@@ -324,6 +325,44 @@ func TestRemoteCheckRejectsEmptyFileVersion(t *testing.T) {
 	}
 	if rec.Message != "empty VERSION response" {
 		t.Fatalf("unexpected message: %s", rec.Message)
+	}
+}
+
+func TestRemoteCheckRejectsFileURLWithoutTestHooks(t *testing.T) {
+	service := New(cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	rec := CacheRecord{LocalVersion: "1.2.3"}
+	if err := service.remoteCheck(context.Background(), "file:///tmp/VERSION", &rec); err == nil || !strings.Contains(err.Error(), "test hooks") {
+		t.Fatalf("expected file URL rejection, got %v", err)
+	}
+}
+
+func TestRemoteCheckRequiresTLSOutsideLoopback(t *testing.T) {
+	service := New(cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	rec := CacheRecord{LocalVersion: "1.2.3"}
+	if err := service.remoteCheck(context.Background(), "http://example.com/VERSION", &rec); err == nil || !strings.Contains(err.Error(), "require HTTPS") {
+		t.Fatalf("expected cleartext URL rejection, got %v", err)
+	}
+}
+
+func TestRemoteCheckAllowsHTTPLoopback(t *testing.T) {
+	service := New(cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	service.HTTPClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Hostname() != "127.0.0.1" {
+			t.Fatalf("unexpected host: %s", req.URL.Hostname())
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("2.0.0\n"))}, nil
+	})}
+	rec := CacheRecord{LocalVersion: "1.2.3"}
+	if err := service.remoteCheck(context.Background(), "http://127.0.0.1:8080/VERSION", &rec); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRemoteCheckRejectsEmbeddedCredentials(t *testing.T) {
+	service := New(cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	rec := CacheRecord{LocalVersion: "1.2.3"}
+	if err := service.remoteCheck(context.Background(), "https://user:secret@example.com/VERSION", &rec); err == nil || !strings.Contains(err.Error(), "credentials") {
+		t.Fatalf("expected credential rejection, got %v", err)
 	}
 }
 
@@ -387,6 +426,41 @@ func TestRemoteCheckHandlesBodyReadFailure(t *testing.T) {
 	}
 }
 
+func TestRemoteCheckRejectsOversizedBody(t *testing.T) {
+	service := New(cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	service.HTTPClient = &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(strings.Repeat("1", maxVersionBodyBytes+1))),
+		}, nil
+	})}
+	rec := CacheRecord{LocalVersion: "1.2.3"}
+	if err := service.remoteCheck(context.Background(), "https://example.com/VERSION", &rec); err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("expected oversized response rejection, got %v", err)
+	}
+}
+
+func TestRemoteCheckRejectsRedirectToCleartextRemote(t *testing.T) {
+	requests := 0
+	service := New(cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	service.HTTPClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		return &http.Response{
+			StatusCode: http.StatusFound,
+			Header:     http.Header{"Location": []string{"http://example.net/VERSION"}},
+			Body:       io.NopCloser(strings.NewReader("")),
+			Request:    req,
+		}, nil
+	})}
+	rec := CacheRecord{LocalVersion: "1.2.3"}
+	if err := service.remoteCheck(context.Background(), "https://example.com/VERSION", &rec); err == nil {
+		t.Fatal("expected unsafe redirect rejection")
+	}
+	if requests != 1 {
+		t.Fatalf("unsafe redirect should not be requested, got %d requests", requests)
+	}
+}
+
 func TestCheckUsesValidCache(t *testing.T) {
 	var stdout bytes.Buffer
 	service := New(cli.NewOutput(&stdout, ioDiscard{}))
@@ -411,8 +485,8 @@ func TestCheckUsesValidCache(t *testing.T) {
 }
 
 func TestCheckReportsNoUpdateSourceAvailable(t *testing.T) {
-	var stdout bytes.Buffer
-	service := New(cli.NewOutput(&stdout, ioDiscard{}))
+	var stderr bytes.Buffer
+	service := New(cli.NewOutput(ioDiscard{}, &stderr))
 	cfg := runtime.Config{
 		Version:         "1.2.3",
 		UpdateCacheFile: filepath.Join(t.TempDir(), "cache", "update.cache"),
@@ -421,8 +495,11 @@ func TestCheckReportsNoUpdateSourceAvailable(t *testing.T) {
 	if err := service.Check(context.Background(), cfg, CheckOptions{Force: true}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(stdout.String(), "no update source available") {
-		t.Fatalf("unexpected output: %s", stdout.String())
+	if !strings.Contains(stderr.String(), "no update source available") {
+		t.Fatalf("unexpected output: %s", stderr.String())
+	}
+	if !service.HadWarning() {
+		t.Fatal("expected failed update resolution to be exposed as a warning")
 	}
 }
 
@@ -543,10 +620,12 @@ func TestPrintCoversStatuses(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var stdout bytes.Buffer
-			service := New(cli.NewOutput(&stdout, ioDiscard{}))
+			var stderr bytes.Buffer
+			service := New(cli.NewOutput(&stdout, &stderr))
 			service.print(tc.record, runtime.Config{RepoRoot: "/tmp/repo"})
-			if !strings.Contains(stdout.String(), tc.want) {
-				t.Fatalf("unexpected output: %s", stdout.String())
+			output := stdout.String() + stderr.String()
+			if !strings.Contains(output, tc.want) {
+				t.Fatalf("unexpected output: %s", output)
 			}
 		})
 	}
@@ -559,8 +638,9 @@ func TestHTTPClientUsesDefaultWhenUnset(t *testing.T) {
 	}
 	custom := &http.Client{}
 	service.HTTPClient = custom
-	if service.httpClient() != custom {
-		t.Fatal("expected injected client to be returned")
+	got := service.httpClient()
+	if got == custom || got.CheckRedirect == nil {
+		t.Fatal("expected a protected clone of the injected client")
 	}
 }
 

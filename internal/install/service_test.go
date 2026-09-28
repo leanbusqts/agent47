@@ -9,11 +9,12 @@ import (
 	"testing"
 
 	"github.com/leanbusqts/agent47/internal/cli"
+	"github.com/leanbusqts/agent47/internal/fsx"
 	"github.com/leanbusqts/agent47/internal/manifest"
 	"github.com/leanbusqts/agent47/internal/runtime"
 )
 
-func TestInstallPublishesSymlinkAndHelpers(t *testing.T) {
+func TestInstallPublishesOnlyAfs(t *testing.T) {
 	cfg := testConfig(t)
 
 	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
@@ -26,8 +27,9 @@ func TestInstallPublishesSymlinkAndHelpers(t *testing.T) {
 	}
 
 	assertExists(t, filepath.Join(cfg.Agent47Home, "bin", "afs"))
-	assertExists(t, filepath.Join(cfg.UserBinDir, "add-agent"))
-	assertExists(t, filepath.Join(cfg.UserBinDir, "add-agent-prompt"))
+	assertFileContent(t, filepath.Join(cfg.Agent47Home, runtimeOwnershipMarker), runtimeOwnershipValue)
+	assertNotExists(t, filepath.Join(cfg.UserBinDir, "add-agent"))
+	assertNotExists(t, filepath.Join(cfg.UserBinDir, "add-agent-prompt"))
 	assertSymlinkTarget(t, filepath.Join(cfg.UserBinDir, "afs"), filepath.Join(cfg.Agent47Home, "bin", "afs"))
 }
 
@@ -48,6 +50,7 @@ func TestInstallHonorsCanceledContext(t *testing.T) {
 
 func TestInstallWithoutForcePreservesExistingManagedAndUserFiles(t *testing.T) {
 	cfg := testConfig(t)
+	markRuntimeOwned(t, cfg)
 	mustWriteFile(t, filepath.Join(cfg.Agent47Home, "bin", "afs"), "old-launcher\n")
 	mustWriteFile(t, filepath.Join(cfg.UserBinDir, "add-agent"), "old-user-helper\n")
 	oldTarget := filepath.Join(cfg.HomeDir, "old-afs")
@@ -68,28 +71,6 @@ func TestInstallWithoutForcePreservesExistingManagedAndUserFiles(t *testing.T) {
 	assertFileContent(t, filepath.Join(cfg.Agent47Home, "bin", "afs"), "old-launcher\n")
 	assertFileContent(t, filepath.Join(cfg.UserBinDir, "add-agent"), "old-user-helper\n")
 	assertSymlinkTarget(t, filepath.Join(cfg.UserBinDir, "afs"), oldTarget)
-}
-
-func TestInstallRollsBackPublishedScriptsOnCopyFailure(t *testing.T) {
-	cfg := testConfig(t)
-	mustWriteFile(t, filepath.Join(cfg.UserBinDir, "add-agent"), "old-add-agent\n")
-	mustWriteFile(t, filepath.Join(cfg.UserBinDir, "add-agent-prompt"), "old-add-agent-prompt\n")
-
-	t.Setenv("AGENT47_ENABLE_TEST_HOOKS", "true")
-	t.Setenv("AGENT47_FAIL_SYMLINK_TARGET", filepath.Join(cfg.UserBinDir, "add-agent-prompt"))
-
-	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err == nil {
-		t.Fatal("expected install failure")
-	}
-
-	assertFileContent(t, filepath.Join(cfg.UserBinDir, "add-agent"), "old-add-agent\n")
-	assertFileContent(t, filepath.Join(cfg.UserBinDir, "add-agent-prompt"), "old-add-agent-prompt\n")
-	assertNotExists(t, filepath.Join(cfg.UserBinDir, "afs"))
 }
 
 func TestInstallPreservesExistingSymlinkOnSwapFailure(t *testing.T) {
@@ -117,6 +98,7 @@ func TestInstallPreservesExistingSymlinkOnSwapFailure(t *testing.T) {
 
 func TestInstallRestoresTemplatesOnSwapFailure(t *testing.T) {
 	cfg := testConfig(t)
+	markRuntimeOwned(t, cfg)
 	oldTemplates := filepath.Join(cfg.Agent47Home, "templates")
 	mustWriteFile(t, filepath.Join(oldTemplates, "AGENTS.md"), "old template\n")
 	marker := filepath.Join(cfg.HomeDir, "swap-marker")
@@ -166,6 +148,52 @@ func TestUninstallRemovesTemplateBackups(t *testing.T) {
 	assertNotExists(t, cfg.Agent47Home)
 }
 
+func TestUninstallPreservesUnverifiedTemplateBackup(t *testing.T) {
+	cfg := testConfig(t)
+	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err != nil {
+		t.Fatal(err)
+	}
+	unverified := filepath.Join(cfg.Agent47Home, "templates.bak.user")
+	mustWriteFile(t, filepath.Join(unverified, "personal.txt"), "keep\n")
+	unverifiedFile := filepath.Join(cfg.Agent47Home, "templates.bak.user-file")
+	mustWriteFile(t, unverifiedFile, "keep file\n")
+
+	if err := service.Uninstall(context.Background(), cfg); err != nil {
+		t.Fatal(err)
+	}
+	assertFileContent(t, filepath.Join(unverified, "personal.txt"), "keep\n")
+	assertFileContent(t, unverifiedFile, "keep file\n")
+}
+
+func TestUninstallPreservesOwnedTemplateBackupModifiedAfterCreation(t *testing.T) {
+	cfg := testConfig(t)
+	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err != nil {
+		t.Fatal(err)
+	}
+	backups, err := filepath.Glob(filepath.Join(cfg.Agent47Home, "templates.bak.*"))
+	if err != nil || len(backups) != 1 {
+		t.Fatalf("expected one owned template backup, got %v, %v", backups, err)
+	}
+	modified := filepath.Join(backups[0], "user-note.txt")
+	mustWriteFile(t, modified, "preserve after uninstall\n")
+
+	if err := service.Uninstall(context.Background(), cfg); err != nil {
+		t.Fatal(err)
+	}
+	assertFileContent(t, modified, "preserve after uninstall\n")
+}
+
 func TestInstallRejectsUnsafeRuntimePaths(t *testing.T) {
 	cfg := testConfig(t)
 	cfg.Agent47Home = cfg.HomeDir
@@ -178,6 +206,97 @@ func TestInstallRejectsUnsafeRuntimePaths(t *testing.T) {
 	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err == nil {
 		t.Fatal("expected unsafe runtime path failure")
 	}
+}
+
+func TestInstallRejectsUnownedRuntimeDirectory(t *testing.T) {
+	cfg := testConfig(t)
+	mustWriteFile(t, filepath.Join(cfg.Agent47Home, "personal.txt"), "keep\n")
+	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err == nil || !strings.Contains(err.Error(), "refusing to claim") {
+		t.Fatalf("expected unowned runtime rejection, got %v", err)
+	}
+	assertFileContent(t, filepath.Join(cfg.Agent47Home, "personal.txt"), "keep\n")
+}
+
+func TestForceInstallReplacesBinarySymlinkWithoutFollowingIt(t *testing.T) {
+	cfg := testConfig(t)
+	markRuntimeOwned(t, cfg)
+	external := filepath.Join(t.TempDir(), "external-afs")
+	mustWriteFile(t, external, "external\n")
+	target := managedBinaryPath(cfg)
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(external, target); err != nil {
+		t.Fatal(err)
+	}
+	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err != nil {
+		t.Fatal(err)
+	}
+	assertFileContent(t, external, "external\n")
+	info, err := os.Lstat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		t.Fatalf("expected regular installed launcher, got %s", info.Mode())
+	}
+}
+
+func TestInstallRollsBackCoreArtifactsWhenPublishFails(t *testing.T) {
+	cfg := testConfig(t)
+	markRuntimeOwned(t, cfg)
+	mustWriteFile(t, filepath.Join(cfg.Agent47Home, "templates", "AGENTS.md"), "old templates\n")
+	mustWriteFile(t, filepath.Join(cfg.Agent47Home, "VERSION"), "old-version\n")
+	mustWriteFile(t, managedBinaryPath(cfg), "old-binary\n")
+	oldTarget := filepath.Join(cfg.HomeDir, "old-published-afs")
+	mustWriteFile(t, oldTarget, "old published\n")
+	if err := os.Symlink(oldTarget, publishedAfsPath(cfg)); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AGENT47_ENABLE_TEST_HOOKS", "true")
+	t.Setenv("AGENT47_FAIL_SYMLINK_TARGET", publishedAfsPath(cfg))
+	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err == nil {
+		t.Fatal("expected publish failure")
+	}
+	assertFileContent(t, filepath.Join(cfg.Agent47Home, "templates", "AGENTS.md"), "old templates\n")
+	assertFileContent(t, filepath.Join(cfg.Agent47Home, "VERSION"), "old-version\n")
+	assertFileContent(t, managedBinaryPath(cfg), "old-binary\n")
+	assertSymlinkTarget(t, publishedAfsPath(cfg), oldTarget)
+}
+
+func TestRollbackPreservesConcurrentFileEdit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "VERSION")
+	mustWriteFile(t, path, "old\n")
+	previous, err := capturePathSnapshot(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustWriteFile(t, path, "installed\n")
+	installed, err := capturePathSnapshot(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustWriteFile(t, path, "concurrent\n")
+
+	if err := previous.restoreIfUnchanged(fsx.Service{}, installed); err == nil {
+		t.Fatal("expected rollback conflict")
+	}
+	assertFileContent(t, path, "concurrent\n")
 }
 
 func TestUninstallPreservesUnmanagedUserFiles(t *testing.T) {
@@ -195,6 +314,80 @@ func TestUninstallPreservesUnmanagedUserFiles(t *testing.T) {
 	}
 	assertFileContent(t, filepath.Join(cfg.UserBinDir, "add-agent"), "user helper\n")
 	assertFileContent(t, filepath.Join(cfg.UserBinDir, "afs"), "user afs\n")
+}
+
+func TestUninstallPreservesUnknownRuntimeContent(t *testing.T) {
+	cfg := testConfig(t)
+	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err != nil {
+		t.Fatal(err)
+	}
+	unknown := filepath.Join(cfg.Agent47Home, "personal.txt")
+	mustWriteFile(t, unknown, "keep\n")
+
+	if err := service.Uninstall(context.Background(), cfg); err != nil {
+		t.Fatal(err)
+	}
+	assertFileContent(t, unknown, "keep\n")
+	assertNotExists(t, filepath.Join(cfg.Agent47Home, runtimeOwnershipMarker))
+}
+
+func TestUninstallPropagatesRemovalFailure(t *testing.T) {
+	cfg := testConfig(t)
+	stdout := &bytes.Buffer{}
+	service, err := New(cfg, cli.NewOutput(stdout, ioDiscard{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("AGENT47_ENABLE_TEST_HOOKS", "true")
+	t.Setenv("AGENT47_FAIL_REMOVE_TARGET", filepath.Join(cfg.Agent47Home, "bin"))
+
+	if err := service.Uninstall(context.Background(), cfg); err == nil {
+		t.Fatal("expected uninstall failure")
+	}
+	if strings.Contains(stdout.String(), "afs tools removed from system") {
+		t.Fatalf("unexpected success output: %s", stdout.String())
+	}
+	assertExists(t, filepath.Join(cfg.Agent47Home, runtimeOwnershipMarker))
+}
+
+func TestUninstallAbortsWhenRuntimeRootIsSwapped(t *testing.T) {
+	cfg := testConfig(t)
+	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err != nil {
+		t.Fatal(err)
+	}
+	external := t.TempDir()
+	sentinel := filepath.Join(external, "bin", "sentinel")
+	mustWriteFile(t, sentinel, "keep\n")
+	moved := cfg.Agent47Home + ".moved"
+	swapped := false
+	service.beforeRemove = func(string) {
+		if swapped {
+			return
+		}
+		swapped = true
+		if err := os.Rename(cfg.Agent47Home, moved); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(external, cfg.Agent47Home); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := service.Uninstall(context.Background(), cfg); err == nil || !strings.Contains(err.Error(), "runtime home changed") {
+		t.Fatalf("expected runtime swap rejection, got %v", err)
+	}
+	assertFileContent(t, sentinel, "keep\n")
 }
 
 func TestInstallOutputsParityMarkers(t *testing.T) {
@@ -225,10 +418,12 @@ func TestInstallOutputsParityMarkers(t *testing.T) {
 
 func TestForceInstallWarnsBeforeTemplateOverwrite(t *testing.T) {
 	cfg := testConfig(t)
+	markRuntimeOwned(t, cfg)
 	mustWriteFile(t, filepath.Join(cfg.Agent47Home, "templates", "AGENTS.md"), "old template\n")
 	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
 
-	service, err := New(cfg, cli.NewOutput(stdout, ioDiscard{}))
+	service, err := New(cfg, cli.NewOutput(stdout, stderr))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,15 +433,15 @@ func TestForceInstallWarnsBeforeTemplateOverwrite(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "[WARN] Overwriting existing templates at "+filepath.Join(cfg.Agent47Home, "templates")) {
-		t.Fatalf("expected overwrite warning in output, got %q", output)
+	if !strings.Contains(stderr.String(), "[WARN] Overwriting existing templates at "+filepath.Join(cfg.Agent47Home, "templates")) {
+		t.Fatalf("expected overwrite warning in stderr, got %q", stderr.String())
 	}
 	if !strings.Contains(output, "[INFO] Backup created: "+filepath.Join(cfg.Agent47Home, "templates.bak.")) {
 		t.Fatalf("expected backup marker in output, got %q", output)
 	}
 }
 
-func TestInstallPublishesWindowsLauncherAndCmdHelpers(t *testing.T) {
+func TestInstallPublishesOnlyWindowsLauncher(t *testing.T) {
 	cfg := testWindowsConfig(t)
 
 	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
@@ -259,10 +454,9 @@ func TestInstallPublishesWindowsLauncherAndCmdHelpers(t *testing.T) {
 	}
 
 	assertExists(t, filepath.Join(cfg.Agent47Home, "bin", "afs.exe"))
-	assertExists(t, filepath.Join(cfg.UserBinDir, "add-agent.cmd"))
-	assertExists(t, filepath.Join(cfg.UserBinDir, "add-agent-prompt.cmd"))
-	assertExists(t, filepath.Join(cfg.UserBinDir, "add-ss-prompt.cmd"))
-	assertFileContainsString(t, filepath.Join(cfg.UserBinDir, "add-agent.cmd"), "\"%~dp0afs.exe\" add-agent %*")
+	assertNotExists(t, filepath.Join(cfg.UserBinDir, "add-agent.cmd"))
+	assertNotExists(t, filepath.Join(cfg.UserBinDir, "add-agent-prompt.cmd"))
+	assertNotExists(t, filepath.Join(cfg.UserBinDir, "add-ss-prompt.cmd"))
 }
 
 func TestWindowsUninstallRemovesExeAndCmdHelpers(t *testing.T) {
@@ -287,31 +481,10 @@ func TestWindowsUninstallRemovesExeAndCmdHelpers(t *testing.T) {
 	assertNotExists(t, filepath.Join(cfg.UserBinDir, "add-ss-prompt.cmd"))
 }
 
-func TestWindowsInstallRollsBackPublishedCmdHelpersOnWriteFailure(t *testing.T) {
-	cfg := testWindowsConfig(t)
-	mustWriteFile(t, filepath.Join(cfg.UserBinDir, "add-agent.cmd"), "old-add-agent\r\n")
-	mustWriteFile(t, filepath.Join(cfg.UserBinDir, "add-agent-prompt.cmd"), "old-add-agent-prompt\r\n")
-
-	t.Setenv("AGENT47_ENABLE_TEST_HOOKS", "true")
-	t.Setenv("AGENT47_FAIL_WRITE_TARGET", filepath.Join(cfg.UserBinDir, "add-agent-prompt.cmd"))
-
-	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err == nil {
-		t.Fatal("expected install failure")
-	}
-
-	assertFileContent(t, filepath.Join(cfg.UserBinDir, "add-agent.cmd"), "old-add-agent\r\n")
-	assertFileContent(t, filepath.Join(cfg.UserBinDir, "add-agent-prompt.cmd"), "old-add-agent-prompt\r\n")
-	assertNotExists(t, filepath.Join(cfg.UserBinDir, "add-agent"))
-	assertNotExists(t, filepath.Join(cfg.UserBinDir, "add-agent-prompt"))
-}
-
 func TestWindowsInstallRestoresPublishedAfsOnWriteFailure(t *testing.T) {
 	cfg := testWindowsConfig(t)
+	cfg.UserBinDir = filepath.Join(cfg.HomeDir, "bin")
+	markRuntimeOwned(t, cfg)
 	mustWriteFile(t, filepath.Join(cfg.UserBinDir, "afs.exe"), "old-afs.exe\r\n")
 
 	t.Setenv("AGENT47_ENABLE_TEST_HOOKS", "true")
@@ -475,7 +648,6 @@ func testConfig(t *testing.T) runtime.Config {
 	if err := os.MkdirAll(userBinDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-
 	return runtime.Config{
 		Version:         "vtest",
 		TemplateMode:    runtime.TemplateModeFilesystem,
@@ -488,6 +660,11 @@ func testConfig(t *testing.T) runtime.Config {
 	}
 }
 
+func markRuntimeOwned(t *testing.T, cfg runtime.Config) {
+	t.Helper()
+	mustWriteFile(t, filepath.Join(cfg.Agent47Home, runtimeOwnershipMarker), runtimeOwnershipValue)
+}
+
 func testWindowsConfig(t *testing.T) runtime.Config {
 	t.Helper()
 
@@ -495,9 +672,6 @@ func testWindowsConfig(t *testing.T) runtime.Config {
 	homeDir := filepath.Join(baseDir, "home")
 	agentHome := filepath.Join(homeDir, "AppData", "Local", "agent47")
 	userBinDir := filepath.Join(agentHome, "bin")
-	if err := os.MkdirAll(userBinDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
 
 	return runtime.Config{
 		OS:              "windows",

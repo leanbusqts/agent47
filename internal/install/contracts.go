@@ -6,11 +6,7 @@ import (
 	"github.com/leanbusqts/agent47/internal/runtime"
 )
 
-var helperCommands = []string{"add-agent", "add-agent-prompt", "add-ss-prompt"}
-
-func HelperCommands() []string {
-	return append([]string(nil), helperCommands...)
-}
+var legacyHelperCommands = []string{"add-agent", "add-agent-prompt", "add-ss-prompt"}
 
 func ReinstallHint(cfg runtime.Config) string {
 	if cfg.OS == "windows" {

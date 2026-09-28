@@ -160,6 +160,28 @@ func looksLikeRepoRoot(root string) bool {
 }
 
 func validateAgent47Home(homeDir, localAppData, agent47Home, userBinDir string, windows bool) (string, error) {
+	cleanAgentHome, err := ValidateAgent47HomePath(homeDir, agent47Home, userBinDir, windows)
+	if err != nil {
+		return "", err
+	}
+	cleanLocalAppData := ""
+	if localAppData != "" {
+		cleanLocalAppData, err = filepath.Abs(localAppData)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if windows && cleanLocalAppData != "" && pathContains(windows, cleanAgentHome, cleanLocalAppData) {
+		return "", fmt.Errorf("unsafe AGENT47_HOME: runtime home cannot be the same as LOCALAPPDATA")
+	}
+
+	return cleanAgentHome, nil
+}
+
+// ValidateAgent47HomePath constrains the runtime to a dedicated directory and
+// rejects existing symlink components before lifecycle code performs any IO.
+func ValidateAgent47HomePath(homeDir, agent47Home, userBinDir string, windows bool) (string, error) {
 	cleanHome, err := filepath.Abs(homeDir)
 	if err != nil {
 		return "", err
@@ -172,26 +194,95 @@ func validateAgent47Home(homeDir, localAppData, agent47Home, userBinDir string, 
 	if err != nil {
 		return "", err
 	}
-	cleanLocalAppData := ""
-	if localAppData != "" {
-		cleanLocalAppData, err = filepath.Abs(localAppData)
-		if err != nil {
-			return "", err
-		}
-	}
 
+	volumeRoot := filepath.Clean(filepath.VolumeName(cleanAgentHome) + string(filepath.Separator))
 	switch {
-	case sameRuntimePath(windows, cleanAgentHome, cleanHome):
-		return "", fmt.Errorf("unsafe AGENT47_HOME: runtime home cannot be the same as HOME")
+	case sameRuntimePath(windows, cleanAgentHome, volumeRoot):
+		return "", fmt.Errorf("unsafe AGENT47_HOME: runtime home cannot be a filesystem root")
+	case sameRuntimePath(windows, filepath.Dir(cleanAgentHome), volumeRoot):
+		return "", fmt.Errorf("unsafe AGENT47_HOME: runtime home must be a dedicated nested directory")
+	case pathContains(windows, cleanAgentHome, cleanHome):
+		return "", fmt.Errorf("unsafe AGENT47_HOME: runtime home cannot contain HOME")
 	case sameRuntimePath(windows, cleanAgentHome, cleanUserBin):
 		return "", fmt.Errorf("unsafe AGENT47_HOME: runtime home cannot be the same as the published bin directory")
-	case !windows && sameRuntimePath(windows, filepath.Join(cleanAgentHome, "bin"), cleanUserBin):
-		return "", fmt.Errorf("unsafe AGENT47_HOME: managed bin would collide with the published bin directory")
-	case windows && cleanLocalAppData != "" && sameRuntimePath(windows, cleanAgentHome, cleanLocalAppData):
-		return "", fmt.Errorf("unsafe AGENT47_HOME: runtime home cannot be the same as LOCALAPPDATA")
+	case !windows && pathContains(windows, cleanAgentHome, cleanUserBin):
+		return "", fmt.Errorf("unsafe AGENT47_HOME: runtime home cannot contain the published bin directory")
+	}
+
+	agentAnchor := filepath.Dir(cleanAgentHome)
+	if pathContains(windows, cleanHome, cleanAgentHome) {
+		agentAnchor = cleanHome
+	}
+	if err := rejectSymlinkComponents(agentAnchor, cleanAgentHome); err != nil {
+		return "", fmt.Errorf("unsafe AGENT47_HOME: %w", err)
+	}
+	userBinAnchor := filepath.Dir(cleanUserBin)
+	if pathContains(windows, cleanHome, cleanUserBin) {
+		userBinAnchor = cleanHome
+	} else if pathContains(windows, cleanAgentHome, cleanUserBin) {
+		userBinAnchor = cleanAgentHome
+	}
+	if err := rejectSymlinkComponents(userBinAnchor, cleanUserBin); err != nil {
+		return "", fmt.Errorf("unsafe published bin directory: %w", err)
 	}
 
 	return cleanAgentHome, nil
+}
+
+func rejectSymlinkComponents(anchor, path string) error {
+	cleanAnchor := filepath.Clean(anchor)
+	cleanPath := filepath.Clean(path)
+	rel, err := filepath.Rel(cleanAnchor, cleanPath)
+	if err != nil {
+		return err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return fmt.Errorf("path escapes validation anchor: %s", cleanAnchor)
+	}
+
+	current := cleanAnchor
+	if info, statErr := os.Lstat(current); statErr == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("path component is a symlink: %s", current)
+		}
+	} else if !os.IsNotExist(statErr) {
+		return statErr
+	}
+	for _, component := range strings.Split(rel, string(filepath.Separator)) {
+		if component == "" || component == "." {
+			continue
+		}
+		current = filepath.Join(current, component)
+		info, statErr := os.Lstat(current)
+		if statErr != nil {
+			if os.IsNotExist(statErr) {
+				return nil
+			}
+			return statErr
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("path component is a symlink: %s", current)
+		}
+	}
+	return nil
+}
+
+func pathContains(windows bool, parent, child string) bool {
+	rel, err := filepath.Rel(parent, child)
+	if err != nil {
+		return false
+	}
+	rel = filepath.Clean(rel)
+	if rel == "." {
+		return true
+	}
+	if filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return false
+	}
+	if windows {
+		return !strings.HasPrefix(strings.ToLower(rel), ".."+string(filepath.Separator))
+	}
+	return true
 }
 
 func sameRuntimePath(windows bool, left, right string) bool {

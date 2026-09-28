@@ -1,8 +1,8 @@
 # RUNBOOK
 
-`RUNBOOK.md` is the operational guide for using `agent47` in practice. Use `README.md` for the entrypoint and high-level architecture, and `SPEC.md` for the formal product contract.
+Operational guide for `agent47` 2.0 Lite.
 
-## Install
+## Install and verify
 
 Unix-like systems:
 
@@ -20,18 +20,120 @@ Windows:
 .\install.ps1 -NonInteractive
 ```
 
-Verify the local setup:
-
 ```bash
 afs version
 afs doctor
-afs doctor --check-update
 ```
 
-Contributor checks:
+The supported install entrypoints are `install.sh` and `install.ps1`; installation is not a public `afs` subcommand.
+Installing from a source checkout requires Go unless `AGENT47_GO_CLI` or `AGENT47_REPO_CLI` points to an explicit precompiled launcher.
+
+## Inspect a repository
+
+The basic scan is fast and read-only:
 
 ```bash
-make test
+afs analyze
+afs analyze --evidence
+afs analyze --json
+```
+
+Use deep mode when evaluating agent readiness or migrating an existing repository:
+
+```bash
+afs analyze --deep
+afs analyze --deep --verbose
+afs analyze --deep --json
+```
+
+Deep mode inspects project-local policy and documentation without executing repository code. Findings include stable IDs, severity, evidence, and a concrete recommendation. The scan has file, byte, depth, and finding bounds; truncated results are reported explicitly and cannot produce a `ready` result. Historical/rejected sections and non-literal path patterns are excluded from stale-reference findings.
+
+## Refresh repository context
+
+Synchronize the bounded CodeGraph Lite artifact:
+
+```bash
+afs map
+```
+
+The command creates or refreshes `.agent47/context.md` from repository structure without executing repository code. A second run is a no-op when both structural fingerprint and rendered body are current. A recognized, unmodified map updates automatically after structural or renderer changes.
+
+If the file was edited manually or is not a recognized generated context, normal refresh stops. Replace it only with explicit authorization:
+
+```bash
+afs map --force
+```
+
+There is no `--preview`, freshness flag, watcher, daemon, or hook. The target is one generated file; body integrity and the explicit force boundary protect user content. A symlinked `.agent47` or `context.md`, a runtime-home collision, hostile path, or concurrent modification is rejected.
+
+## Initialize policy
+
+Review the exact plan first:
+
+```bash
+afs init --preview
+```
+
+Apply automatic detection:
+
+```bash
+afs init
+```
+
+Select or exclude bundles explicitly:
+
+```bash
+afs init --bundle cli --bundle scripts --preview
+afs init --bundle cli --exclude-bundle scripts
+```
+
+Refresh managed files:
+
+```bash
+afs init --force --preview
+afs init --force
+```
+
+Without `--force`, existing `AGENTS.md`, rules, and legacy content are kept. Init creates `.agent47/context.md` when missing and includes it in the same rollback-capable transaction; both normal and forced init preserve any existing copy. `--force` is destructive only toward the legacy contract: it replaces all of `rules/`, removes `skills/` and `prompts/`, and removes `specs/spec.yml` plus `.agents/specs/spec.yml`. Run `afs init --force --preview` first when the repository may contain custom content in those paths. README, `SNAPSHOT.md`, root `SPEC.md`, other `.agents/` or `specs/` files, existing project context, and unrelated paths remain untouched. Preview also reports nested-policy, vendor-policy, and composition warnings. Apply revalidates identity and content; failure or cancellation restores staged paths when safe and retains/reports recovery backups on a concurrent-edit conflict.
+
+Initialization is non-interactive. `--preview` never writes; running without it applies the displayed plan. `--dry-run` is a compatibility alias for `--preview` but is omitted from help.
+
+## Diagnose the installation
+
+```bash
+afs doctor
+afs doctor --json
+afs doctor --fail-on-warn
+afs doctor --check-update
+afs doctor --check-update-force
+afs doctor --check-update --fail-on-warn
+```
+
+Normal `doctor` runs do not access the network. `--check-update` opts into update resolution; `--check-update-force` may fetch the tracked git remote.
+When combined with an update check, `--fail-on-warn` also treats an unavailable or diverged update source as a warning failure.
+Doctor JSON uses `schema_version: 1`, keeps stdout valid JSON, and reports `ok`, `warning`, or `error` plus checks and warnings.
+
+## Uninstall
+
+```bash
+afs uninstall
+```
+
+Uninstall removes the managed runtime, templates, and the published `afs` entry. Legacy helper entries are removed only when they can be identified as managed agent47 artifacts; unrelated files with the same names are preserved.
+
+The runtime home must be a dedicated, non-symlinked directory and carries an Agent47 ownership marker. Uninstall preserves an unowned runtime directory. Forced-install template backups carry a content digest; any backup changed after creation is preserved rather than removed.
+
+## Exit codes and streams
+
+- `0`: success; analysis findings do not make the command fail
+- `1`: operational failure
+- `2`: invalid flags, arguments, or unknown command
+
+Primary output goes to stdout. Diagnostics and failures go to stderr.
+
+## Maintainer verification
+
+```bash
 make agents-check
 make rules-check
 make rules-drift-check
@@ -39,228 +141,7 @@ make go-test
 make go-build
 make lint-shell
 make smoke-install
+make test
 ```
 
-`install.sh` and `install.ps1` are the supported public install entrypoints. There is no supported public `afs install`, `afs upgrade`, `afs templates`, `afs check-update`, `afs add-spec`, `afs add-cli-prompt`, `afs add-default-skills`, or `afs init-agent` command.
-
-## First Steps
-
-1. Install the tool locally.
-2. Verify the local setup with `afs doctor`.
-3. Enter the target project.
-4. Run `afs analyze` if you want to inspect the resolved install set first.
-5. Run `afs add-agent`.
-
-## Bootstrap A Project
-
-Inside the target project:
-
-```bash
-afs add-agent
-```
-
-`afs analyze` is read-only. It reports detected project types, confidence, and the install set that `add-agent` would use.
-`afs analyze --evidence` includes both raw scan evidence and the evidence attached to the resolved project-type and technology classifications.
-
-```bash
-afs analyze
-afs analyze --json
-afs analyze --verbose
-```
-
-`afs add-agent` analyzes the repo first and then bootstraps:
-
-- `AGENTS.md`
-- the resolved `rules/*.yaml` set for the detected project type
-- the resolved curated `skills/*`
-- `skills/AVAILABLE_SKILLS.xml`
-- `skills/AVAILABLE_SKILLS.json`
-- `skills/SUMMARY.md`
-- an empty `README.md` if missing
-- `.agents/specs/spec.yml` if missing
-
-Existing managed files are preserved unless you use `--force`.
-
-Prompt helpers stay available as explicit commands:
-
-```bash
-afs add-agent-prompt [--force]
-afs add-ss-prompt
-```
-
-Useful inspection modes:
-
-```bash
-afs add-agent --preview
-afs add-agent --dry-run
-afs add-agent --bundle cli --bundle scripts --preview
-```
-
-In interactive terminals, `afs add-agent` asks for confirmation before writing, including `--only-skills` mode. Use `--yes` to skip that confirmation.
-
-Common example flows:
-
-```bash
-# Empty or low-signal repo
-afs analyze
-afs add-agent --preview
-afs add-agent --yes
-
-# CLI repo with scripts
-afs analyze
-afs add-agent --preview --bundle cli --bundle scripts
-afs add-agent --yes
-
-# macOS desktop app with scripts
-afs analyze
-afs add-agent --preview
-afs add-agent --yes
-
-# Unresolved conflict
-afs analyze --verbose
-afs add-agent --preview
-
-# Legacy scaffold migration
-afs add-agent --force --yes
-```
-
-## Refresh An Older Project
-
-If the project already has an older `agent47` scaffold:
-
-```bash
-afs add-agent --force
-```
-
-This is a fresh install of the managed scaffold in the current project. It:
-
-- replaces `AGENTS.md`
-- reconciles the resolved `rules/*.yaml`
-- replaces `skills/*`
-- regenerates the managed skills indexes
-- removes stale managed rules and skills no longer selected for the resolved bundle set
-
-This preserves:
-
-- `README.md`
-- `.agents/specs/spec.yml`
-- `SNAPSHOT.md`
-- `SPEC.md`
-
-If you keep project-specific files under `rules/` or `skills/`, expect them to be replaced or removed by `--force`.
-
-## Skills-Only Mode
-
-```bash
-afs add-agent --only-skills
-afs add-agent --only-skills --force
-```
-
-This mode only manages:
-
-- `skills/*`
-- `skills/AVAILABLE_SKILLS.xml`
-- `skills/AVAILABLE_SKILLS.json`
-- `skills/SUMMARY.md`
-
-It does not touch `AGENTS.md` or `rules/*.yaml`.
-
-Behavior differences:
-
-- without `--force`, existing invalid skill files are preserved but omitted from the generated skills indexes
-- with `--force`, the managed skills directory is replaced with the current template set
-- with `--force --preview`, the plan reflects the actual `skills/` replacement plus any skill entries or unmanaged files under `skills/` that will be removed
-- the same validated skill set is rendered into the XML, JSON, and Markdown indexes
-
-## Prompt Helpers
-
-Refresh or create the general agent prompt:
-
-```bash
-afs add-agent-prompt
-afs add-agent-prompt --force
-```
-
-Print the snapshot/spec helper prompt:
-
-```bash
-afs add-ss-prompt
-```
-
-When a supported clipboard tool is available, `afs add-ss-prompt` copies the prompt directly. Otherwise it prints the prompt to stdout.
-
-## Managed Vs Preserved Files
-
-Managed targets:
-
-- `AGENTS.md`
-- `rules/*.yaml`
-- `skills/*`
-- `skills/AVAILABLE_SKILLS.xml`
-- `skills/AVAILABLE_SKILLS.json`
-- `skills/SUMMARY.md`
-
-Preserved targets:
-
-- `README.md`
-- `.agents/specs/spec.yml`
-- `SNAPSHOT.md`
-- `SPEC.md`
-
-Ownership is defined by `templates/manifest.txt`.
-
-Practical implications:
-
-- Files under managed paths belong to the scaffold contract, not to ad hoc project customizations.
-- `afs add-agent` is conservative and preserves existing managed files.
-- `afs add-agent --force` is intentionally destructive inside managed paths.
-- Local custom files under `rules/` or `skills/` can be replaced or removed during `--force`.
-
-## Update Checks
-
-`afs doctor` skips update checks by default.
-
-Use:
-
-```bash
-afs doctor --check-update
-afs doctor --check-update-force
-afs doctor --fail-on-warn
-afs doctor --check-update --fail-on-warn
-```
-
-Behavior:
-
-- if `AGENT47_VERSION_URL` is configured, `agent47` compares local and remote `VERSION`
-- otherwise, from a git checkout with an upstream branch, it compares `HEAD` to the upstream branch
-- regular git-based checks do not run `git fetch`
-- `afs doctor --check-update-force` performs `git fetch --quiet` before comparing
-- remote checks may be cached; git-tracking checks are evaluated fresh
-- `doctor` flags can be combined, for example `afs doctor --check-update --fail-on-warn`
-
-## Operational Notes
-
-- Unix-like installs write managed assets under `~/.agent47` and publish `afs` plus helper commands into `~/bin`
-- Windows installs default to `%LOCALAPPDATA%\agent47` and use the managed bin directory on PATH
-- `--non-interactive` avoids interactive shell rc prompts
-- repo-local `bin/afs` is for checkout-based development, not the installed runtime path
-- when `bin/afs` falls back to `go run`, it uses repo-safe `GOCACHE` and `GOMODCACHE` defaults
-- checkout-based execution depends on Go unless you provide `AGENT47_GO_CLI` or an explicit `AGENT47_REPO_CLI`
-- `afs uninstall` removes published commands and managed runtime assets
-
-## Use With Agent CLIs And IDEs
-
-`agent47` is a repository convention, not a vendor-specific integration.
-
-Recommended workflow:
-
-1. Open the repository root.
-2. Ensure the agent reads `AGENTS.md`.
-3. Let `AGENTS.md` drive the next reads, including relevant `rules/*.yaml` or, in template-source repos like `agent47`, `templates/base/rules/*.yaml` plus the relevant `templates/bundles/*/rules/*.yaml`.
-4. Use `.agents/specs/spec.yml` only when work actually needs a written spec or plan.
-
-Minimal instruction text for tools that do not discover repo policy reliably:
-
-```text
-Read AGENTS.md first and follow the applicable rules before making changes.
-```
+Run `make test` before release. It includes policy/rule validation, checkout tests, and installed-artifact verification.

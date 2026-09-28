@@ -41,20 +41,21 @@ func TestRunDoctorAllowsCombinedFlags(t *testing.T) {
 	if err := os.WriteFile(managedAfs, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"afs", "add-agent", "add-agent-prompt", "add-ss-prompt"} {
+	for _, name := range []string{"afs"} {
 		if err := os.Symlink(managedAfs, filepath.Join(userBinDir, name)); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	t.Setenv("PATH", userBinDir)
+	t.Setenv("AGENT47_ENABLE_TEST_HOOKS", "true")
 	t.Setenv("AGENT47_VERSION_URL", "file://"+filepath.Join(repoRoot, "VERSION"))
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	root := NewRoot(cli.NewOutput(&stdout, &stderr))
 
-	status := root.Run(context.Background(), runtime.Config{
+	cfg := runtime.Config{
 		Version:         "vtest",
 		TemplateMode:    runtime.TemplateModeFilesystem,
 		RepoRoot:        repoRoot,
@@ -62,7 +63,8 @@ func TestRunDoctorAllowsCombinedFlags(t *testing.T) {
 		UserBinDir:      userBinDir,
 		Agent47Home:     filepath.Join(homeDir, ".agent47"),
 		UpdateCacheFile: filepath.Join(homeDir, ".agent47", "cache", "update.cache"),
-	}, []string{"doctor", "--check-update", "--fail-on-warn"})
+	}
+	status := root.Run(context.Background(), cfg, []string{"doctor", "--check-update", "--fail-on-warn"})
 	if status != 0 {
 		t.Fatalf("expected status 0, got %d: stdout=%s stderr=%s", status, stdout.String(), stderr.String())
 	}
@@ -71,5 +73,16 @@ func TestRunDoctorAllowsCombinedFlags(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "Up to date") {
 		t.Fatalf("expected update check output, got %s", stdout.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	t.Setenv("AGENT47_VERSION_URL", "")
+	status = root.Run(context.Background(), cfg, []string{"doctor", "--check-update-force", "--fail-on-warn"})
+	if status != 1 {
+		t.Fatalf("expected update warning to fail with --fail-on-warn, got %d: stdout=%s stderr=%s", status, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "Cannot check for updates") || !strings.Contains(stderr.String(), "doctor reported warnings") {
+		t.Fatalf("expected update and fail-on-warn diagnostics, got %s", stderr.String())
 	}
 }

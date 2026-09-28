@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/leanbusqts/agent47/internal/analyze"
 	"github.com/leanbusqts/agent47/internal/cli"
+	"github.com/leanbusqts/agent47/internal/resolve"
 	"github.com/leanbusqts/agent47/internal/runtime"
 )
 
@@ -32,9 +34,32 @@ func TestRunAnalyzeJSON(t *testing.T) {
 	}
 }
 
+func TestAnalyzeAndResolveUsesStandardAnalysisMode(t *testing.T) {
+	result, set, err := analyzeAndResolve(t.TempDir(), resolve.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.AgentReadiness != nil || result.DeepAudit != nil {
+		t.Fatalf("standard analysis unexpectedly enabled deep mode: %+v", result)
+	}
+	if len(set.Bundles) == 0 || set.Bundles[0] != "base" {
+		t.Fatalf("expected base install set for an empty repository, got %+v", set)
+	}
+}
+
+func TestRunAnalyzeRejectsUnexpectedFlagOnStderr(t *testing.T) {
+	stdout, stderr, status := runAnalyzeInDir(t, t.TempDir(), "analyze", "--bogus")
+	if status != 2 {
+		t.Fatalf("expected usage status 2, got %d", status)
+	}
+	if stdout != "" || !bytes.Contains([]byte(stderr), []byte("Usage: afs analyze")) {
+		t.Fatalf("expected diagnostic-only usage output, stdout=%q stderr=%q", stdout, stderr)
+	}
+}
+
 func TestRunAnalyzeVerboseShowsConflictSection(t *testing.T) {
 	workDir := t.TempDir()
-	mustWriteFile(t, filepath.Join(workDir, "package.json"), `{"dependencies":{"react":"1.0.0","express":"1.0.0"}}`)
+	mustWriteAppAnalyzeFile(t, filepath.Join(workDir, "package.json"), `{"dependencies":{"react":"1.0.0","express":"1.0.0"}}`)
 	if err := os.MkdirAll(filepath.Join(workDir, "src"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -51,9 +76,24 @@ func TestRunAnalyzeVerboseShowsConflictSection(t *testing.T) {
 	}
 }
 
+func TestPrintAgentPolicyTextShowsWarningsWithoutEvidence(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	root := NewRoot(cli.NewOutput(&stdout, &stderr))
+	printAgentPolicyText(root, analyze.AgentPolicy{
+		Warnings: []string{"repository entry limit reached"},
+		Tools: analyze.AgentPolicyTools{
+			Codex: analyze.ToolPolicy{State: analyze.PolicyInvalid, Warnings: []string{"malformed config"}},
+		},
+	}, false)
+	if !bytes.Contains(stdout.Bytes(), []byte("policy warning: repository entry limit reached")) || !bytes.Contains(stdout.Bytes(), []byte("codex warning: malformed config")) {
+		t.Fatalf("expected policy warnings without evidence, got %s", stdout.String())
+	}
+}
+
 func TestRunAnalyzeMatchesVerboseGoldenForDominantInfraRepo(t *testing.T) {
 	workDir := t.TempDir()
-	mustWriteFile(t, filepath.Join(workDir, "main.tf"), "terraform {}\n")
+	mustWriteAppAnalyzeFile(t, filepath.Join(workDir, "main.tf"), "terraform {}\n")
 
 	stdout, stderr, status := runAnalyzeInDir(t, workDir, "analyze", "--verbose")
 	if status != 0 {
@@ -63,13 +103,13 @@ func TestRunAnalyzeMatchesVerboseGoldenForDominantInfraRepo(t *testing.T) {
 	assertGoldenOutput(t, "analyze_infra_verbose.golden", stdout)
 }
 
-func TestRunAnalyzeVerboseShowsTestingStacksAndMappedSkills(t *testing.T) {
+func TestRunAnalyzeVerboseShowsTestingStacksWithoutSkillMapping(t *testing.T) {
 	workDir := t.TempDir()
-	mustWriteFile(t, filepath.Join(workDir, "package.json"), `{"devDependencies":{"vitest":"1.0.0","playwright":"1.0.0"}}`)
-	mustWriteFile(t, filepath.Join(workDir, "go.mod"), "module example.com/test\n")
-	mustWriteFile(t, filepath.Join(workDir, "service_test.go"), "package main\n")
-	mustWriteFile(t, filepath.Join(workDir, "vitest.config.ts"), "export default {}\n")
-	mustWriteFile(t, filepath.Join(workDir, "playwright.config.ts"), "export default {}\n")
+	mustWriteAppAnalyzeFile(t, filepath.Join(workDir, "package.json"), `{"devDependencies":{"vitest":"1.0.0","playwright":"1.0.0"}}`)
+	mustWriteAppAnalyzeFile(t, filepath.Join(workDir, "go.mod"), "module example.com/test\n")
+	mustWriteAppAnalyzeFile(t, filepath.Join(workDir, "service_test.go"), "package main\n")
+	mustWriteAppAnalyzeFile(t, filepath.Join(workDir, "vitest.config.ts"), "export default {}\n")
+	mustWriteAppAnalyzeFile(t, filepath.Join(workDir, "playwright.config.ts"), "export default {}\n")
 
 	stdout, stderr, status := runAnalyzeInDir(t, workDir, "analyze", "--verbose")
 	if status != 0 {
@@ -78,18 +118,15 @@ func TestRunAnalyzeVerboseShowsTestingStacksAndMappedSkills(t *testing.T) {
 	if !bytes.Contains([]byte(stdout), []byte("Testing stacks")) {
 		t.Fatalf("expected testing stacks section, got %s", stdout)
 	}
-	if !bytes.Contains([]byte(stdout), []byte("refactor")) {
-		t.Fatalf("expected refactor skill in output, got %s", stdout)
-	}
-	if !bytes.Contains([]byte(stdout), []byte("optimize")) {
-		t.Fatalf("expected optimize skill in output, got %s", stdout)
+	if bytes.Contains([]byte(stdout), []byte("Skills")) {
+		t.Fatalf("did not expect removed skill mapping in output, got %s", stdout)
 	}
 }
 
 func TestRunAnalyzeEvidenceShowsClassificationEvidence(t *testing.T) {
 	workDir := t.TempDir()
-	mustWriteFile(t, filepath.Join(workDir, "go.mod"), "module example.com/test\n")
-	mustWriteFile(t, filepath.Join(workDir, "install.sh"), "#!/usr/bin/env bash\n")
+	mustWriteAppAnalyzeFile(t, filepath.Join(workDir, "go.mod"), "module example.com/test\n")
+	mustWriteAppAnalyzeFile(t, filepath.Join(workDir, "install.sh"), "#!/usr/bin/env bash\n")
 	if err := os.MkdirAll(filepath.Join(workDir, "cmd"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -109,27 +146,43 @@ func TestRunAnalyzeEvidenceShowsClassificationEvidence(t *testing.T) {
 	}
 }
 
-func TestRunAddAgentPreviewDoesNotWriteFiles(t *testing.T) {
-	env := newAddAgentEnv(t)
-	if err := os.MkdirAll(filepath.Join(env.workDir, "cmd"), 0o755); err != nil {
-		t.Fatal(err)
+func TestRunAnalyzeDeepRendersReadinessWithoutFailingOnFindings(t *testing.T) {
+	workDir := t.TempDir()
+	stdout, stderr, status := runAnalyzeInDir(t, workDir, "analyze", "--deep")
+	if status != 0 {
+		t.Fatalf("expected findings to keep status 0, got %d: %s", status, stderr)
 	}
-	mustWriteFile(t, filepath.Join(env.workDir, "go.mod"), "module example.com/test\n")
+	for _, marker := range []string{"Agent readiness", "status: not_ready", "Deep audit"} {
+		if !bytes.Contains([]byte(stdout), []byte(marker)) {
+			t.Fatalf("expected %q in deep output, got %s", marker, stdout)
+		}
+	}
+}
 
-	status, stdout, stderr := env.run(t, "add-agent", "--preview")
+func TestRunAnalyzeDeepVerboseEvidenceIncludesActionsAndEvidence(t *testing.T) {
+	workDir := t.TempDir()
+	mustWriteAppAnalyzeFile(t, filepath.Join(workDir, "README.md"), "[missing](docs/missing.md)\n")
+	stdout, stderr, status := runAnalyzeInDir(t, workDir, "analyze", "--deep", "--verbose", "--evidence")
 	if status != 0 {
 		t.Fatalf("expected status 0, got %d: %s", status, stderr)
 	}
-	if !bytes.Contains([]byte(stdout), []byte("Preview")) {
-		t.Fatalf("expected preview output, got %s", stdout)
+	for _, marker := range []string{"PA-008-", "action:", "location: README.md:1", "evidence: referenced path is absent"} {
+		if !bytes.Contains([]byte(stdout), []byte(marker)) {
+			t.Fatalf("expected %q in detailed deep output, got %s", marker, stdout)
+		}
 	}
-	if !bytes.Contains([]byte(stdout), []byte("skills/AVAILABLE_SKILLS.json")) {
-		t.Fatalf("expected preview to include JSON skills index, got %s", stdout)
+}
+
+func TestRunAnalyzeDeepJSONIncludesVersionedSchema(t *testing.T) {
+	stdout, stderr, status := runAnalyzeInDir(t, t.TempDir(), "analyze", "--deep", "--json")
+	if status != 0 {
+		t.Fatalf("expected status 0, got %d: %s", status, stderr)
 	}
-	if !bytes.Contains([]byte(stdout), []byte("skills/SUMMARY.md")) {
-		t.Fatalf("expected preview to include summary skills index, got %s", stdout)
+	for _, marker := range []string{`"analysis_version": 1`, `"agent_readiness"`, `"deep_audit"`} {
+		if !bytes.Contains([]byte(stdout), []byte(marker)) {
+			t.Fatalf("expected %s in JSON output, got %s", marker, stdout)
+		}
 	}
-	assertNotExists(t, filepath.Join(env.workDir, "AGENTS.md"))
 }
 
 func runAnalyzeInDir(t *testing.T, workDir string, args ...string) (string, string, int) {
@@ -149,6 +202,16 @@ func runAnalyzeInDir(t *testing.T, workDir string, args ...string) (string, stri
 	root := NewRoot(cli.NewOutput(&stdout, &stderr))
 	status := root.Run(context.Background(), runtime.Config{Version: "vtest"}, args)
 	return stdout.String(), stderr.String(), status
+}
+
+func mustWriteAppAnalyzeFile(t *testing.T, path string, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func assertGoldenOutput(t *testing.T, name string, got string) {

@@ -1,6 +1,7 @@
 package fsx
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -70,15 +71,17 @@ func (Service) IsDir(path string) bool {
 }
 
 func (Service) Remove(path string) error {
+	if testHookFail("AGENT47_FAIL_REMOVE_TARGET", path) {
+		return fmt.Errorf("injected remove failure for %s", path)
+	}
 	return os.Remove(path)
 }
 
 func (Service) RemoveAll(path string) error {
+	if testHookFail("AGENT47_FAIL_REMOVE_TARGET", path) {
+		return fmt.Errorf("injected remove failure for %s", path)
+	}
 	return os.RemoveAll(path)
-}
-
-func (Service) Rename(oldPath, newPath string) error {
-	return os.Rename(oldPath, newPath)
 }
 
 func (Service) CopyFile(src, dst string) error {
@@ -90,7 +93,8 @@ func (Service) CopyFile(src, dst string) error {
 		return fmt.Errorf("copy file source is directory: %s", src)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	dir := filepath.Dir(dst)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 
@@ -104,57 +108,26 @@ func (Service) CopyFile(src, dst string) error {
 	}
 	defer in.Close()
 
-	out, err := os.Create(dst)
+	out, err := os.CreateTemp(dir, ".agent47-copy-*")
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	tmpPath := out.Name()
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
 		return err
 	}
 	if err := out.Chmod(info.Mode()); err != nil {
+		_ = out.Close()
+		return err
+	}
+	if err := out.Close(); err != nil {
 		return err
 	}
 
-	return out.Close()
-}
-
-func (s Service) CopyDir(src, dst string) error {
-	info, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("copy dir source is not directory: %s", src)
-	}
-
-	if err := os.MkdirAll(dst, info.Mode()); err != nil {
-		return err
-	}
-
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
-
-		if entry.IsDir() {
-			if err := s.CopyDir(srcPath, dstPath); err != nil {
-				return err
-			}
-			continue
-		}
-
-		if err := s.CopyFile(srcPath, dstPath); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return replaceAtomicPath(tmpPath, dst)
 }
 
 func (Service) SymlinkAtomic(targetPath, linkPath string) error {
@@ -165,12 +138,22 @@ func (Service) SymlinkAtomic(targetPath, linkPath string) error {
 		return err
 	}
 
-	tmpLink := filepath.Join(linkDir, "."+linkName+".tmp")
-	_ = os.Remove(tmpLink)
+	tmpFile, err := os.CreateTemp(linkDir, "."+linkName+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpLink := tmpFile.Name()
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpLink)
+		return err
+	}
+	if err := os.Remove(tmpLink); err != nil {
+		return err
+	}
 	if err := os.Symlink(targetPath, tmpLink); err != nil {
 		return err
 	}
-	defer os.Remove(tmpLink)
+	defer func() { _ = os.Remove(tmpLink) }()
 
 	if testHookFail("AGENT47_FAIL_SYMLINK_TARGET", linkPath) {
 		return fmt.Errorf("injected symlink swap failure for %s", linkPath)
@@ -182,34 +165,38 @@ func (Service) SymlinkAtomic(targetPath, linkPath string) error {
 func (Service) ReplaceDirAtomic(stageDir, targetDir string, force bool) (ReplaceDirResult, error) {
 	var result ReplaceDirResult
 
-	if info, err := os.Stat(targetDir); err == nil && info.IsDir() {
+	if info, err := os.Lstat(targetDir); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return result, fmt.Errorf("target directory must not be a symlink: %s", targetDir)
+		}
+		if !info.IsDir() {
+			return result, fmt.Errorf("target directory path is not a directory: %s", targetDir)
+		}
 		if !force {
 			return result, fmt.Errorf("target directory already exists: %s", targetDir)
 		}
 
 		parentDir := filepath.Dir(targetDir)
 		targetName := filepath.Base(targetDir)
-		matches, _ := filepath.Glob(filepath.Join(parentDir, targetName+".bak.*"))
-		for _, match := range matches {
-			_ = os.RemoveAll(match)
-		}
-
-		result.BackupPath = filepath.Join(parentDir, fmt.Sprintf("%s.bak.%s", targetName, time.Now().Format("20060102150405")))
+		result.BackupPath = filepath.Join(parentDir, fmt.Sprintf("%s.bak.%d", targetName, time.Now().UnixNano()))
 		if err := os.Rename(targetDir, result.BackupPath); err != nil {
 			return ReplaceDirResult{}, err
 		}
+	} else if !os.IsNotExist(err) {
+		return result, err
 	}
 
 	if testHookFailDirSwap(targetDir) {
-		if result.BackupPath != "" && !dirExists(targetDir) && dirExists(result.BackupPath) {
-			_ = os.Rename(result.BackupPath, targetDir)
+		injectedErr := fmt.Errorf("injected dir swap failure for %s", targetDir)
+		if rollbackErr := restoreDirectoryBackup(result.BackupPath, targetDir); rollbackErr != nil {
+			return ReplaceDirResult{}, errors.Join(injectedErr, fmt.Errorf("restore template backup: %w", rollbackErr))
 		}
-		return ReplaceDirResult{}, fmt.Errorf("injected dir swap failure for %s", targetDir)
+		return ReplaceDirResult{}, injectedErr
 	}
 
 	if err := os.Rename(stageDir, targetDir); err != nil {
-		if result.BackupPath != "" && !dirExists(targetDir) && dirExists(result.BackupPath) {
-			_ = os.Rename(result.BackupPath, targetDir)
+		if rollbackErr := restoreDirectoryBackup(result.BackupPath, targetDir); rollbackErr != nil {
+			return ReplaceDirResult{}, errors.Join(err, fmt.Errorf("restore template backup: %w", rollbackErr))
 		}
 		return ReplaceDirResult{}, err
 	}
@@ -217,9 +204,19 @@ func (Service) ReplaceDirAtomic(stageDir, targetDir string, force bool) (Replace
 	return result, nil
 }
 
-func dirExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.IsDir()
+func restoreDirectoryBackup(backupPath, targetPath string) error {
+	if backupPath == "" {
+		return nil
+	}
+	if _, err := os.Lstat(targetPath); err == nil {
+		return fmt.Errorf("refusing to overwrite target while restoring backup: %s", targetPath)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if _, err := os.Lstat(backupPath); err != nil {
+		return err
+	}
+	return os.Rename(backupPath, targetPath)
 }
 
 func replaceAtomicPath(srcPath, dstPath string) error {
@@ -240,13 +237,17 @@ func replaceAtomicPath(srcPath, dstPath string) error {
 
 	if err := os.Rename(srcPath, dstPath); err != nil {
 		if backupPath != "" {
-			_ = os.Rename(backupPath, dstPath)
+			if rollbackErr := os.Rename(backupPath, dstPath); rollbackErr != nil {
+				return errors.Join(err, fmt.Errorf("restore replaced path: %w", rollbackErr))
+			}
 		}
 		return err
 	}
 
 	if backupPath != "" {
-		_ = os.Remove(backupPath)
+		if err := os.Remove(backupPath); err != nil {
+			return err
+		}
 	}
 	return nil
 }

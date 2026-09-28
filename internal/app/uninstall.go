@@ -9,8 +9,8 @@ import (
 
 func (r *Root) runUninstall(ctx context.Context, cfg runtime.Config, args []string) int {
 	if len(args) > 0 {
-		r.out.Printf("Unknown command: uninstall %s\n", args[0])
-		return 1
+		r.out.Diagnosticf("Unknown command: uninstall %s\n", args[0])
+		return 2
 	}
 
 	service, err := install.New(cfg, r.out)

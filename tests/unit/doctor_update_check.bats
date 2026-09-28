@@ -21,6 +21,7 @@ teardown() {
 }
 
 @test "doctor update check succeeds when remote VERSION is readable" {
+  export AGENT47_ENABLE_TEST_HOOKS="true"
   export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
   rm -f "$AGENT47_HOME/cache/update.cache"
   run "$ROOT_DIR/bin/afs" doctor --check-update
@@ -47,6 +48,7 @@ local_b64=%%%
 latest_b64=%%%
 message_b64=%%%
 EOF
+  export AGENT47_ENABLE_TEST_HOOKS="true"
   export AGENT47_VERSION_URL="file://$ROOT_DIR/VERSION"
 
   run "$ROOT_DIR/bin/afs" doctor --check-update

@@ -23,9 +23,6 @@ exists_ref() {
   [ -e "$ref" ] && return 0
   [ -e "rules/$ref" ] && return 0
   [ -e "templates/base/rules/$ref" ] && return 0
-  [ -e "skills/$ref" ] && return 0
-  [ -e "skills/$ref.md" ] && return 0
-  [ -e "skills/$ref.json" ] && return 0
   [ -e "templates/manifest.txt" ] && [ "$ref" = "manifest.txt" ] && return 0
   return 1
 }
@@ -42,7 +39,7 @@ lines=$(wc -l < AGENTS.md | tr -d ' ')
 if [ "$lines" -gt 200 ]; then
   fail "AGENTS.md is $lines lines, hard cap is 200."
 elif [ "$lines" -gt 170 ]; then
-  warn "AGENTS.md is $lines lines (target ~162, soft cap 170)."
+  warn "AGENTS.md is $lines lines (target ~170, soft cap 170)."
 fi
 
 if command -v python3 >/dev/null 2>&1; then
@@ -86,13 +83,13 @@ required_sections=(
   "Required Inputs"
   "Executable Commands"
   "Context Efficiency"
+  "Repository Context"
   "Execution"
   "Filesystem And Approval Boundaries"
   "Approval And Severity"
   "Security Expectations"
   "Dependency Policy"
   "Stack Notes"
-  "Skills"
   "Output Expectations"
   "Verification And Rollback"
   "Git And Commits"

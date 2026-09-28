@@ -63,7 +63,9 @@ func mergeManifest(base manifest.Manifest, addition manifest.Manifest) manifest.
 	return manifest.Manifest{
 		RuleTemplates:         uniqStrings(append(base.RuleTemplates, addition.RuleTemplates...)),
 		ManagedTargets:        uniqStrings(append(base.ManagedTargets, addition.ManagedTargets...)),
+		GeneratedTargets:      uniqStrings(append(base.GeneratedTargets, addition.GeneratedTargets...)),
 		PreservedTargets:      uniqStrings(append(base.PreservedTargets, addition.PreservedTargets...)),
+		ForceCleanupTargets:   uniqStrings(append(base.ForceCleanupTargets, addition.ForceCleanupTargets...)),
 		RequiredTemplateFiles: uniqStrings(append(base.RequiredTemplateFiles, addition.RequiredTemplateFiles...)),
 		RequiredTemplateDirs:  uniqStrings(append(base.RequiredTemplateDirs, addition.RequiredTemplateDirs...)),
 	}
@@ -86,7 +88,9 @@ func uniqStrings(values []string) []string {
 func isEmptyManifest(m manifest.Manifest) bool {
 	return len(m.RuleTemplates) == 0 &&
 		len(m.ManagedTargets) == 0 &&
+		len(m.GeneratedTargets) == 0 &&
 		len(m.PreservedTargets) == 0 &&
+		len(m.ForceCleanupTargets) == 0 &&
 		len(m.RequiredTemplateFiles) == 0 &&
 		len(m.RequiredTemplateDirs) == 0
 }

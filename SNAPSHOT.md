@@ -1,74 +1,47 @@
 # SNAPSHOT
 
-## 1. Project Overview
+## Product
 
-- **Name:** `agent47`
-- **Purpose:** Go-first CLI plus templates for setting up agent-driven development workflows with explicit policy, rules, skills, prompts, and an optional `.agents/specs/spec.yml` planning artifact
+- **Version:** 2.0.0
+- **Direction:** lightweight, vendor-neutral harness for agent-ready repositories
+- **Generated surface:** `AGENTS.md`, applicable known `rules/*.yaml`, and `.agent47/context.md`
+- **Public command count:** seven (`help`, `version`, `analyze`, `map`, `init`, `doctor`, `uninstall`)
 
-## 2. Current Status
+## Current behavior
 
-- **Runtime:** `afs` is implemented by the Go CLI under `cmd/afs` and `internal/*`
-- **Repo launcher:** `bin/afs` is a checkout launcher for development; it prefers `AGENT47_GO_CLI`, then `AGENT47_REPO_CLI`, and otherwise uses `go run`
-- **Repo launcher caches:** when `bin/afs` falls back to `go run`, it now seeds both repo-safe `GOCACHE` and `GOMODCACHE` defaults
-- **Installers:** `install.sh` and `install.ps1` are thin wrappers around the native install service
-- **Analyze:** `afs analyze` is read-only and reports detected project types, testing stacks, evidence, and the resolved install plan; `--evidence` now includes classification evidence as well as raw scan hits
-- **SwiftPM desktop detection:** SwiftPM repos that declare `.macOS(...)` now resolve as `desktop`, and `desktop` + `scripts` is a supported automatic composition for macOS app repos with shell tooling
-- **Bootstrap:** `afs add-agent` analyzes first, previews the resolved bundle set, and then scaffolds `AGENTS.md`, template rules, curated skills, `skills/AVAILABLE_SKILLS.xml`, `skills/AVAILABLE_SKILLS.json`, `skills/SUMMARY.md`, and `.agents/specs/spec.yml`; prompt helpers are now opt-in via their own commands
-- **Skills indexes:** the skills contract also supports JSON and Markdown summary indexes alongside `skills/AVAILABLE_SKILLS.xml`
-- **Forced refresh:** `afs add-agent --force` performs a fresh install of the managed scaffold and removes stale managed rules and skills not present in the resolved assembled contract
-- **Preserved targets:** `README.md`, `.agents/specs/spec.yml`, `SNAPSHOT.md`, and root `SPEC.md` stay untouched during forced refresh
-- **Skills-only mode:** `afs add-agent --only-skills` manages only the skills tree; without `--force`, invalid existing skill files are preserved but omitted from the generated skills indexes; in interactive terminals it follows the same confirmation rules as the main scaffold flow
-- **Skills-only preview:** `afs add-agent --only-skills --force --preview` now reflects the actual managed `skills/` replacement and pending removals under `skills/`
-- **Update checks:** `doctor --check-update` uses a remote `VERSION` when configured or the local git tracking ref when running from a checkout with an upstream branch; `doctor --check-update-force` performs `git fetch --quiet` first
-- **Doctor flags:** update flags and `--fail-on-warn` can be combined in a single invocation
-- **Doctor validation:** `afs doctor` now validates the installed manifest contract, required template files and directories, stack rule templates, security templates, and required `AGENTS.md` sections
-- **Prompt helpers:** `add-agent-prompt` and `add-ss-prompt` remain available as explicit helper commands, with `add-ss-prompt` copying to a supported clipboard tool when available and otherwise printing to stdout
-- **Version reporting:** installed `afs version` now reports the installed runtime version instead of picking up unrelated `VERSION` files from the current project
-- **Entrypoint resolution:** the installed `afs` launcher now resolves runtime metadata from the actual executable path (`os.Executable()`), avoiding cwd-sensitive version reporting when invoked through PATH
-- **Empty repo-root handling:** installed version lookup no longer falls back to a relative `VERSION` file in the current working directory when the runtime is outside a checkout
-- **Testing:** `make test`, `make agents-check`, `make rules-check`, `make rules-drift-check`, `make go-test`, `make go-build`, `make lint-shell`, and `make smoke-install` are the current maintainer entrypoints
+- `afs analyze` detects project types, technologies, bundles, and rules without writing.
+- `afs analyze --deep` audits project-local agent policy and repository readiness with stable findings and bounded, secret-safe traversal.
+- Deep drift checks ignore historical/rejected contracts and non-literal path patterns while retaining explicit truncation evidence.
+- `afs map` maintains a deterministic, bounded CodeGraph Lite with components, entrypoints, direct local relationships, tests, policies, manifests, and allow-listed verification commands.
+- Structural fingerprints provide freshness; body hashes protect manual changes, and only `afs map --force` replaces modified or unrecognized context.
+- `afs init` replaces `add-agent` with deterministic create/update/keep/remove planning.
+- Init creates missing project context inside its policy transaction and preserves existing context even during forced migration.
+- `afs init --force` migrates older scaffolds by replacing `rules/`, deleting `skills/` and `prompts/`, and removing the two known legacy task-spec files.
+- Init commits are confined to the opened repository and reject concurrent path/content changes; rollback never overwrites a later user edit.
+- Initialization is non-interactive: `--preview` inspects and its absence applies the displayed plan.
+- `afs doctor` verifies the installed executable and Lite template contract, supports versioned JSON output, and keeps update checks opt-in.
+- Installers publish only `afs` and clean up old helpers only when they are identifiable as managed artifacts.
+- Runtime ownership is explicit; unsafe homes are rejected and modified/unverified template backups survive uninstall.
 
-## 3. Current Commands
+## Removed from the core
 
-- `./install.sh [--force] [--non-interactive]`
-- `.\install.ps1 [-Force] [-NonInteractive]`
-- `afs help`
-- `afs version`
-- `afs uninstall`
-- `afs doctor [--check-update|--check-update-force|--fail-on-warn]`
-- `afs analyze [--json|--verbose|--evidence]`
-- `afs add-agent [--force] [--only-skills] [--preview|--dry-run] [--yes] [--bundle <name>] [--exclude-bundle <name>]`
-- `afs add-agent-prompt [--force]`
-- `afs add-ss-prompt`
+- built-in skills and skill indexes;
+- `.agents/specs/spec.yml` scaffolding;
+- prompt and clipboard helpers;
+- the `add-agent` command and helper executable aliases;
+- separate cleanup commands or migration flags beyond `--force`.
 
-## 4. Key Repository Structure
+Normal init preserves existing legacy content. Explicit `--force` removes the old Agent47-owned namespaces while preserving repository documentation, unrelated paths, and other content inside `.agents/` or `specs/`.
 
-- `bin/afs` - repo-local launcher
-- `cmd/afs` - native CLI entrypoint
-- `internal/` - runtime packages for bootstrap, install, doctor, prompts, templates, manifest parsing, update checks, and platform handling
-- `templates/manifest.txt` - managed/preserved target contract for scaffold ownership
-- `templates/base/` - shared scaffold payload
-- `templates/bundles/` - project-specific bundle payload
-- `README.md` - entrypoint, command surface, and high-level architecture
-- `RUNBOOK.md` - operational guide for using the CLI in depth
-- `SPEC.md` - current-state product contract
-- `scripts/lint-shell` - remaining shell maintainer script
+## Source layout
 
-## 5. Constraints And Risks
+- `cmd/afs` — native CLI entrypoint
+- `internal/analyze` — repository detection and readiness analysis
+- `internal/contextmap` — CodeGraph Lite generation, metadata, and freshness decisions
+- `internal/initrepo` — safe repository initialization
+- `internal/install`, `internal/doctor`, `internal/update` — lifecycle support
+- `templates/base` and `templates/bundles` — policy and rule payload
 
-- `--force` is intentionally destructive inside managed paths such as `rules/` and `skills/`
-- git-based update checks use local tracking refs and can be stale until the user fetches or runs `--check-update-force`
-- checkout-based execution still depends on Go unless a compiled CLI is supplied explicitly
-- Windows-aware code paths exist, but the strongest day-to-day repo validation remains on Unix-like systems
+## Verification
 
-## 6. Last Updated
-
-- June 2, 2026
-
-## 7. Verification Notes
-
-- Manual empty-repo verification on April 29, 2026: `afs analyze` reported `type: unknown` and `bundles: base`, then `afs add-agent` installed the expected base scaffold.
-- Manual legacy-scaffold verification on April 29, 2026: `afs add-agent --force --yes` removed stale managed rules and stale managed skills, preserved `README.md` and `.agents/specs/spec.yml`, and kept prompt helpers as separate opt-in commands
-- Manual preview verification on April 30, 2026: `afs add-agent --only-skills --force --preview` reported the managed `skills/` replacement plus the concrete entries that would be removed under `skills/`.
-- Manual regression target on June 1, 2026: a SwiftPM macOS menu bar app with `scripts/` should resolve automatically to `desktop + scripts` instead of falling back to the base bundle, and `afs version` should report the installed `agent47` version even inside repos that have their own `VERSION` file.
-- Manual regression target on June 2, 2026: invoking the installed `afs` binary from a target repository should report the installed `agent47` version regardless of the shell-visible command name or the target repo working directory.
+The supported checks are `make test`, `make agents-check`, `make rules-check`, `make rules-drift-check`, `make go-test`, `make go-build`, `make lint-shell`, and `make smoke-install`.

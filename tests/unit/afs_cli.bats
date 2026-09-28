@@ -11,28 +11,26 @@ teardown() {
   teardown_workdir
 }
 
-@test "bin/afs add-agent uses local scripts when not in PATH" {
+@test "bin/afs init uses the repo-local CLI when not in PATH" {
   # PATH sin scripts instalados
   PATH="/usr/bin:/bin"
 
-  run "$ROOT_DIR/bin/afs" add-agent
+  run "$ROOT_DIR/bin/afs" init
   assert_success
   assert_file_exists "AGENTS.md"
+  assert_file_exists ".agent47/context.md"
 }
 
-@test "bin/afs add-agent prefers managed script over PATH shadow" {
+@test "bin/afs init does not dispatch a PATH shadow" {
   mkdir -p "$TEST_WORKDIR/fake-bin"
-  cat > "$TEST_WORKDIR/fake-bin/add-agent" <<'EOF'
-#!/bin/bash
-echo injected-command
-exit 0
-EOF
-  chmod +x "$TEST_WORKDIR/fake-bin/add-agent"
+  printf '%s\n' '#!/bin/bash' 'echo injected-command' 'exit 0' > "$TEST_WORKDIR/fake-bin/init"
+  chmod +x "$TEST_WORKDIR/fake-bin/init"
 
-  PATH="$TEST_WORKDIR/fake-bin:/usr/bin:/bin" run "$ROOT_DIR/bin/afs" add-agent
+  PATH="$TEST_WORKDIR/fake-bin:/usr/bin:/bin" run "$ROOT_DIR/bin/afs" init
   assert_success
   assert_not_contains "$output" "injected-command"
   assert_file_exists "AGENTS.md"
+  assert_file_exists ".agent47/context.md"
 }
 
 @test "bin/afs delegates to configured go cli bridge when present" {
@@ -100,12 +98,11 @@ EOF
 @test "uninstall removes installed scripts" {
   PATH="$HOME/bin:$PATH" run "$ROOT_DIR/install.sh"
   assert_success
-  # Verifica instalados en ~/bin
-  assert_file_exists "$HOME/bin/add-agent"
+  assert_file_exists "$HOME/bin/afs"
+  [ ! -e "$HOME/bin/add-agent" ]
 
   run "$ROOT_DIR/bin/afs" uninstall
   assert_success
-  [ ! -f "$HOME/bin/add-agent" ]
   [ ! -L "$HOME/bin/afs" ]
 }
 

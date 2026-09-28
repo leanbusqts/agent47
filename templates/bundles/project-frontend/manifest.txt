@@ -1,5 +1,11 @@
 [rule_templates]
 rules-frontend.yaml
+security-js-ts.yaml
+
+[managed_targets]
+rules/rules-frontend.yaml
+rules/security-js-ts.yaml
 
 [required_template_files]
 rules/rules-frontend.yaml
+rules/security-js-ts.yaml

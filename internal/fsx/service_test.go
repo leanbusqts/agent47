@@ -35,15 +35,11 @@ func TestBasicFilesystemOperations(t *testing.T) {
 		t.Fatalf("expected dir to exist: %s", dir)
 	}
 
-	renamed := filepath.Join(dir, "renamed.txt")
-	if err := svc.Rename(path, renamed); err != nil {
+	if err := svc.Remove(path); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Remove(renamed); err != nil {
-		t.Fatal(err)
-	}
-	if svc.Exists(renamed) {
-		t.Fatalf("expected file to be removed: %s", renamed)
+	if svc.Exists(path) {
+		t.Fatalf("expected file to be removed: %s", path)
 	}
 
 	if err := svc.RemoveAll(filepath.Join(root, "nested")); err != nil {
@@ -102,7 +98,7 @@ func TestWriteFileAtomicReplacesExistingFileContents(t *testing.T) {
 	assertFileContains(t, target, "new")
 }
 
-func TestCopyFileAndCopyDir(t *testing.T) {
+func TestCopyFile(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
@@ -115,16 +111,6 @@ func TestCopyFileAndCopyDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertFileContains(t, dstFile, "copy me")
-
-	srcDir := filepath.Join(root, "srcdir")
-	dstDir := filepath.Join(root, "dstdir")
-	mustWriteFile(t, filepath.Join(srcDir, "a.txt"), "a\n")
-	mustWriteFile(t, filepath.Join(srcDir, "nested", "b.txt"), "b\n")
-	if err := svc.CopyDir(srcDir, dstDir); err != nil {
-		t.Fatal(err)
-	}
-	assertFileContains(t, filepath.Join(dstDir, "a.txt"), "a")
-	assertFileContains(t, filepath.Join(dstDir, "nested", "b.txt"), "b")
 }
 
 func TestCopyFilePreservesSourceMode(t *testing.T) {
@@ -148,6 +134,32 @@ func TestCopyFilePreservesSourceMode(t *testing.T) {
 	}
 }
 
+func TestCopyFileReplacesDestinationSymlinkWithoutFollowingIt(t *testing.T) {
+	root := t.TempDir()
+	svc := Service{}
+	srcFile := filepath.Join(root, "src.txt")
+	externalFile := filepath.Join(root, "external.txt")
+	dstFile := filepath.Join(root, "dst.txt")
+	mustWriteFile(t, srcFile, "new\n")
+	mustWriteFile(t, externalFile, "external\n")
+	if err := os.Symlink(externalFile, dstFile); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := svc.CopyFile(srcFile, dstFile); err != nil {
+		t.Fatal(err)
+	}
+	assertFileContains(t, externalFile, "external")
+	assertFileContains(t, dstFile, "new")
+	info, err := os.Lstat(dstFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Fatal("expected destination symlink to be replaced")
+	}
+}
+
 func TestCopyFileRejectsDirectorySource(t *testing.T) {
 	t.Parallel()
 
@@ -160,19 +172,6 @@ func TestCopyFileRejectsDirectorySource(t *testing.T) {
 
 	if err := svc.CopyFile(srcDir, filepath.Join(root, "dst.txt")); err == nil {
 		t.Fatal("expected directory copy failure")
-	}
-}
-
-func TestCopyDirRejectsFileSource(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	svc := Service{}
-	srcFile := filepath.Join(root, "src.txt")
-	mustWriteFile(t, srcFile, "x\n")
-
-	if err := svc.CopyDir(srcFile, filepath.Join(root, "dst")); err == nil {
-		t.Fatal("expected non-directory copy failure")
 	}
 }
 
@@ -195,13 +194,6 @@ func TestCopyFileFailsWhenDestinationIsDirectory(t *testing.T) {
 
 	if err := svc.CopyFile(srcFile, dstDir); err == nil {
 		t.Fatal("expected destination directory error")
-	}
-}
-
-func TestCopyDirFailsWhenSourceMissing(t *testing.T) {
-	svc := Service{}
-	if err := svc.CopyDir(filepath.Join(t.TempDir(), "missing"), filepath.Join(t.TempDir(), "dst")); err == nil {
-		t.Fatal("expected missing source error")
 	}
 }
 
@@ -234,6 +226,24 @@ func TestReplaceDirAtomicRejectsExistingTargetWithoutForce(t *testing.T) {
 	}
 }
 
+func TestReplaceDirAtomicRejectsSymlinkTarget(t *testing.T) {
+	root := t.TempDir()
+	svc := Service{}
+	external := filepath.Join(root, "external")
+	target := filepath.Join(root, "target")
+	stage := filepath.Join(root, "stage")
+	mustWriteFile(t, filepath.Join(external, "old.txt"), "old\n")
+	mustWriteFile(t, filepath.Join(stage, "new.txt"), "new\n")
+	if err := os.Symlink(external, target); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := svc.ReplaceDirAtomic(stage, target, true); err == nil || !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("expected symlink target rejection, got %v", err)
+	}
+	assertFileContains(t, filepath.Join(external, "old.txt"), "old")
+}
+
 func TestReplaceDirAtomicMovesStageWhenTargetMissing(t *testing.T) {
 	root := t.TempDir()
 	svc := Service{}
@@ -249,6 +259,27 @@ func TestReplaceDirAtomicMovesStageWhenTargetMissing(t *testing.T) {
 		t.Fatalf("did not expect backup path, got %s", result.BackupPath)
 	}
 	assertFileContains(t, filepath.Join(target, "new.txt"), "new")
+}
+
+func TestRestoreDirectoryBackupIsNoOpWithoutBackup(t *testing.T) {
+	if err := restoreDirectoryBackup("", filepath.Join(t.TempDir(), "target")); err != nil {
+		t.Fatalf("empty backup path must be a no-op: %v", err)
+	}
+}
+
+func TestRestoreDirectoryBackupRefusesExistingTarget(t *testing.T) {
+	root := t.TempDir()
+	backup := filepath.Join(root, "backup")
+	target := filepath.Join(root, "target")
+	if err := os.Mkdir(backup, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := restoreDirectoryBackup(backup, target); err == nil || !strings.Contains(err.Error(), "refusing to overwrite") {
+		t.Fatalf("expected existing-target rejection, got %v", err)
+	}
 }
 
 func TestSymlinkAtomicCreatesLinkOnSuccess(t *testing.T) {
@@ -340,7 +371,7 @@ func TestReplaceDirAtomicCreatesBackupOnForce(t *testing.T) {
 	assertFileContains(t, filepath.Join(result.BackupPath, "AGENTS.md"), "old template")
 }
 
-func TestReplaceDirAtomicRemovesPreviousBackupsOnForce(t *testing.T) {
+func TestReplaceDirAtomicPreservesPreviousBackupsOnForce(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "templates")
 	stage := filepath.Join(root, ".templates-stage")
@@ -357,9 +388,7 @@ func TestReplaceDirAtomicRemovesPreviousBackupsOnForce(t *testing.T) {
 	if result.BackupPath == oldBackup {
 		t.Fatal("expected a fresh backup path")
 	}
-	if _, err := os.Stat(oldBackup); !os.IsNotExist(err) {
-		t.Fatalf("expected previous backup removal, err=%v", err)
-	}
+	assertFileContains(t, filepath.Join(oldBackup, "stale.txt"), "stale")
 }
 
 func TestReplaceDirAtomicRestoresBackupOnInjectedFailure(t *testing.T) {

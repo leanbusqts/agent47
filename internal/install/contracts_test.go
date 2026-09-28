@@ -2,26 +2,11 @@ package install
 
 import (
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/leanbusqts/agent47/internal/runtime"
 )
-
-func TestHelperCommandsReturnsExpectedCopy(t *testing.T) {
-	got := HelperCommands()
-	want := []string{"add-agent", "add-agent-prompt", "add-ss-prompt"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("unexpected helper commands: got %v want %v", got, want)
-	}
-
-	got[0] = "mutated"
-	again := HelperCommands()
-	if !reflect.DeepEqual(again, want) {
-		t.Fatalf("helper commands should be immutable copy, got %v", again)
-	}
-}
 
 func TestReinstallHintVariesByPlatform(t *testing.T) {
 	if !strings.Contains(ReinstallHint(runtime.Config{OS: "windows"}), "install.ps1") {

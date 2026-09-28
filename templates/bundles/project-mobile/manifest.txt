@@ -1,5 +1,8 @@
 [rule_templates]
 rules-mobile.yaml
 
+[managed_targets]
+rules/rules-mobile.yaml
+
 [required_template_files]
 rules/rules-mobile.yaml

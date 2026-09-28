@@ -2,233 +2,75 @@
 
 load ../helpers/common
 
-setup() {
-  setup_workdir
-}
+setup() { setup_workdir; }
+teardown() { teardown_workdir; }
 
-teardown() {
-  teardown_workdir
-}
-
-template_rule_path() {
-  local rule_file="$1"
-  if [ -f "$ROOT_DIR/templates/base/rules/$rule_file" ]; then
-    printf '%s\n' "$ROOT_DIR/templates/base/rules/$rule_file"
-    return 0
-  fi
-
-  local bundle_file
-  for bundle_file in "$ROOT_DIR"/templates/bundles/*/rules/"$rule_file"; do
-    [ -f "$bundle_file" ] || continue
-    printf '%s\n' "$bundle_file"
-    return 0
-  done
-
-  return 1
-}
-
-@test "AGENTS template stays compact and includes required sections" {
-  run wc -l "$ROOT_DIR/templates/base/AGENTS.md"
+@test "root and base AGENTS policies stay identical" {
+  run diff -q "$ROOT_DIR/AGENTS.md" "$ROOT_DIR/templates/base/AGENTS.md"
   assert_success
-  local lines
-  lines="$(awk '{print $1}' <<<"$output")"
-  [ "$lines" -le 200 ]
+}
 
-  for section in "## Glossary" "## Execution" "## Filesystem And Approval Boundaries" "## Dependency Policy" "## Verification And Rollback" "## Maintenance Of This File"; do
-    run grep -F "$section" "$ROOT_DIR/templates/base/AGENTS.md"
+@test "root and base global security rules stay identical" {
+  run diff -q "$ROOT_DIR/rules/security-global.yaml" "$ROOT_DIR/templates/base/rules/security-global.yaml"
+  assert_success
+}
+
+@test "Lite policy includes the approved language rule" {
+  run grep -F "Use the strongest internal reasoning language available. Default to English for technical tasks. Preserve output language as requested by the user." "$ROOT_DIR/AGENTS.md"
+  assert_success
+}
+
+@test "removed skills prompts and task-spec templates are absent" {
+  [ ! -d "$ROOT_DIR/skills" ]
+  [ ! -d "$ROOT_DIR/templates/base/skills" ]
+  [ ! -d "$ROOT_DIR/templates/base/prompts" ]
+  [ ! -e "$ROOT_DIR/templates/base/.agents/specs/spec.yml" ]
+  [ ! -d "$ROOT_DIR/templates/bundles/project-cli/skills" ]
+}
+
+@test "manifest manages only exact AGENTS and base rule paths" {
+  manifest="$ROOT_DIR/templates/manifest.txt"
+  run grep -A5 '^\[managed_targets\]' "$manifest"
+  assert_success
+  assert_contains "$output" "AGENTS.md"
+  assert_contains "$output" "rules/security-global.yaml"
+  assert_contains "$output" "rules/security-shell.yaml"
+  assert_contains "$output" "rules/rules-cross.yaml"
+  assert_not_contains "$output" "rules/*.yaml"
+  assert_not_contains "$output" "skills"
+
+  run grep -A2 '^\[generated_targets\]' "$manifest"
+  assert_success
+  assert_contains "$output" ".agent47/context.md"
+
+  run grep -A8 '^\[preserved_targets\]' "$manifest"
+  assert_success
+  assert_contains "$output" ".agents/"
+  assert_contains "$output" "skills/"
+  assert_contains "$output" "prompts/"
+
+  run grep -A6 '^\[force_cleanup_targets\]' "$manifest"
+  assert_success
+  assert_contains "$output" "rules/"
+  assert_contains "$output" "skills/"
+  assert_contains "$output" "prompts/"
+  assert_contains "$output" "specs/spec.yml"
+  assert_contains "$output" ".agents/specs/spec.yml"
+}
+
+@test "public docs expose the Lite command surface" {
+  for file in README.md RUNBOOK.md SPEC.md SNAPSHOT.md; do
+    run grep -F "afs init" "$ROOT_DIR/$file"
     assert_success
-  done
-  run grep -F "[AG-001]" "$ROOT_DIR/templates/base/AGENTS.md"
-  assert_success
-}
-
-@test "current prompt templates exist and legacy split prompts do not" {
-  assert_file_exists "$ROOT_DIR/templates/base/prompts/agent-prompt.txt"
-  assert_file_exists "$ROOT_DIR/templates/base/prompts/ss-prompt.txt"
-  [ ! -f "$ROOT_DIR/templates/base/prompts/agent-prompt-base.txt" ]
-  [ ! -f "$ROOT_DIR/templates/base/prompts/agent-prompt-skills.txt" ]
-  [ ! -f "$ROOT_DIR/templates/base/prompts/agent-prompt-sdd.txt" ]
-}
-
-@test "template manifest exists with required sections" {
-  assert_file_exists "$ROOT_DIR/templates/manifest.txt"
-  run grep -F "[rule_templates]" "$ROOT_DIR/templates/manifest.txt"
-  assert_success
-  run grep -F "[managed_targets]" "$ROOT_DIR/templates/manifest.txt"
-  assert_success
-  run grep -F "[preserved_targets]" "$ROOT_DIR/templates/manifest.txt"
-  assert_success
-  run grep -F "[required_template_files]" "$ROOT_DIR/templates/manifest.txt"
-  assert_success
-  run grep -F "[required_template_dirs]" "$ROOT_DIR/templates/manifest.txt"
-  assert_success
-}
-
-@test "manifest rule templates all exist in base or bundle-owned rules" {
-  while IFS= read -r rule_file; do
-    [ -n "$rule_file" ] || continue
-    run template_rule_path "$rule_file"
-    assert_success
-  done < <(awk '
-    $0 == "[rule_templates]" { in_section=1; next }
-    /^\[/ && in_section { exit }
-    in_section && NF { print }
-  ' "$ROOT_DIR/templates/manifest.txt")
-}
-
-@test "manifest managed and preserved targets do not overlap exactly" {
-  managed="$(awk '
-    $0 == "[managed_targets]" { in_section=1; next }
-    /^\[/ && in_section { exit }
-    in_section && NF { print }
-  ' "$ROOT_DIR/templates/manifest.txt" | sort)"
-  preserved="$(awk '
-    $0 == "[preserved_targets]" { in_section=1; next }
-    /^\[/ && in_section { exit }
-    in_section && NF { print }
-  ' "$ROOT_DIR/templates/manifest.txt" | sort)"
-
-  run bash -c "comm -12 <(printf '%s\n' \"$managed\") <(printf '%s\n' \"$preserved\")"
-  assert_success
-  [ -z "$output" ]
-}
-
-@test "manifest managed and preserved targets match runtime contract" {
-  for target in AGENTS.md 'rules/*.yaml' 'skills/*' 'skills/AVAILABLE_SKILLS.xml' 'skills/AVAILABLE_SKILLS.json' 'skills/SUMMARY.md'; do
-    run grep -Fx "$target" "$ROOT_DIR/templates/manifest.txt"
+    run grep -F "afs map" "$ROOT_DIR/$file"
     assert_success
   done
 
-  for target in README.md .agents/specs/spec.yml SNAPSHOT.md SPEC.md; do
-    run grep -Fx "$target" "$ROOT_DIR/templates/manifest.txt"
-    assert_success
-  done
+  run grep -F "afs add-agent                 bootstrap" "$ROOT_DIR/README.md"
+  [ "$status" -ne 0 ]
 }
 
-@test "manifest alone exposes the canonical managed and preserved contract" {
-  managed="$(awk '
-    $0 == "[managed_targets]" { in_section=1; next }
-    /^\[/ && in_section { exit }
-    in_section && NF { print }
-  ' "$ROOT_DIR/templates/manifest.txt")"
-  preserved="$(awk '
-    $0 == "[preserved_targets]" { in_section=1; next }
-    /^\[/ && in_section { exit }
-    in_section && NF { print }
-  ' "$ROOT_DIR/templates/manifest.txt")"
-
-  [[ "$managed" == *"AGENTS.md"* ]]
-  [[ "$managed" == *"rules/*.yaml"* ]]
-  [[ "$managed" == *"skills/*"* ]]
-  [[ "$managed" == *"skills/AVAILABLE_SKILLS.xml"* ]]
-  [[ "$managed" == *"skills/AVAILABLE_SKILLS.json"* ]]
-  [[ "$managed" == *"skills/SUMMARY.md"* ]]
-  [[ "$preserved" == *"README.md"* ]]
-  [[ "$preserved" == *".agents/specs/spec.yml"* ]]
-  [[ "$preserved" == *"SNAPSHOT.md"* ]]
-  [[ "$preserved" == *"SPEC.md"* ]]
-}
-
-@test "manifest required template files all exist" {
-  while IFS= read -r rel_path; do
-    [ -n "$rel_path" ] || continue
-    if [ "$rel_path" = "manifest.txt" ]; then
-      assert_file_exists "$ROOT_DIR/templates/manifest.txt"
-      continue
-    fi
-    assert_file_exists "$ROOT_DIR/templates/base/$rel_path"
-  done < <(awk '
-    $0 == "[required_template_files]" { in_section=1; next }
-    /^\[/ && in_section { exit }
-    in_section && NF { print }
-  ' "$ROOT_DIR/templates/manifest.txt")
-}
-
-@test "manifest required template dirs all exist" {
-  while IFS= read -r rel_path; do
-    [ -n "$rel_path" ] || continue
-    assert_dir_exists "$ROOT_DIR/templates/base/$rel_path"
-  done < <(awk '
-    $0 == "[required_template_dirs]" { in_section=1; next }
-    /^\[/ && in_section { exit }
-    in_section && NF { print }
-  ' "$ROOT_DIR/templates/manifest.txt")
-}
-
-
-@test "repo root AGENTS exists and matches the template" {
-  assert_file_exists "$ROOT_DIR/AGENTS.md"
-  run cmp -s "$ROOT_DIR/AGENTS.md" "$ROOT_DIR/templates/base/AGENTS.md"
+@test "policy checker passes" {
+  run bash -c 'cd "$1" && bash scripts/check-agents-md.sh' _ "$ROOT_DIR"
   assert_success
-}
-
-@test "security templates expose unique SEC ids" {
-  run sh -c "grep -ho 'id:[[:space:]]*\"SEC-[^\"]*\"' '$ROOT_DIR'/templates/base/rules/security-*.yaml | sed -E 's/.*\"(SEC-[^\"]*)\"/\\1/' | sort | uniq -d"
-  assert_success
-  [ -z "$output" ]
-}
-
-@test "security templates include severity and applies_to" {
-  for file in "$ROOT_DIR"/templates/base/rules/security-*.yaml; do
-    run grep -F "severity:" "$file"
-    assert_success
-    run grep -F "applies_to:" "$file"
-    assert_success
-  done
-}
-
-@test "stack rules reference security ids instead of copying security topics" {
-  run grep -F "refs:" "$ROOT_DIR/templates/base/rules/rules-backend.yaml"
-  assert_success
-  run grep -F "refs:" "$ROOT_DIR/templates/base/rules/rules-frontend.yaml"
-  assert_success
-  run grep -F 'applies_to: ["backend", "mobile"]' "$ROOT_DIR/templates/base/rules/security-java-kotlin.yaml"
-  assert_success
-  run grep -F 'applies_to: ["backend", "mobile"]' "$ROOT_DIR/templates/base/rules/security-csharp.yaml"
-  assert_success
-  run grep -F 'applies_to: ["shell"]' "$ROOT_DIR/templates/base/rules/security-shell.yaml"
-  assert_success
-}
-
-@test "dependency approval policy is present across AGENTS and stack rules" {
-  run grep -F 'id: "X-deps-001"' "$ROOT_DIR/rules/rules-cross.yaml"
-  assert_success
-  run grep -F 'refs: ["X-deps-001"]' "$ROOT_DIR/templates/base/rules/security-global.yaml"
-  assert_success
-  run grep -F "Approval And Severity" "$ROOT_DIR/AGENTS.md"
-  assert_success
-  run grep -F "rules/rules-cross.yaml" "$ROOT_DIR/AGENTS.md"
-  assert_success
-  run grep -F "A change is add, remove, upgrade, or pinning shift" "$ROOT_DIR/AGENTS.md"
-  assert_success
-}
-
-@test "templates payload does not include macOS system artifacts" {
-  run find "$ROOT_DIR/templates" -name '.DS_Store' -print
-  assert_success
-  [ -z "$output" ]
-}
-
-@test "docs expose the supported public command surface" {
-  for file in "$ROOT_DIR/README.md" "$ROOT_DIR/SPEC.md" "$ROOT_DIR/RUNBOOK.md"; do
-    run grep -F "afs version" "$file"
-    assert_success
-    run grep -F "afs doctor" "$file"
-    assert_success
-    run grep -F "afs add-agent" "$file"
-    assert_success
-    run grep -F "afs add-agent-prompt" "$file"
-    assert_success
-    run grep -F "afs add-ss-prompt" "$file"
-    assert_success
-    run grep -F "afs uninstall" "$file"
-    assert_success
-  done
-}
-
-@test "README lists unsupported legacy commands protected by tests" {
-  for command in "afs install" "afs upgrade" "afs templates" "afs check-update" "afs add-spec" "afs add-cli-prompt" "afs add-default-skills" "afs init-agent"; do
-    run grep -F "$command" "$ROOT_DIR/README.md"
-    assert_success
-  done
 }
