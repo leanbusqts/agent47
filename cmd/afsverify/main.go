@@ -342,10 +342,21 @@ func verifyUninstallCleanup(env *installedEnv) error {
 	if _, _, err := env.runPublishedAfs("", "uninstall"); err != nil {
 		return err
 	}
+	if afsverifyOS == "windows" {
+		deadline := time.Now().Add(10 * time.Second)
+		for time.Now().Before(deadline) && pathExists(env.agentHome) {
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
 	if err := assertNotExists(env.agentHome); err != nil {
 		return err
 	}
 	return assertNotExists(env.publishedAfsPath())
+}
+
+func pathExists(path string) bool {
+	_, err := os.Lstat(path)
+	return err == nil
 }
 
 func (env *installedEnv) runInstall(args ...string) (string, string, error) {

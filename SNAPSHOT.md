@@ -22,6 +22,7 @@
 - `afs doctor` verifies the installed executable and Lite template contract, supports versioned JSON output, and keeps update checks opt-in.
 - Installers publish only `afs` and clean up old helpers only when they are identifiable as managed artifacts.
 - Runtime ownership is explicit; unsafe homes are rejected and modified/unverified template backups survive uninstall.
+- Windows self-uninstall defers only the locked executable and final runtime-directory removal to a temporary owned helper after the parent exits.
 
 ## Removed from the core
 

@@ -26,6 +26,8 @@ type Service struct {
 	beforeRemove func(string)
 }
 
+var startDeferredUninstall = platformStartDeferredUninstall
+
 type InstallOptions struct {
 	Force bool
 }
@@ -254,7 +256,8 @@ func (s *Service) Uninstall(ctx context.Context, cfg runtime.Config) error {
 	}
 
 	managedAfs := managedBinaryPath(cfg)
-	if s.FS.Exists(managedAfs) {
+	deferSelfRemoval := cfg.OS == "windows" && samePath(cfg.OS, cfg.ExecutablePath, managedAfs)
+	if s.FS.Exists(managedAfs) && !deferSelfRemoval {
 		if err := s.guardedRemoveRuntimePath(cfg, runtimeRootInfo, managedAfs, false); err != nil {
 			return err
 		}
@@ -267,6 +270,9 @@ func (s *Service) Uninstall(ctx context.Context, cfg runtime.Config) error {
 		filepath.Join(cfg.Agent47Home, "templates"),
 		filepath.Join(cfg.Agent47Home, "cache"),
 	} {
+		if deferSelfRemoval && samePath(cfg.OS, path, filepath.Join(cfg.Agent47Home, "bin")) {
+			continue
+		}
 		if err := s.guardedRemoveRuntimePath(cfg, runtimeRootInfo, path, true); err != nil {
 			return err
 		}
@@ -277,6 +283,17 @@ func (s *Service) Uninstall(ctx context.Context, cfg runtime.Config) error {
 	}
 	if err := s.guardedRemoveRuntimePath(cfg, runtimeRootInfo, filepath.Join(cfg.Agent47Home, "VERSION"), false); err != nil {
 		return err
+	}
+	if deferSelfRemoval {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := startDeferredUninstall(cfg); err != nil {
+			return fmt.Errorf("schedule Windows self-uninstall: %w", err)
+		}
+		s.Out.OK("Scheduled installed afs launcher removal after process exit")
+		s.Out.OK("afs tools removed from system")
+		return nil
 	}
 	if err := s.guardedRemoveRuntimePath(cfg, runtimeRootInfo, filepath.Join(cfg.Agent47Home, runtimeOwnershipMarker), false); err != nil {
 		return err

@@ -481,6 +481,41 @@ func TestWindowsUninstallRemovesExeAndCmdHelpers(t *testing.T) {
 	assertNotExists(t, filepath.Join(cfg.UserBinDir, "add-ss-prompt.cmd"))
 }
 
+func TestWindowsUninstallDefersRemovalOfRunningManagedExecutable(t *testing.T) {
+	cfg := testWindowsConfig(t)
+	service, err := New(cfg, cli.NewOutput(ioDiscard{}, ioDiscard{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.Install(context.Background(), cfg, InstallOptions{Force: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	managedAfs := filepath.Join(cfg.Agent47Home, "bin", "afs.exe")
+	cfg.ExecutablePath = managedAfs
+	originalStart := startDeferredUninstall
+	t.Cleanup(func() { startDeferredUninstall = originalStart })
+	started := false
+	startDeferredUninstall = func(got runtime.Config) error {
+		started = true
+		if got.ExecutablePath != managedAfs {
+			t.Fatalf("unexpected executable path: %s", got.ExecutablePath)
+		}
+		return nil
+	}
+
+	if err := service.Uninstall(context.Background(), cfg); err != nil {
+		t.Fatal(err)
+	}
+	if !started {
+		t.Fatal("expected deferred Windows self-uninstall to start")
+	}
+	assertExists(t, managedAfs)
+	assertExists(t, filepath.Join(cfg.Agent47Home, runtimeOwnershipMarker))
+	assertNotExists(t, filepath.Join(cfg.Agent47Home, "templates"))
+	assertNotExists(t, filepath.Join(cfg.Agent47Home, "VERSION"))
+}
+
 func TestWindowsInstallRestoresPublishedAfsOnWriteFailure(t *testing.T) {
 	cfg := testWindowsConfig(t)
 	cfg.UserBinDir = filepath.Join(cfg.HomeDir, "bin")

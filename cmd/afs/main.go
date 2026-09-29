@@ -9,6 +9,7 @@ import (
 
 	"github.com/leanbusqts/agent47/internal/app"
 	"github.com/leanbusqts/agent47/internal/cli"
+	"github.com/leanbusqts/agent47/internal/install"
 	"github.com/leanbusqts/agent47/internal/runtime"
 )
 
@@ -17,13 +18,14 @@ type rootRunner interface {
 }
 
 var (
-	afsStdout        io.Writer = os.Stdout
-	afsStderr        io.Writer = os.Stderr
-	afsChdir                   = os.Chdir
-	afsExecutable              = os.Executable
-	afsDetectConfig            = runtime.DetectConfig
-	afsNewRoot                 = func(out cli.Output) rootRunner { return app.NewRoot(out) }
-	afsSignalContext           = func() (context.Context, context.CancelFunc) {
+	afsStdout            io.Writer = os.Stdout
+	afsStderr            io.Writer = os.Stderr
+	afsChdir                       = os.Chdir
+	afsExecutable                  = os.Executable
+	afsDetectConfig                = runtime.DetectConfig
+	afsDeferredUninstall           = install.RunDeferredUninstallIfRequested
+	afsNewRoot                     = func(out cli.Output) rootRunner { return app.NewRoot(out) }
+	afsSignalContext               = func() (context.Context, context.CancelFunc) {
 		return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	}
 )
@@ -53,8 +55,16 @@ func run() int {
 		return 1
 	}
 
-	root := afsNewRoot(out)
 	ctx, stop := afsSignalContext()
 	defer stop()
+	if handled, err := afsDeferredUninstall(ctx, cfg, out); handled {
+		if err != nil {
+			out.Err("Failed to complete deferred uninstall: %v", err)
+			return 1
+		}
+		return 0
+	}
+
+	root := afsNewRoot(out)
 	return root.Run(ctx, cfg, os.Args[1:])
 }

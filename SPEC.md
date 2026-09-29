@@ -133,7 +133,7 @@ Supported project bundles are `frontend`, `backend`, `mobile`, `cli`, `scripts`,
 
 `afs doctor` validates the executable, installed template manifest, required files/directories, rule/security templates, policy sections, PATH integration, and optional update state. `--json` emits a versioned machine-readable health report.
 
-The runtime home is a dedicated non-symlinked directory with an explicit ownership marker. `afs uninstall` removes only managed runtime artifacts. Legacy helper names may be cleaned up only when ownership can be proven; unmanaged entries are preserved. Template backups are removed only while both their ownership marker and recorded digest remain valid; modified or unverified backups are preserved.
+The runtime home is a dedicated non-symlinked directory with an explicit ownership marker. `afs uninstall` removes only managed runtime artifacts. On Windows, final removal of the running managed executable is delegated to a temporary owned helper that waits for the parent process to exit; this does not add a public command. Legacy helper names may be cleaned up only when ownership can be proven; unmanaged entries are preserved. Template backups are removed only while both their ownership marker and recorded digest remain valid; modified or unverified backups are preserved.
 
 ## 7. Explicit non-goals
 

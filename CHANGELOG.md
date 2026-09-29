@@ -9,6 +9,7 @@
 - Stopped Windows smoke and installed-artifact fixtures from pre-creating an unowned runtime home, preserving the installer's ownership boundary while allowing clean installs.
 - Rejected atomic file replacement when the destination is a directory on every platform.
 - Raised the source-build baseline to Go 1.26 so binaries run on current macOS ARM64 runners without the obsolete-linker `LC_UUID` failure.
+- Made `afs uninstall` complete safely on Windows by deferring final removal of the running managed executable until the parent process exits.
 
 ### Changed
 - Added a reproducible `make coverage` gate, expanded CodeGraph Lite helper coverage, and kept the 80% global and 65% per-package floors.

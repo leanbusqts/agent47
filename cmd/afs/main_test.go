@@ -12,6 +12,7 @@ import (
 
 	"github.com/leanbusqts/agent47/internal/app"
 	"github.com/leanbusqts/agent47/internal/cli"
+	"github.com/leanbusqts/agent47/internal/install"
 	"github.com/leanbusqts/agent47/internal/runtime"
 )
 
@@ -167,6 +168,45 @@ func TestRunPassesSignalContextToRoot(t *testing.T) {
 	}
 }
 
+func TestRunHandlesDeferredUninstall(t *testing.T) {
+	restoreAFSHooks()
+	defer restoreAFSHooks()
+	afsDetectConfig = func(string) (runtime.Config, error) {
+		return runtime.Config{OS: "windows", Version: "vtest"}, nil
+	}
+	afsDeferredUninstall = func(context.Context, runtime.Config, cli.Output) (bool, error) {
+		return true, nil
+	}
+	afsNewRoot = func(cli.Output) rootRunner {
+		t.Fatal("root command should not run for deferred uninstall helper")
+		return nil
+	}
+
+	if status := run(); status != 0 {
+		t.Fatalf("expected deferred uninstall success, got %d", status)
+	}
+}
+
+func TestRunReportsDeferredUninstallFailure(t *testing.T) {
+	restoreAFSHooks()
+	defer restoreAFSHooks()
+	var stderr bytes.Buffer
+	afsStderr = &stderr
+	afsDetectConfig = func(string) (runtime.Config, error) {
+		return runtime.Config{OS: "windows", Version: "vtest"}, nil
+	}
+	afsDeferredUninstall = func(context.Context, runtime.Config, cli.Output) (bool, error) {
+		return true, errors.New("cleanup failed")
+	}
+
+	if status := run(); status != 1 {
+		t.Fatalf("expected deferred uninstall failure, got %d", status)
+	}
+	if !bytes.Contains(stderr.Bytes(), []byte("Failed to complete deferred uninstall")) {
+		t.Fatalf("unexpected stderr: %s", stderr.String())
+	}
+}
+
 type fakeRoot struct {
 	out    cli.Output
 	ctx    context.Context
@@ -188,6 +228,7 @@ func restoreAFSHooks() {
 	afsChdir = os.Chdir
 	afsExecutable = os.Executable
 	afsDetectConfig = runtime.DetectConfig
+	afsDeferredUninstall = install.RunDeferredUninstallIfRequested
 	afsNewRoot = func(out cli.Output) rootRunner { return app.NewRoot(out) }
 	afsSignalContext = func() (context.Context, context.CancelFunc) {
 		return signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

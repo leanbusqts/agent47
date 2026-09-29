@@ -121,6 +121,8 @@ afs uninstall
 
 Uninstall removes the managed runtime, templates, and the published `afs` entry. Legacy helper entries are removed only when they can be identified as managed agent47 artifacts; unrelated files with the same names are preserved.
 
+On Windows, `afs uninstall` starts a temporary owned cleanup helper for the final `afs.exe` removal because the running executable cannot delete itself. The helper waits for the parent process to exit and then removes the remaining managed runtime.
+
 The runtime home must be a dedicated, non-symlinked directory and carries an Agent47 ownership marker. Uninstall preserves an unowned runtime directory. Forced-install template backups carry a content digest; any backup changed after creation is preserved rather than removed.
 
 ## Exit codes and streams

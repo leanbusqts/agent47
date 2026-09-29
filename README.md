@@ -90,7 +90,7 @@ afs init --force
 
 ## Installation model
 
-The native `afs` binary and template payload are installed under the dedicated `~/.agent47` directory on Unix-like systems or `%LOCALAPPDATA%\agent47` on Windows. Installing directly from a source checkout requires Go 1.26 or newer unless an explicit precompiled launcher is provided. Unsafe broad or symlinked runtime paths are rejected, and an ownership marker prevents uninstall from claiming an unrelated directory. Unix-like installs publish only `~/bin/afs`; Windows uses the managed bin directory. Forced template backups are deleted only while their ownership marker and content digest still match; modified or unverified backups are preserved.
+The native `afs` binary and template payload are installed under the dedicated `~/.agent47` directory on Unix-like systems or `%LOCALAPPDATA%\agent47` on Windows. Installing directly from a source checkout requires Go 1.26 or newer unless an explicit precompiled launcher is provided. Unsafe broad or symlinked runtime paths are rejected, and an ownership marker prevents uninstall from claiming an unrelated directory. Unix-like installs publish only `~/bin/afs`; Windows uses the managed bin directory and defers final removal of a running `afs.exe` until that process exits. Forced template backups are deleted only while their ownership marker and content digest still match; modified or unverified backups are preserved.
 
 `templates/manifest.txt` defines ownership:
 
