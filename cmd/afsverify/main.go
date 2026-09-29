@@ -12,6 +12,7 @@ import (
 	goRuntime "runtime"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/leanbusqts/agent47/internal/testutil"
 )
@@ -463,4 +464,16 @@ func assertNotExists(path string) error {
 	return nil
 }
 
-func (env *installedEnv) cleanup() error { return os.RemoveAll(env.tempRoot) }
+func (env *installedEnv) cleanup() error {
+	var err error
+	for attempt := 0; attempt < 20; attempt++ {
+		if err = os.RemoveAll(env.tempRoot); err == nil {
+			return nil
+		}
+		if afsverifyOS != "windows" {
+			return err
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return err
+}

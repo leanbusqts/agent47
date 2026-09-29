@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	goRuntime "runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -148,7 +149,13 @@ func (s *Service) remoteCheck(ctx context.Context, url string, rec *CacheRecord)
 	}
 
 	if parsed.Scheme == "file" {
-		file, err := os.Open(filepath.FromSlash(parsed.Path))
+		fixturePath, err := localFilePath(parsed)
+		if err != nil {
+			rec.Status = "error"
+			rec.Message = err.Error()
+			return err
+		}
+		file, err := os.Open(fixturePath)
 		if err != nil {
 			rec.Status = "error"
 			rec.Message = "failed to read local VERSION fixture"
@@ -231,13 +238,24 @@ func validateRemoteURL(raw string) (*url.URL, error) {
 		if parsed.Host != "" && !strings.EqualFold(parsed.Host, "localhost") {
 			return nil, errors.New("invalid update URL: remote file hosts are not allowed")
 		}
-		if parsed.Path == "" || !filepath.IsAbs(filepath.FromSlash(parsed.Path)) {
-			return nil, errors.New("invalid update URL: file fixture path must be absolute")
+		if _, err := localFilePath(parsed); err != nil {
+			return nil, err
 		}
 	default:
 		return nil, fmt.Errorf("unsafe update URL scheme: %q", parsed.Scheme)
 	}
 	return parsed, nil
+}
+
+func localFilePath(parsed *url.URL) (string, error) {
+	path := filepath.FromSlash(parsed.Path)
+	if goRuntime.GOOS == "windows" && len(path) >= 3 && (path[0] == '\\' || path[0] == '/') && path[2] == ':' {
+		path = path[1:]
+	}
+	if path == "" || !filepath.IsAbs(path) {
+		return "", errors.New("invalid update URL: file fixture path must be absolute")
+	}
+	return path, nil
 }
 
 func isLoopbackHost(host string) bool {

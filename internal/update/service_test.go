@@ -139,6 +139,7 @@ func TestGitCheckDetectsBehindUpstream(t *testing.T) {
 	runGitCommand(t, origin, "symbolic-ref", "HEAD", "refs/heads/main")
 
 	runGitCommand(t, baseDir, "clone", origin, clone)
+	configureTestGitIdentity(t, clone)
 	runGitCommand(t, clone, "branch", "--set-upstream-to=origin/main", "main")
 
 	if err := os.WriteFile(filepath.Join(seed, "README.md"), []byte("v2\n"), 0o644); err != nil {
@@ -224,6 +225,7 @@ func TestGitCheckDetectsDivergedHistory(t *testing.T) {
 	runGitCommand(t, origin, "symbolic-ref", "HEAD", "refs/heads/main")
 
 	runGitCommand(t, baseDir, "clone", origin, clone)
+	configureTestGitIdentity(t, clone)
 	runGitCommand(t, clone, "branch", "--set-upstream-to=origin/main", "main")
 
 	mustWriteRepoFile(t, filepath.Join(seed, "README.md"), "remote change\n")
@@ -734,8 +736,15 @@ func newTrackedRepo(t *testing.T) string {
 	runGitCommand(t, seed, "push", "-u", "origin", "main")
 	runGitCommand(t, origin, "symbolic-ref", "HEAD", "refs/heads/main")
 	runGitCommand(t, baseDir, "clone", origin, clone)
+	configureTestGitIdentity(t, clone)
 	runGitCommand(t, clone, "branch", "--set-upstream-to=origin/main", "main")
 	return clone
+}
+
+func configureTestGitIdentity(t *testing.T, repoRoot string) {
+	t.Helper()
+	runGitCommand(t, repoRoot, "config", "user.name", "agent47-test")
+	runGitCommand(t, repoRoot, "config", "user.email", "agent47@example.com")
 }
 
 func mustWriteRepoFile(t *testing.T, path string, body string) {

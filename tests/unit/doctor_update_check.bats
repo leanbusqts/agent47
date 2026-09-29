@@ -11,8 +11,10 @@ teardown() {
   teardown_workdir
 }
 
-@test "doctor update check warns when curl unavailable" {
+@test "doctor update check warns when no update source is available" {
   PATH="/usr/sbin:/sbin:/bin"
+  AGENT47_REPO_ROOT="$(make_test_repo_copy)"
+  export AGENT47_REPO_ROOT
   export AGENT47_VERSION_URL=""
   rm -f "$AGENT47_HOME/cache/update.cache"
   run "$ROOT_DIR/bin/afs" doctor --check-update-force
@@ -31,6 +33,8 @@ teardown() {
 
 @test "doctor update check warns when git and remote both fail" {
   PATH="/usr/sbin:/sbin:/bin"
+  AGENT47_REPO_ROOT="$(make_test_repo_copy)"
+  export AGENT47_REPO_ROOT
   unset AGENT47_VERSION_URL
   rm -f "$AGENT47_HOME/cache/update.cache"
   run "$ROOT_DIR/bin/afs" doctor --check-update-force

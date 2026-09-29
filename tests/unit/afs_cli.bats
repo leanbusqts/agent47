@@ -90,7 +90,7 @@ exit 0
 EOF
   chmod +x "$temp_repo/afs"
 
-  run "$temp_repo/bin/afs" help
+  run env -u AGENT47_REPO_CLI "$temp_repo/bin/afs" help
   [ "$status" -ne 0 ]
   assert_not_contains "$output" "implicit-fallback"
 }

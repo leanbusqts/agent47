@@ -85,6 +85,7 @@ func run(args []string) int {
 		"PATH="+filepath.Join(homeDir, "bin")+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"BATS_LIB_PATH="+filepath.Join(repoRoot, "tests", "helpers")+string(os.PathListSeparator)+filepath.Join(repoRoot, "tests"),
 		"AGENT47_STAGE_ROOT="+testTmpRoot,
+		"AGENT47_REPO_CLI="+testLauncher,
 		"TEST_TMP_ROOT="+testTmpRoot,
 		"TEST_AFS_LAUNCHER="+testLauncher,
 		"ROOT_DIR="+repoRoot,

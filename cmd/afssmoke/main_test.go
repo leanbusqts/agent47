@@ -92,6 +92,7 @@ func TestRunReturnsOneWhenCreateTempFails(t *testing.T) {
 func TestRunReturnsOneWhenPrepareHomeFails(t *testing.T) {
 	restoreSmokeHooks()
 	defer restoreSmokeHooks()
+	smokeOS = "darwin"
 	smokeGetwd = func() (string, error) { return "/repo", nil }
 	smokeDetectRepoRootFrom = func(string) (string, error) { return "/repo", nil }
 	smokeMkdirTemp = func(string, string) (string, error) { return t.TempDir(), nil }
