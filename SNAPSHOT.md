@@ -2,7 +2,7 @@
 
 ## Product
 
-- **Version:** 2.0.1
+- **Version:** 2.0.2
 - **Direction:** lightweight, vendor-neutral harness for agent-ready repositories
 - **Generated surface:** `AGENTS.md`, applicable known `rules/*.yaml`, and `.agent47/context.md`
 - **Public command count:** seven (`help`, `version`, `analyze`, `map`, `init`, `doctor`, `uninstall`)
@@ -18,7 +18,7 @@
 - Init creates missing project context inside its policy transaction and preserves existing context even during forced migration.
 - `afs init --force` migrates older scaffolds by replacing `rules/`, deleting `skills/` and `prompts/`, and removing the two known legacy task-spec files.
 - Init commits are confined to the opened repository and reject concurrent path/content changes; rollback never overwrites a later user edit.
-- Initialization is non-interactive: `--preview` inspects and its absence applies the displayed plan.
+- Initialization is non-interactive: `--preview` emits a `Preview`, while its absence emits and applies a `Plan`.
 - `afs doctor` verifies the installed executable and Lite template contract, supports versioned JSON output, and keeps update checks opt-in.
 - Installers publish only `afs` and clean up old helpers only when they are identifiable as managed artifacts.
 - Runtime ownership is explicit; unsafe homes are rejected and modified/unverified template backups survive uninstall.

@@ -107,7 +107,7 @@ Together, `AGENTS.md`, applicable `rules/*.yaml`, and `.agent47/context.md` form
 
 ### 5.2 Init
 
-`afs init` analyzes the current directory, resolves the selected bundles, prints a deterministic plan, and optionally applies it.
+`afs init` analyzes the current directory, resolves the selected bundles, prints a deterministic plan, and optionally applies it. Read-only runs label the output `Preview`; applying runs label it `Plan`.
 
 Plan groups are `create`, `update`, `keep`, and `remove`. The removal group is empty unless `--force` is supplied and legacy Agent47 content is present.
 

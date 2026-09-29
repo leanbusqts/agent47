@@ -76,7 +76,7 @@ func (r *Root) runInit(ctx context.Context, cfg runtime.Config, args []string) i
 		r.out.Err("%v", err)
 		return 1
 	}
-	printInitPreview(r, result, installSet, plan)
+	printInitPlan(r, result, installSet, plan, opts.Preview)
 	if opts.Preview {
 		return 0
 	}
@@ -135,8 +135,12 @@ func parseInitOptions(args []string, r *Root) (initOptions, resolve.Options, boo
 	return opts, resolveOpts, true
 }
 
-func printInitPreview(r *Root, result analyze.AnalysisResult, set resolve.InstallSet, plan initrepo.Plan) {
-	r.out.Printf("Preview\n")
+func printInitPlan(r *Root, result analyze.AnalysisResult, set resolve.InstallSet, plan initrepo.Plan, preview bool) {
+	heading := "Plan"
+	if preview {
+		heading = "Preview"
+	}
+	r.out.Printf("%s\n", heading)
 	r.out.Printf("  types: %s\n", summarizeProjectTypes(result.ProjectTypes))
 	r.out.Printf("  bundles: %s\n", strings.Join(set.Bundles, ", "))
 	printInitPlanGroup(r, "create", plan.Create)

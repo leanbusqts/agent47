@@ -1,6 +1,11 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [2.0.2] - 2026-09-29
+
+### Fixed
+- Distinguished read-only init output (`Preview`) from an applying init plan (`Plan`) so normal and forced initialization no longer appear to be dry runs.
+
 ## [2.0.1] - 2026-09-29
 
 ### Fixed

@@ -79,7 +79,7 @@ The generated `AGENTS.md` tells capable agents to run `afs map` before broad exp
 
 Existing managed files are kept unless `--force` is supplied. Existing `.agent47/context.md` is preserved even by `init --force`; use `afs map --force` for an explicitly authorized replacement. `afs init --force` is the migration path from older Agent47 scaffolds: it replaces the complete `rules/` namespace, removes `skills/` and `prompts/`, and removes the known legacy task files `specs/spec.yml` and `.agents/specs/spec.yml`. It preserves `README.md`, `SNAPSHOT.md`, root `SPEC.md`, other `.agents/` or `specs/` content, and every unrelated repository path.
 
-The command always prints a deterministic `create`/`update`/`keep`/`remove` plan before writing. `afs init` is deliberately non-interactive: use `--preview` to inspect the exact target list, then run the command without `--preview` to apply it. Forced cleanup and managed writes form one rollback flow; an error or cancellation restores staged legacy paths unless a concurrent edit makes restoration unsafe, in which case the recovery path is retained and reported.
+The command always prints a deterministic `create`/`update`/`keep`/`remove` plan before writing. Inspection runs are headed `Preview`; applying runs are headed `Plan`. `afs init` is deliberately non-interactive: use `--preview` to inspect the exact target list, then run the command without `--preview` to apply it. Forced cleanup and managed writes form one rollback flow; an error or cancellation restores staged legacy paths unless a concurrent edit makes restoration unsafe, in which case the recovery path is retained and reported.
 
 ```bash
 afs init --preview

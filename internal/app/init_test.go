@@ -22,8 +22,8 @@ func TestRunInitCreatesPolicyRulesAndGeneratedContext(t *testing.T) {
 	if status != 0 {
 		t.Fatalf("expected status 0, got %d: %s", status, stderr)
 	}
-	if !strings.Contains(stdout, "Preview") || !strings.Contains(stdout, "project-cli") {
-		t.Fatalf("expected resolved preview, got %s", stdout)
+	if !strings.HasPrefix(stdout, "[INFO] Analyzing repository...\nPlan\n") || !strings.Contains(stdout, "project-cli") {
+		t.Fatalf("expected resolved apply plan, got %s", stdout)
 	}
 	assertInitAppFileExists(t, filepath.Join(env.workDir, "AGENTS.md"))
 	assertInitAppFileExists(t, filepath.Join(env.workDir, "rules", "rules-cli.yaml"))
@@ -53,6 +53,9 @@ func TestRunInitForceReplacesLegacyCLIContent(t *testing.T) {
 	if status != 0 {
 		t.Fatalf("expected preview status 0, got %d: %s", status, stderr)
 	}
+	if !strings.HasPrefix(stdout, "[INFO] Analyzing repository...\nPreview\n") {
+		t.Fatalf("expected preview heading, got %s", stdout)
+	}
 	assertInitAppFileContains(t, filepath.Join(env.workDir, "rules", "unknown.yaml"), "unknown")
 	assertInitAppFileExists(t, filepath.Join(env.workDir, "skills", "legacy", "SKILL.md"))
 
@@ -60,12 +63,15 @@ func TestRunInitForceReplacesLegacyCLIContent(t *testing.T) {
 	if status != 0 {
 		t.Fatalf("expected status 0, got %d: %s", status, stderr)
 	}
+	if !strings.HasPrefix(stdout, "[INFO] Analyzing repository...\nPlan\n") {
+		t.Fatalf("expected apply plan heading, got %s", stdout)
+	}
 	if !strings.Contains(stdout, "  update:\n    AGENTS.md") {
-		t.Fatalf("expected update preview, got %s", stdout)
+		t.Fatalf("expected update plan, got %s", stdout)
 	}
 	for _, removed := range []string{".agents/specs/spec.yml", "prompts/", "rules/unknown.yaml", "skills/"} {
 		if !strings.Contains(stdout, removed) {
-			t.Fatalf("expected removal %s in preview, got %s", removed, stdout)
+			t.Fatalf("expected removal %s in plan, got %s", removed, stdout)
 		}
 	}
 	assertInitAppFileContains(t, filepath.Join(env.workDir, "AGENTS.md"), "[AG-001]")
@@ -151,6 +157,9 @@ func TestRunInitPreviewIsDeterministicAndNeverWrites(t *testing.T) {
 	}
 	if first != second {
 		t.Fatalf("preview and dry-run differ:\npreview:\n%s\ndry-run:\n%s", first, second)
+	}
+	if !strings.HasPrefix(first, "[INFO] Analyzing repository...\nPreview\n") {
+		t.Fatalf("expected preview heading, got %s", first)
 	}
 	if !strings.Contains(first, "  remove:\n    (none)") {
 		t.Fatalf("preview must include an empty removal group: %s", first)
