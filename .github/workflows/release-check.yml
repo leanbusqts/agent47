@@ -1,0 +1,35 @@
+name: Release check
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  metadata:
+    name: release metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Require successful CI for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count="$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --event push --status success --limit 1 --json databaseId --jq 'length')"
+          if [[ "$count" -lt 1 ]]; then
+            echo "no successful main CI run found for $GITHUB_SHA" >&2
+            exit 1
+          fi
+      - name: Validate tag and changelog
+        shell: bash
+        run: |
+          expected="v$(tr -d '\r\n' < VERSION)"
+          if [[ "$GITHUB_REF_NAME" != "$expected" ]]; then
+            echo "tag $GITHUB_REF_NAME does not match VERSION ($expected)" >&2
+            exit 1
+          fi
+          version="${expected#v}"
+          grep -Fq "## [$version]" CHANGELOG.md

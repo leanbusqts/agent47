@@ -3,6 +3,7 @@ package fsx
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -80,7 +81,7 @@ func TestWriteFileAtomicOverwritesAndPreservesMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o640 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o640 {
 		t.Fatalf("unexpected mode: %v", info.Mode().Perm())
 	}
 }
@@ -129,7 +130,7 @@ func TestCopyFilePreservesSourceMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o750 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o750 {
 		t.Fatalf("unexpected mode: %v", info.Mode().Perm())
 	}
 }

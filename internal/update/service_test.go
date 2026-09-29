@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -135,6 +136,7 @@ func TestGitCheckDetectsBehindUpstream(t *testing.T) {
 	runGitCommand(t, seed, "commit", "-m", "initial")
 	runGitCommand(t, seed, "branch", "-M", "main")
 	runGitCommand(t, seed, "push", "-u", "origin", "main")
+	runGitCommand(t, origin, "symbolic-ref", "HEAD", "refs/heads/main")
 
 	runGitCommand(t, baseDir, "clone", origin, clone)
 	runGitCommand(t, clone, "branch", "--set-upstream-to=origin/main", "main")
@@ -219,6 +221,7 @@ func TestGitCheckDetectsDivergedHistory(t *testing.T) {
 	runGitCommand(t, seed, "commit", "-m", "initial")
 	runGitCommand(t, seed, "branch", "-M", "main")
 	runGitCommand(t, seed, "push", "-u", "origin", "main")
+	runGitCommand(t, origin, "symbolic-ref", "HEAD", "refs/heads/main")
 
 	runGitCommand(t, baseDir, "clone", origin, clone)
 	runGitCommand(t, clone, "branch", "--set-upstream-to=origin/main", "main")
@@ -319,7 +322,7 @@ func TestRemoteCheckRejectsEmptyFileVersion(t *testing.T) {
 	}
 	service := New(cli.NewOutput(ioDiscard{}, ioDiscard{}))
 	rec := CacheRecord{LocalVersion: "1.2.3"}
-	err := service.remoteCheck(context.Background(), "file://"+versionFile, &rec)
+	err := service.remoteCheck(context.Background(), testFileURL(versionFile), &rec)
 	if err == nil {
 		t.Fatal("expected remote check failure for empty body")
 	}
@@ -729,6 +732,7 @@ func newTrackedRepo(t *testing.T) string {
 	runGitCommand(t, seed, "commit", "-m", "initial")
 	runGitCommand(t, seed, "branch", "-M", "main")
 	runGitCommand(t, seed, "push", "-u", "origin", "main")
+	runGitCommand(t, origin, "symbolic-ref", "HEAD", "refs/heads/main")
 	runGitCommand(t, baseDir, "clone", origin, clone)
 	runGitCommand(t, clone, "branch", "--set-upstream-to=origin/main", "main")
 	return clone
@@ -765,4 +769,12 @@ func runGitCommand(t *testing.T, dir string, args ...string) {
 	if err != nil {
 		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, string(output))
 	}
+}
+
+func testFileURL(path string) string {
+	path = filepath.ToSlash(path)
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return (&url.URL{Scheme: "file", Path: path}).String()
 }

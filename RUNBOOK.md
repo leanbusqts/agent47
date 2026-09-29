@@ -26,7 +26,7 @@ afs doctor
 ```
 
 The supported install entrypoints are `install.sh` and `install.ps1`; installation is not a public `afs` subcommand.
-Installing from a source checkout requires Go unless `AGENT47_GO_CLI` or `AGENT47_REPO_CLI` points to an explicit precompiled launcher.
+Installing from a source checkout requires Go 1.26 or newer unless `AGENT47_GO_CLI` or `AGENT47_REPO_CLI` points to an explicit precompiled launcher.
 
 ## Inspect a repository
 
@@ -133,15 +133,22 @@ Primary output goes to stdout. Diagnostics and failures go to stderr.
 
 ## Maintainer verification
 
+After a fresh Git clone, initialize the pinned Bats dependency:
+
+```bash
+git submodule update --init --recursive
+```
+
 ```bash
 make agents-check
 make rules-check
 make rules-drift-check
 make go-test
 make go-build
+make coverage
 make lint-shell
 make smoke-install
 make test
 ```
 
-Run `make test` before release. It includes policy/rule validation, checkout tests, and installed-artifact verification.
+Run `make test` and `make coverage` before release. The test target includes policy/rule validation, checkout tests, and installed-artifact verification; coverage enforces the same global and per-package floors as CI.

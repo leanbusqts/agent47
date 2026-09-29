@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/leanbusqts/agent47/internal/testutil"
@@ -83,7 +84,7 @@ func TestCopyFileCreatesParentDirectoryAndPreservesMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o600 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
 		t.Fatalf("unexpected permissions: %v", info.Mode().Perm())
 	}
 }

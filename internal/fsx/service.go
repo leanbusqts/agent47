@@ -220,6 +220,14 @@ func restoreDirectoryBackup(backupPath, targetPath string) error {
 }
 
 func replaceAtomicPath(srcPath, dstPath string) error {
+	if info, err := os.Lstat(dstPath); err == nil {
+		if info.IsDir() && info.Mode()&os.ModeSymlink == 0 {
+			return fmt.Errorf("destination path is a directory: %s", dstPath)
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
 	if goRuntime.GOOS != "windows" {
 		return os.Rename(srcPath, dstPath)
 	}

@@ -129,7 +129,7 @@ Supported project bundles are `frontend`, `backend`, `mobile`, `cli`, `scripts`,
 
 ## 6. Installation and maintenance
 
-`install.sh` and `install.ps1` are the public installation entrypoints. The installed payload includes one `afs` executable and the policy/rule templates. It does not publish helper commands.
+`install.sh` and `install.ps1` are the public installation entrypoints. Source installation requires Go 1.26 or newer unless an explicit precompiled launcher is supplied. The installed payload includes one `afs` executable and the policy/rule templates. It does not publish helper commands.
 
 `afs doctor` validates the executable, installed template manifest, required files/directories, rule/security templates, policy sections, PATH integration, and optional update state. `--json` emits a versioned machine-readable health report.
 
@@ -160,6 +160,7 @@ make rules-check
 make rules-drift-check
 make go-test
 make go-build
+make coverage
 make lint-shell
 make smoke-install
 make test

@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-// The syscall boundary is intentionally isolated in this file. Go 1.22 does
+// The syscall boundary is intentionally isolated in this file. Go 1.26 does
 // not expose linkat in syscall, while descriptor-relative links are required to
 // prevent a renamed parent directory from redirecting a transaction.
 

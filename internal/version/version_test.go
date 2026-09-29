@@ -40,9 +40,7 @@ func TestCurrentDoesNotReadCurrentWorkingDirectoryVersionWhenRepoRootIsEmpty(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		_ = os.Chdir(originalDir)
-	})
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	cwd := t.TempDir()
 	if err := os.WriteFile(filepath.Join(cwd, "VERSION"), []byte("cwd-version\n"), 0o644); err != nil {

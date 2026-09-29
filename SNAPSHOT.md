@@ -2,7 +2,7 @@
 
 ## Product
 
-- **Version:** 2.0.0
+- **Version:** 2.0.1
 - **Direction:** lightweight, vendor-neutral harness for agent-ready repositories
 - **Generated surface:** `AGENTS.md`, applicable known `rules/*.yaml`, and `.agent47/context.md`
 - **Public command count:** seven (`help`, `version`, `analyze`, `map`, `init`, `doctor`, `uninstall`)
@@ -44,4 +44,4 @@ Normal init preserves existing legacy content. Explicit `--force` removes the ol
 
 ## Verification
 
-The supported checks are `make test`, `make agents-check`, `make rules-check`, `make rules-drift-check`, `make go-test`, `make go-build`, `make lint-shell`, and `make smoke-install`.
+The supported checks are `make test`, `make agents-check`, `make rules-check`, `make rules-drift-check`, `make go-test`, `make go-build`, `make coverage`, `make lint-shell`, and `make smoke-install`. Source builds require Go 1.26 or newer, and fresh maintainer clones initialize the pinned Bats submodule.

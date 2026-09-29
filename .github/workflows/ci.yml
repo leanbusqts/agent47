@@ -2,14 +2,24 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   agents-check:
     name: agents-check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Validate AGENTS.md contract
         run: make agents-check
 
@@ -17,10 +27,10 @@ jobs:
     name: rules-check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: go.mod
+          go-version: '1.26.8'
       - name: Validate rules contract
         run: make rules-check
 
@@ -28,7 +38,7 @@ jobs:
     name: rules-drift-check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Validate canonical and template rule parity
         run: make rules-drift-check
 
@@ -40,10 +50,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: go.mod
+          go-version: '1.26.8'
       - name: Run go test
         run: go test ./...
 
@@ -51,41 +61,18 @@ jobs:
     name: coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: go.mod
-      - name: Check production coverage floor
-        run: |
-          production_packages=$(go list ./cmd/afs ./internal/...)
-          go test $production_packages -coverprofile=coverage.out
-          total=$(go tool cover -func=coverage.out | awk '/^total:/ { gsub("%","",$3); print $3 }')
-          echo "total coverage: ${total}%"
-          awk -v total="$total" 'BEGIN { exit !(total+0 >= 80) }'
-      - name: Check package coverage floors
-        run: |
-          failed=0
-          for pkg in $(go list ./cmd/afs ./internal/...); do
-            output=$(go test -cover "$pkg" 2>&1)
-            echo "$output"
-            coverage=$(printf '%s\n' "$output" | awk '/coverage: .* of statements/ { gsub("%","",$5); print $5 }' | tail -n 1)
-            if [ -z "$coverage" ]; then
-              continue
-            fi
-            awk -v coverage="$coverage" -v pkg="$pkg" 'BEGIN {
-              if (coverage+0 < 65) {
-                printf("package coverage below floor: %s (%s%%)\n", pkg, coverage) > "/dev/stderr"
-                exit 1
-              }
-            }' || failed=1
-          done
-          exit "$failed"
+          go-version: '1.26.8'
+      - name: Check coverage floors
+        run: make coverage
 
   lint-shell:
     name: lint-shell
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Run shell lint
@@ -97,12 +84,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          go-version-file: go.mod
+          submodules: recursive
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.26.8'
       - name: Run checkout test suite
         run: go run ./cmd/afstest
 
@@ -114,10 +103,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: go.mod
+          go-version: '1.26.8'
       - name: Verify installed artifact flows
         run: go run ./cmd/afsverify
 
@@ -129,9 +118,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version-file: go.mod
+          go-version: '1.26.8'
       - name: Run smoke install
         run: go run ./cmd/afssmoke

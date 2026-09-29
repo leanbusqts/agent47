@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/leanbusqts/agent47/internal/analyze"
@@ -221,7 +222,9 @@ func assertGoldenOutput(t *testing.T, name string, got string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != string(data) {
+	want := strings.ReplaceAll(string(data), "\r\n", "\n")
+	got = strings.ReplaceAll(got, "\r\n", "\n")
+	if got != want {
 		t.Fatalf("golden mismatch for %s\nwant:\n%s\ngot:\n%s", name, string(data), got)
 	}
 }

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
+	"regexp"
 	"testing"
 
 	"github.com/leanbusqts/agent47/internal/analyze"
@@ -150,6 +152,88 @@ func TestBuildHonorsCancellation(t *testing.T) {
 	_, err := Build(ctx, t.TempDir(), analyze.AnalysisResult{}, BuildOptions{})
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected cancellation, got %v", err)
+	}
+}
+
+func TestSourceLanguagesAndManifestKinds(t *testing.T) {
+	languages := map[string]string{
+		"main.go": "go", "app.tsx": "javascript/typescript", "tool.py": "python",
+		"lib.rs": "rust", "App.swift": "swift", "Main.kt": "java/kotlin",
+		"Program.cs": "csharp", "native.cpp": "c/cpp", "task.rb": "ruby",
+		"index.php": "php", "worker.exs": "elixir", "main.dart": "dart",
+		"install.sh": "shell", "README.md": "",
+	}
+	for path, want := range languages {
+		if got := sourceLanguage(path); got != want {
+			t.Errorf("sourceLanguage(%q)=%q, want %q", path, got, want)
+		}
+	}
+
+	manifests := map[string]string{
+		"go.mod": "Go module", "go.work": "Go workspace", "package.json": "Node package/workspace",
+		"pnpm-workspace.yaml": "pnpm workspace", "pyproject.toml": "Python project",
+		"Cargo.toml": "Rust package/workspace", "Package.swift": "Swift package",
+		"pom.xml": "Maven project", "build.gradle.kts": "Gradle project",
+		"composer.json": "PHP package", "Gemfile": "Ruby project", "mix.exs": "Elixir project",
+		"pubspec.yaml": "Dart package", "tool.csproj": "C# project", "tool.sln": "C# solution",
+		"README.md": "",
+	}
+	for path, want := range manifests {
+		if got := packageManifestKind(path); got != want {
+			t.Errorf("packageManifestKind(%q)=%q, want %q", path, got, want)
+		}
+	}
+}
+
+func TestTechnologyInventoryEvidence(t *testing.T) {
+	cases := map[string]string{
+		"go": "cmd/main.go", "node": "package.json", "typescript": "src/app.ts",
+		"react": "src/app.tsx", "tailwind": "tailwind.config.js", "java-kotlin": "build.gradle.kts",
+		"swift": "Package.swift", "python": "pyproject.toml", "csharp": "src/App.csproj",
+		"shell": "install.sh", "infra": "terraform/main.tf", "workspace-tooling": "apps/web/package.json",
+		"desktop-runtime": "src-tauri/tauri.conf.json", "plugin-hosting": ".codex-plugin/plugin.json",
+		"vitest": "vitest.config.ts", "jest": "jest.config.js", "playwright": "playwright.config.ts",
+		"cypress": "cypress.config.ts", "go-test": "service_test.go", "bats": "tests/unit/cli.bats",
+	}
+	for technology, path := range cases {
+		if !technologyHasInventoryEvidence(technology, map[string]bool{path: true}) {
+			t.Errorf("expected inventory evidence for %s from %s", technology, path)
+		}
+	}
+	if technologyHasInventoryEvidence("go", map[string]bool{"README.md": true}) {
+		t.Fatal("unexpected Go evidence from README")
+	}
+	if !technologyHasInventoryEvidence("future-tool", nil) {
+		t.Fatal("unknown technologies should remain visible")
+	}
+}
+
+func TestRelationshipAndPackageParsingHelpers(t *testing.T) {
+	pattern := regexp.MustCompile(`(?:from|import)\s+["']([^"']+)["']`)
+	got := regexpMatches(pattern, []byte(`import "./local"; import "../bad"; import "./local"`))
+	if !reflect.DeepEqual(got, []string{"../bad", "./local"}) {
+		t.Fatalf("unexpected imports: %v", got)
+	}
+	for value, want := range map[string]bool{"./local": true, "pkg/name": true, "../bad": true, "": false, ".": false, "a//b": false} {
+		if got := safeImportSpec(value); got != want {
+			t.Errorf("safeImportSpec(%q)=%v, want %v", value, got, want)
+		}
+	}
+
+	states := map[string]*componentState{".": {}, "src": {}, "src/lib": {}, "pkg": {}}
+	if got := resolveRelativeComponent(sourceFile{Dir: "src", Language: "javascript/typescript"}, "./lib/tool.ts", states); got != "src/lib" {
+		t.Fatalf("unexpected JS relationship: %q", got)
+	}
+	if got := resolveRelativeComponent(sourceFile{Dir: "pkg/api", Language: "python"}, "..models", states); got != "pkg" {
+		t.Fatalf("unexpected Python relationship: %q", got)
+	}
+
+	commands := packageCommands([]byte(`{"packageManager":"pnpm@10","scripts":{"test":"vitest","build":"tsc","clean":"rm -rf dist","bad/name":"x"}}`), "package.json")
+	if len(commands) != 2 {
+		t.Fatalf("unexpected package commands: %+v", commands)
+	}
+	if got := packageCommands([]byte(`not-json`), "package.json"); got != nil {
+		t.Fatalf("expected invalid JSON to be ignored, got %+v", got)
 	}
 }
 

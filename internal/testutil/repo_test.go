@@ -3,6 +3,8 @@ package testutil
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -47,11 +49,13 @@ func TestDetectRepoRootUsesCurrentWorkingDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := filepath.EvalSymlinks(repoRoot)
-	if err != nil {
-		want = repoRoot
+	want := canonicalTestPath(repoRoot)
+	got = canonicalTestPath(got)
+	equal := got == want
+	if runtime.GOOS == "windows" {
+		equal = strings.EqualFold(got, want)
 	}
-	if got != want {
+	if !equal {
 		t.Fatalf("expected repo root %s, got %s", repoRoot, got)
 	}
 }
@@ -89,6 +93,16 @@ func TestFileExistsDistinguishesFilesAndDirectories(t *testing.T) {
 	if FileExists(root) {
 		t.Fatalf("did not expect directory to count as file: %s", root)
 	}
+}
+
+func canonicalTestPath(path string) string {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
+	if absolute, err := filepath.Abs(path); err == nil {
+		path = absolute
+	}
+	return filepath.Clean(path)
 }
 
 func mustWriteTestutilFile(t *testing.T, path string, body string) {

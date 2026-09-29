@@ -54,9 +54,11 @@ func run() int {
 		agentHome = filepath.Join(homeDir, "AppData", "Local", "agent47")
 		userBinDir = filepath.Join(agentHome, "bin")
 	}
-	if err := smokeMkdirAll(userBinDir, 0o755); err != nil {
-		fmt.Fprintf(smokeStderr, "[ERR] failed to prepare smoke home: %v\n", err)
-		return 1
+	if smokeOS != "windows" {
+		if err := smokeMkdirAll(userBinDir, 0o755); err != nil {
+			fmt.Fprintf(smokeStderr, "[ERR] failed to prepare smoke home: %v\n", err)
+			return 1
+		}
 	}
 
 	env := append(os.Environ(),

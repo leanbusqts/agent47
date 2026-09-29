@@ -1,6 +1,20 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [2.0.1] - 2026-09-29
+
+### Fixed
+- Restored the pinned Bats submodule contract so clean checkouts can run the shell test suite.
+- Made Git update fixtures independent of the host's default branch and made file URLs, path comparisons, golden output, permissions, and temporary working-directory tests portable on Windows.
+- Stopped Windows smoke and installed-artifact fixtures from pre-creating an unowned runtime home, preserving the installer's ownership boundary while allowing clean installs.
+- Rejected atomic file replacement when the destination is a directory on every platform.
+- Raised the source-build baseline to Go 1.26 so binaries run on current macOS ARM64 runners without the obsolete-linker `LC_UUID` failure.
+
+### Changed
+- Added a reproducible `make coverage` gate, expanded CodeGraph Lite helper coverage, and kept the 80% global and 65% per-package floors.
+- Limited full CI to `main`, pull requests targeting `main`, and manual runs; release tags now receive a focused tag/version/changelog consistency check instead of duplicating the full matrix.
+- Kept Bats checkout tests on Unix runners while retaining Go and installed-lifecycle coverage on Windows.
+
 ## [2.0.0] - 2026-09-28
 
 ### Added

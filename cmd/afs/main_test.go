@@ -23,10 +23,8 @@ func TestRunRestoresCallerDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		os.Args = originalArgs
-		_ = os.Chdir(originalDir)
-	})
+	defer func() { _ = os.Chdir(originalDir) }()
+	t.Cleanup(func() { os.Args = originalArgs })
 
 	callerDir := t.TempDir()
 	otherDir := filepath.Join(t.TempDir(), "repo")

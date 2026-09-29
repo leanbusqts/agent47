@@ -98,8 +98,10 @@ func newInstalledEnv(repoRoot string) (*installedEnv, error) {
 		agentHome = filepath.Join(localAppData, "agent47")
 		userBinDir = filepath.Join(agentHome, "bin")
 	}
-	if err := os.MkdirAll(userBinDir, 0o755); err != nil {
-		return nil, err
+	if afsverifyOS != "windows" {
+		if err := os.MkdirAll(userBinDir, 0o755); err != nil {
+			return nil, err
+		}
 	}
 	return &installedEnv{
 		repoRoot: repoRoot, tempRoot: tempRoot, homeDir: homeDir,

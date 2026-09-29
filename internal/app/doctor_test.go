@@ -113,7 +113,7 @@ func TestRunDoctorCheckUpdateUsesRemoteVersion(t *testing.T) {
 
 	t.Setenv("PATH", "/usr/bin:/bin")
 	t.Setenv("AGENT47_ENABLE_TEST_HOOKS", "true")
-	t.Setenv("AGENT47_VERSION_URL", "file://"+filepath.Join(repoRoot, "VERSION"))
+	t.Setenv("AGENT47_VERSION_URL", testFileURL(filepath.Join(repoRoot, "VERSION")))
 	if err := os.WriteFile(filepath.Join(repoRoot, "VERSION"), []byte("vtest\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

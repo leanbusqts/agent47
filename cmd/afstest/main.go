@@ -195,7 +195,7 @@ func resolveBatsBin(repoRoot, testTmpRoot string) (string, error) {
 		return filepath.Join(tempBatsRoot, "bin", "bats"), nil
 	}
 
-	return "", fmt.Errorf("bats not found. Set BATS_BIN, install bats on PATH, or restore tests/vendor/bats")
+	return "", fmt.Errorf("bats not found. Set BATS_BIN, install bats on PATH, or run git submodule update --init --recursive")
 }
 
 func collectTestPaths(repoRoot string, args []string) ([]string, error) {

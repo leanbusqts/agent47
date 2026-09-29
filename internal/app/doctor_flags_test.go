@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	goRuntime "runtime"
 	"strings"
 	"testing"
 
@@ -21,9 +22,16 @@ func TestRunDoctorAllowsCombinedFlags(t *testing.T) {
 	}
 
 	homeDir := filepath.Join(baseDir, "home")
-	templateDir := filepath.Join(homeDir, ".agent47", "templates")
-	managedBinDir := filepath.Join(homeDir, ".agent47", "bin")
+	agentHome := filepath.Join(homeDir, ".agent47")
 	userBinDir := filepath.Join(homeDir, "bin")
+	binaryName := "afs"
+	if goRuntime.GOOS == "windows" {
+		agentHome = filepath.Join(homeDir, "AppData", "Local", "agent47")
+		userBinDir = filepath.Join(agentHome, "bin")
+		binaryName = "afs.exe"
+	}
+	templateDir := filepath.Join(agentHome, "templates")
+	managedBinDir := filepath.Join(agentHome, "bin")
 	if err := os.MkdirAll(templateDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -37,32 +45,33 @@ func TestRunDoctorAllowsCombinedFlags(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	managedAfs := filepath.Join(managedBinDir, "afs")
+	managedAfs := filepath.Join(managedBinDir, binaryName)
 	if err := os.WriteFile(managedAfs, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"afs"} {
-		if err := os.Symlink(managedAfs, filepath.Join(userBinDir, name)); err != nil {
+	if goRuntime.GOOS != "windows" {
+		if err := os.Symlink(managedAfs, filepath.Join(userBinDir, binaryName)); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	t.Setenv("PATH", userBinDir)
 	t.Setenv("AGENT47_ENABLE_TEST_HOOKS", "true")
-	t.Setenv("AGENT47_VERSION_URL", "file://"+filepath.Join(repoRoot, "VERSION"))
+	t.Setenv("AGENT47_VERSION_URL", testFileURL(filepath.Join(repoRoot, "VERSION")))
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	root := NewRoot(cli.NewOutput(&stdout, &stderr))
 
 	cfg := runtime.Config{
+		OS:              goRuntime.GOOS,
 		Version:         "vtest",
 		TemplateMode:    runtime.TemplateModeFilesystem,
 		RepoRoot:        repoRoot,
 		HomeDir:         homeDir,
 		UserBinDir:      userBinDir,
-		Agent47Home:     filepath.Join(homeDir, ".agent47"),
-		UpdateCacheFile: filepath.Join(homeDir, ".agent47", "cache", "update.cache"),
+		Agent47Home:     agentHome,
+		UpdateCacheFile: filepath.Join(agentHome, "cache", "update.cache"),
 	}
 	status := root.Run(context.Background(), cfg, []string{"doctor", "--check-update", "--fail-on-warn"})
 	if status != 0 {

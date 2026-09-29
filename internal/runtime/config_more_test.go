@@ -122,7 +122,11 @@ func TestDetectConfigUsesAbsoluteExecutablePathAndUserBin(t *testing.T) {
 	if cfg.ExecutablePath != filepath.Join(repoRoot, "bin", "afs") {
 		t.Fatalf("expected absolute executable path, got %s", cfg.ExecutablePath)
 	}
-	if cfg.UserBinDir != filepath.Join(cfg.HomeDir, "bin") {
+	wantUserBin := filepath.Join(cfg.HomeDir, "bin")
+	if platform.IsWindows() {
+		wantUserBin = filepath.Join(cfg.Agent47Home, "bin")
+	}
+	if cfg.UserBinDir != wantUserBin {
 		t.Fatalf("unexpected user bin dir: %s", cfg.UserBinDir)
 	}
 }
@@ -178,6 +182,7 @@ func TestDetectConfigRejectsUnsafeAgent47HomeAtHomeDir(t *testing.T) {
 	t.Setenv("AGENT47_REPO_ROOT", repoRoot)
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
+	t.Setenv("USERPROFILE", homeDir)
 	t.Setenv("AGENT47_HOME", homeDir)
 
 	if _, err := DetectConfig(filepath.Join(repoRoot, "bin", "afs")); err == nil {

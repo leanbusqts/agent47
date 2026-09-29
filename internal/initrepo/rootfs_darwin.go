@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-// The syscall boundary is intentionally isolated in this file. Go 1.22 does
+// The syscall boundary is intentionally isolated in this file. Go 1.26 does
 // not expose the Darwin *at calls, while descriptor-relative operations are
 // required to keep repository writes confined during directory swaps.
 

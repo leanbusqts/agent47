@@ -1,6 +1,6 @@
-.PHONY: test agents-check rules-check rules-drift-check test-checkout test-installed go-test go-build lint-shell smoke-install clean-test vendor-clean
+.PHONY: test agents-check rules-check rules-drift-check test-checkout test-installed go-test go-build coverage lint-shell smoke-install clean-test vendor-clean
 
-# Run the CLI test suite (auto-installs a temporary bats copy from tests/vendor when needed)
+# Run the CLI test suite (uses BATS_BIN/PATH or the initialized tests/vendor/bats submodule)
 test:
 	@bash scripts/check-agents-md.sh
 	@bash scripts/check-rules-drift.sh
@@ -28,6 +28,27 @@ go-test:
 
 go-build:
 	GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}" GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}" go build ./cmd/afs
+
+coverage:
+	@set -eu; \
+	export GOCACHE="$${GOCACHE:-/tmp/agent47-go-build-cache}"; \
+	export GOMODCACHE="$${GOMODCACHE:-/tmp/agent47-go-mod-cache}"; \
+	profile="$$(mktemp "$${TMPDIR:-/tmp}/agent47-coverage.XXXXXX")"; \
+	trap 'rm -f "$$profile"' EXIT INT TERM; \
+	packages="$$(go list ./cmd/afs ./internal/...)"; \
+	go test $$packages -coverprofile="$$profile"; \
+	total="$$(go tool cover -func="$$profile" | awk '/^total:/ { gsub("%","",$$3); print $$3 }')"; \
+	echo "total coverage: $${total}%"; \
+	awk -v total="$$total" 'BEGIN { exit !(total+0 >= 80) }'; \
+	failed=0; \
+	for pkg in $$packages; do \
+		output="$$(go test -cover "$$pkg" 2>&1)"; \
+		echo "$$output"; \
+		coverage="$$(printf '%s\n' "$$output" | awk '/coverage: .* of statements/ { gsub("%","",$$5); print $$5 }' | tail -n 1)"; \
+		if [ -z "$$coverage" ]; then continue; fi; \
+		awk -v coverage="$$coverage" -v pkg="$$pkg" 'BEGIN { if (coverage+0 < 65) { printf("package coverage below floor: %s (%s%%)\n", pkg, coverage) > "/dev/stderr"; exit 1 } }' || failed=1; \
+	done; \
+	exit "$$failed"
 
 lint-shell:
 	./scripts/lint-shell
