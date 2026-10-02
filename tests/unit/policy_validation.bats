@@ -37,7 +37,10 @@ make_policy_fixture() {
     "**SOLID:**" \
     "composition over inheritance" \
     "least surprise" \
-    "optimize only with evidence"; do
+    "optimize only with evidence" \
+    "**Proportionality / JEDUF:**" \
+    "**Two-way doors / Last Responsible Moment:**" \
+    "**Definition of Done:**"; do
     run grep -F "$principle" "$ROOT_DIR/AGENTS.md"
     assert_success
   done

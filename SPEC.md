@@ -22,7 +22,7 @@ The generated contract contains:
 
 `AGENTS.md` and rules are stable policy. `.agent47/context.md` is repository-specific evidence, is safe to version, and is never authoritative over source or policy. It is generated rather than copied from a template.
 
-The generated policy's canonical cross-stack design guidance lives in [`AGENTS.md` Engineering Principles](AGENTS.md#engineering-principles).
+The generated policy's canonical cross-stack design and decision-discipline guidance lives in [`AGENTS.md` Engineering Principles](AGENTS.md#engineering-principles).
 
 The following are outside the generated contract:
 

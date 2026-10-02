@@ -1,6 +1,11 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [2.0.4] - 2026-10-01
+
+### Changed
+- Added proportional analysis, reversible-decision, and completion-boundary guardrails so agents stop exploring hypothetical alternatives once a compliant path is clear and do not expand completed tasks into unrelated work.
+
 ## [2.0.3] - 2026-10-01
 
 ### Changed

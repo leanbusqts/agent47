@@ -1,7 +1,7 @@
 # AGENTS.md
 
 <!--
-agents-md: { version: 7, last_updated: "2026-10-01", schema_version: 1, owner: platform-policy, review_cadence: quarterly, applies_to: "/Users/leanbusqts/Develops/agent47/", mirror: "/Users/leanbusqts/Develops/agent47/templates/base/AGENTS.md", max_lines: 200, target_lines: 180 }
+agents-md: { version: 8, last_updated: "2026-10-01", schema_version: 1, owner: platform-policy, review_cadence: quarterly, applies_to: "/Users/leanbusqts/Develops/agent47/", mirror: "/Users/leanbusqts/Develops/agent47/templates/base/AGENTS.md", max_lines: 200, target_lines: 180 }
 -->
 
 ## Purpose
@@ -94,6 +94,9 @@ Forbidden to assume an `afs` subcommand outside `SPEC.md` §3. The non-goals in 
 - **SOLID:** keep units focused and boundaries explicit; introduce abstractions for demonstrated variants or extension needs, not by default. [AG-223]
 - Prefer composition over inheritance, and preserve the established architecture unless the scoped change justifies a migration. [AG-224]
 - Preserve least surprise: follow repository conventions, make side effects and contracts explicit, and optimize only with evidence. [AG-225]
+- **Proportionality / JEDUF:** scale analysis, design, review, and verification to task risk, scope, reversibility, and blast radius; once a compliant path is clear, implement it without skipping required checks or approvals. [AG-226]
+- **Two-way doors / Last Responsible Moment:** prefer small, reversible steps and defer irreversible decisions until necessary; for security, data, migrations, or other one-way doors, make impact, evidence, and rollback explicit. [AG-227]
+- **Definition of Done:** finish when requested behavior, scoped documentation, and required verification are complete; do not expand the task into unrelated cleanup or hypothetical improvements. [AG-228]
 
 ## Filesystem And Approval Boundaries
 

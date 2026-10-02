@@ -2,7 +2,7 @@
 
 ## Product
 
-- **Version:** 2.0.3
+- **Version:** 2.0.4
 - **Direction:** lightweight, vendor-neutral harness for agent-ready repositories
 - **Generated surface:** `AGENTS.md`, applicable known `rules/*.yaml`, and `.agent47/context.md`
 - **Public command count:** seven (`help`, `version`, `analyze`, `map`, `init`, `doctor`, `uninstall`)
@@ -10,7 +10,7 @@
 ## Current behavior
 
 - `afs analyze` detects project types, technologies, bundles, and rules without writing.
-- Generated policy applies SOLID, DRY, KISS, YAGNI, composition over inheritance, least surprise, and evidence-based optimization pragmatically.
+- Generated policy combines pragmatic engineering principles with proportionate analysis, reversible decision-making, and an explicit completion boundary.
 - `afs analyze --deep` audits project-local agent policy and repository readiness with stable findings and bounded, secret-safe traversal.
 - Deep drift checks ignore historical/rejected contracts and non-literal path patterns while retaining explicit truncation evidence.
 - `afs map` maintains a deterministic, bounded CodeGraph Lite with components, entrypoints, direct local relationships, tests, policies, manifests, and allow-listed verification commands.
