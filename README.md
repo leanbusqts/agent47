@@ -67,7 +67,7 @@ afs analyze --deep --json
 
 Freshness is built into the command. Generated metadata stores a structural fingerprint and a body hash: an unchanged map is a no-op, structural or renderer changes update an unmodified map, and manual or unrecognized content requires explicit `afs map --force`. No watcher, daemon, hook, `--preview`, or separate freshness command is involved.
 
-The generated `AGENTS.md` tells capable agents to run `afs map` before broad exploration for non-trivial code tasks and again after structural changes. Trivial tasks skip it. Without terminal access or an available `afs`, agents use the existing map with a stale-context warning. Source and policy always override the generated context.
+The generated `AGENTS.md` tells capable agents to run `afs map` before broad exploration for non-trivial code tasks and again after structural changes. Trivial tasks skip it. Without terminal access or an available `afs`, agents use the existing map with a stale-context warning. Source and policy always override the generated context. Cross-stack design guidance lives in the canonical [Engineering Principles](AGENTS.md#engineering-principles) section.
 
 ## Init
 

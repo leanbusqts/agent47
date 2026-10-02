@@ -1,6 +1,11 @@
 # CHANGELOG
 ## [Unreleased]
 
+## [2.0.3] - 2026-10-01
+
+### Changed
+- Restored a compact, pragmatic engineering-principles contract to generated `AGENTS.md` policies, covering SOLID, DRY, KISS, YAGNI, composition over inheritance, least surprise, and evidence-based optimization.
+
 ## [2.0.2] - 2026-09-29
 
 ### Fixed

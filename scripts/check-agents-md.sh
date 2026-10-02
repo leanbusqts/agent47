@@ -38,8 +38,8 @@ fi
 lines=$(wc -l < AGENTS.md | tr -d ' ')
 if [ "$lines" -gt 200 ]; then
   fail "AGENTS.md is $lines lines, hard cap is 200."
-elif [ "$lines" -gt 170 ]; then
-  warn "AGENTS.md is $lines lines (target ~170, soft cap 170)."
+elif [ "$lines" -gt 180 ]; then
+  warn "AGENTS.md is $lines lines (target ~180, soft cap 180)."
 fi
 
 if command -v python3 >/dev/null 2>&1; then
@@ -85,6 +85,7 @@ required_sections=(
   "Context Efficiency"
   "Repository Context"
   "Execution"
+  "Engineering Principles"
   "Filesystem And Approval Boundaries"
   "Approval And Severity"
   "Security Expectations"
@@ -109,8 +110,9 @@ if [ -n "$dupes" ]; then
 fi
 
 section_count=$(grep -cE '^## ' AGENTS.md || true)
-if [ "$section_count" -ne 19 ]; then
-  fail "expected 19 section headings, found $section_count."
+expected_section_count=${#required_sections[@]}
+if [ "$section_count" -ne "$expected_section_count" ]; then
+  fail "expected $expected_section_count section headings, found $section_count."
 fi
 
 # shellcheck disable=SC2016

@@ -96,6 +96,8 @@ afs init --force
 
 Without `--force`, existing `AGENTS.md`, rules, and legacy content are kept. Init creates `.agent47/context.md` when missing and includes it in the same rollback-capable transaction; both normal and forced init preserve any existing copy. `--force` is destructive only toward the legacy contract: it replaces all of `rules/`, removes `skills/` and `prompts/`, and removes `specs/spec.yml` plus `.agents/specs/spec.yml`. Run `afs init --force --preview` first when the repository may contain custom content in those paths. README, `SNAPSHOT.md`, root `SPEC.md`, other `.agents/` or `specs/` files, existing project context, and unrelated paths remain untouched. Preview also reports nested-policy, vendor-policy, and composition warnings. Apply revalidates identity and content; failure or cancellation restores staged paths when safe and retains/reports recovery backups on a concurrent-edit conflict.
 
+The installed policy's canonical cross-stack design guidance lives in [Engineering Principles](AGENTS.md#engineering-principles); operational documentation does not duplicate it.
+
 Initialization is non-interactive. `--preview` never writes; running without it applies the displayed plan. `--dry-run` is a compatibility alias for `--preview` but is omitted from help.
 
 ## Diagnose the installation

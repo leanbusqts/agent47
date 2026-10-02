@@ -5,6 +5,15 @@ load ../helpers/common
 setup() { setup_workdir; }
 teardown() { teardown_workdir; }
 
+make_policy_fixture() {
+  local fixture="$TEST_WORKDIR/policy-fixture"
+  mkdir -p "$fixture/scripts" "$fixture/templates/base"
+  cp "$ROOT_DIR/AGENTS.md" "$fixture/AGENTS.md"
+  cp "$ROOT_DIR/templates/base/AGENTS.md" "$fixture/templates/base/AGENTS.md"
+  cp "$ROOT_DIR/scripts/check-agents-md.sh" "$fixture/scripts/check-agents-md.sh"
+  printf '%s\n' "$fixture"
+}
+
 @test "root and base AGENTS policies stay identical" {
   run diff -q "$ROOT_DIR/AGENTS.md" "$ROOT_DIR/templates/base/AGENTS.md"
   assert_success
@@ -18,6 +27,20 @@ teardown() { teardown_workdir; }
 @test "Lite policy includes the approved language rule" {
   run grep -F "Use the strongest internal reasoning language available. Default to English for technical tasks. Preserve output language as requested by the user." "$ROOT_DIR/AGENTS.md"
   assert_success
+}
+
+@test "Lite policy declares pragmatic engineering principles" {
+  for principle in \
+    "## Engineering Principles" \
+    "**KISS / YAGNI:**" \
+    "**DRY:**" \
+    "**SOLID:**" \
+    "composition over inheritance" \
+    "least surprise" \
+    "optimize only with evidence"; do
+    run grep -F "$principle" "$ROOT_DIR/AGENTS.md"
+    assert_success
+  done
 }
 
 @test "removed skills prompts and task-spec templates are absent" {
@@ -73,4 +96,30 @@ teardown() { teardown_workdir; }
 @test "policy checker passes" {
   run bash -c 'cd "$1" && bash scripts/check-agents-md.sh' _ "$ROOT_DIR"
   assert_success
+}
+
+@test "policy checker rejects a missing engineering principles section" {
+  fixture="$(make_policy_fixture)"
+  for policy in "$fixture/AGENTS.md" "$fixture/templates/base/AGENTS.md"; do
+    awk '
+      /^## Engineering Principles$/ { skip = 1 }
+      /^## Filesystem And Approval Boundaries$/ { skip = 0 }
+      !skip { print }
+    ' "$policy" > "$policy.tmp"
+    mv "$policy.tmp" "$policy"
+  done
+
+  run bash -c 'cd "$1" && bash scripts/check-agents-md.sh' _ "$fixture"
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "required section '## Engineering Principles' missing"
+}
+
+@test "policy checker rejects an unexpected section heading" {
+  fixture="$(make_policy_fixture)"
+  printf '\n## Unexpected Section\n' >> "$fixture/AGENTS.md"
+  printf '\n## Unexpected Section\n' >> "$fixture/templates/base/AGENTS.md"
+
+  run bash -c 'cd "$1" && bash scripts/check-agents-md.sh' _ "$fixture"
+  [ "$status" -ne 0 ]
+  assert_contains "$output" "expected 20 section headings, found 21"
 }

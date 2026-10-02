@@ -1,7 +1,7 @@
 # AGENTS.md
 
 <!--
-agents-md: { version: 6, last_updated: "2026-09-28", schema_version: 1, owner: platform-policy, review_cadence: quarterly, applies_to: "/Users/leanbusqts/Develops/agent47/", mirror: "/Users/leanbusqts/Develops/agent47/templates/base/AGENTS.md", max_lines: 200, target_lines: 170 }
+agents-md: { version: 7, last_updated: "2026-10-01", schema_version: 1, owner: platform-policy, review_cadence: quarterly, applies_to: "/Users/leanbusqts/Develops/agent47/", mirror: "/Users/leanbusqts/Develops/agent47/templates/base/AGENTS.md", max_lines: 200, target_lines: 180 }
 -->
 
 ## Purpose
@@ -85,6 +85,15 @@ Forbidden to assume an `afs` subcommand outside `SPEC.md` §3. The non-goals in 
 - Multi-agent for tasks that are complex, multi-file, ambiguous, or multi-domain (backend+frontend, security+docs, Android+iOS). Roles: implementer, reviewer, tester, security reviewer, doc editor. One agent owns the final synthesis. [AG-212]
 - Review is an independent quality check, not a restatement. Without a multi-agent runtime, emulate the implement-phase / review-phase split. [AG-215]
 - Do not use multi-agent when the overhead does not improve outcome quality. [AG-217]
+
+## Engineering Principles
+
+- Apply these principles pragmatically; repository evidence, current requirements, and simpler designs take precedence over ceremonial patterns. [AG-220]
+- **KISS / YAGNI:** implement the simplest design that fully meets current requirements; do not add speculative layers, flags, hooks, or extension points. [AG-221]
+- **DRY:** remove duplication when the shared concept is stable and obvious; prefer limited local duplication over premature or misleading abstractions. [AG-222]
+- **SOLID:** keep units focused and boundaries explicit; introduce abstractions for demonstrated variants or extension needs, not by default. [AG-223]
+- Prefer composition over inheritance, and preserve the established architecture unless the scoped change justifies a migration. [AG-224]
+- Preserve least surprise: follow repository conventions, make side effects and contracts explicit, and optimize only with evidence. [AG-225]
 
 ## Filesystem And Approval Boundaries
 
